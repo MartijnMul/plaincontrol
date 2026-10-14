@@ -10,11 +10,19 @@ struct SessionMenu: View {
             Text(problem)
             Divider()
         }
+        if let jumpProblem = store.jumpProblem {
+            Text(jumpProblem)
+            Divider()
+        }
         if store.sessions.isEmpty {
             Text("No Claude Code sessions")
         } else {
+            // Sessions in a terminal Plaincontrol cannot drive yet are shown, but disabled.
             ForEach(store.sessions) { session in
-                Text("\(session.status.symbol)  \(session.displayName) — \(session.status.label)")
+                Button("\(session.status.symbol)  \(session.displayName) — \(session.status.label)") {
+                    store.jump(to: session.id)
+                }
+                .disabled(!store.canJump(to: session))
             }
         }
         Divider()

@@ -2,7 +2,7 @@
 
 A native macOS menu bar app for people who run several Claude Code sessions at once. It shows every session at a glance, tells you when one is done or waiting for you, and takes you to the right terminal pane in one click or keystroke, on any Space.
 
-> **Status: early development.** The project builds, but it does not do anything useful yet. Watch the repository to follow along.
+> **Status: early development.** The session list, notifications and jumping to iTerm2 panes work; there are no releases yet. Watch the repository to follow along.
 
 ## What it will do
 

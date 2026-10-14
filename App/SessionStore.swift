@@ -1,6 +1,7 @@
-import Foundation
+import AppKit
 import Observation
 import PlaincontrolCore
+import os
 
 /// Receives hook events and keeps the sessions the app shows.
 @MainActor
@@ -9,8 +10,12 @@ final class SessionStore {
     private(set) var registry = SessionRegistry()
     /// Why the app cannot receive events, when it cannot.
     private(set) var problem: String?
+    /// Why the last jump to a session failed, until the next one succeeds.
+    private(set) var jumpProblem: String?
     @ObservationIgnored private var server: HookServer?
     @ObservationIgnored private let notifier = SessionNotifier()
+    @ObservationIgnored private let terminals = TerminalControllers.standard
+    @ObservationIgnored private let log = Logger(subsystem: AppInfo.subsystem, category: "jump")
 
     /// The sessions to show: everything still running, waiting ones first.
     var sessions: [Session] {
@@ -24,6 +29,7 @@ final class SessionStore {
     }
 
     func start() {
+        notifier.onOpen = { [weak self] sessionID in self?.jump(to: sessionID) }
         notifier.start()
         let path = HookSocket.path(environment: ProcessInfo.processInfo.environment, appName: AppInfo.name)
         let server = HookServer(path: path) { [weak self] envelope in
@@ -42,11 +48,50 @@ final class SessionStore {
         }
     }
 
+    func canJump(to session: Session) -> Bool {
+        terminals.canFocus(session.terminal)
+    }
+
+    /// Brings the session's terminal pane to the front.
+    func jump(to sessionID: String) {
+        guard let session = registry.sessions[sessionID] else {
+            log.notice("Jump to unknown session \(sessionID, privacy: .public)")
+            return
+        }
+        do {
+            if let controller = terminals.controller(for: session.terminal) {
+                // Clicking a notification activates this app; let the terminal take over.
+                NSApp.yieldActivation(toApplicationWithBundleIdentifier: controller.bundleIdentifier)
+            }
+            try terminals.focus(session.terminal)
+            jumpProblem = nil
+            log.info("Jumped to session \(sessionID, privacy: .public)")
+        } catch {
+            jumpProblem = "Could not open \(session.displayName): \(error.message)"
+            log.error(
+                "Jump to session \(sessionID, privacy: .public) failed: \(String(describing: error), privacy: .public)")
+            NSSound.beep()
+        }
+    }
+
     private func receive(_ envelope: HookEnvelope) {
         guard let change = registry.apply(envelope.event, terminal: envelope.terminal, at: envelope.sentAt),
             let session = registry.sessions[change.sessionID]
         else { return }
         notifier.handle(change, of: session)
+    }
+}
+
+extension TerminalControlError {
+    fileprivate var message: String {
+        switch self {
+        case .unsupported: "jumping to this terminal is not supported yet."
+        case .terminalNotRunning: "its terminal is no longer running."
+        case .paneNotFound: "its terminal pane is closed."
+        case .notAuthorized:
+            "allow \(AppInfo.name) to control your terminal in System Settings › Privacy & Security › Automation."
+        case .failed(let reason): reason
+        }
     }
 }
 

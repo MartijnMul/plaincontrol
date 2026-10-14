@@ -1,6 +1,7 @@
 import Foundation
 import PlaincontrolCore
 import UserNotifications
+import os
 
 /// Shows a notification when a session starts waiting for the user or finishes a turn.
 ///
@@ -10,6 +11,8 @@ import UserNotifications
 @MainActor
 final class SessionNotifier: NSObject {
     private let center = UNUserNotificationCenter.current()
+    /// Called with the session ID when the user clicks a notification.
+    var onOpen: ((String) -> Void)?
 
     func start() {
         center.delegate = self
@@ -44,6 +47,18 @@ extension SessionNotifier: UNUserNotificationCenterDelegate {
         _ center: UNUserNotificationCenter, willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
         [.banner, .list, .sound]
+    }
+
+    /// Opens the session when the user clicks its notification.
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse
+    ) async {
+        guard response.actionIdentifier == UNNotificationDefaultActionIdentifier,
+            let sessionID = response.notification.request.content.userInfo["sessionID"] as? String
+        else { return }
+        Logger(subsystem: AppInfo.subsystem, category: "notifications")
+            .info("Opened the notification of session \(sessionID, privacy: .public)")
+        await MainActor.run { onOpen?(sessionID) }
     }
 }
 

@@ -32,7 +32,10 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Plaincontrol
         INFOPLIST_KEY_LSUIElement: YES
+        INFOPLIST_KEY_NSAppleEventsUsageDescription: To bring the terminal pane of a session to the front.
         ENABLE_HARDENED_RUNTIME: YES
+        # Lets the hardened runtime send Apple events, to control the terminal.
+        CODE_SIGN_ENTITLEMENTS: App/Plaincontrol.entitlements
       configs:
         # The development build is a separate app, so it can run next to the release build.
         Debug:
