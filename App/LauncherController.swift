@@ -6,9 +6,9 @@ import os
 
 /// Shows the launcher panel, answers its keys and runs the chosen action on a project.
 ///
-/// The projects come from the projects file and the folders in its roots. When each folder last
-/// changed is looked up in the background, at start-up and when the launcher opens, at most
-/// once a minute; the list updates when the answer comes.
+/// The projects come from the projects file, zoxide and the folders in the file's roots. zoxide
+/// is asked in the background at start-up and whenever the launcher opens; when each folder in
+/// the roots last changed is looked up at most once a minute. The list updates as answers come.
 @MainActor
 @Observable
 final class LauncherController {
@@ -21,6 +21,8 @@ final class LauncherController {
     @ObservationIgnored private var folders: [ProjectFolder] = []
     @ObservationIgnored private var lastScan: Date?
     @ObservationIgnored private var isScanning = false
+    @ObservationIgnored private var zoxide: [Zoxide.Entry] = []
+    @ObservationIgnored private var isAskingZoxide = false
     @ObservationIgnored private var usage: ProjectUsage
     @ObservationIgnored private let sessions: () -> [Session]
     @ObservationIgnored private let log = Logger(subsystem: AppInfo.subsystem, category: "launcher")
@@ -33,6 +35,7 @@ final class LauncherController {
         usage = Self.loadUsage()
         loadConfig()
         scanFolders()
+        askZoxide()
     }
 
     var isShown: Bool { panel?.isVisible ?? false }
@@ -57,6 +60,7 @@ final class LauncherController {
         self.panel = panel
         panel.present()
         scanFolders()
+        askZoxide()
     }
 
     func hide() {
@@ -95,7 +99,8 @@ final class LauncherController {
     }
 
     private func items() -> [LauncherItem] {
-        ProjectCatalog.items(config: config, folders: folders, usage: usage, sessions: sessions())
+        ProjectCatalog.items(
+            config: config, folders: folders, zoxide: config.zoxide ? zoxide : [], usage: usage, sessions: sessions())
     }
 
     /// Looks up when every project folder last changed, unless it did less than a minute ago.
@@ -114,6 +119,25 @@ final class LauncherController {
             }
             lastScan = .now
             isScanning = false
+        }
+    }
+
+    /// Reads the folders zoxide ranks and turns them into projects, off the main thread: finding
+    /// where a folder really is may wait for macOS to grant access to it.
+    private func askZoxide() {
+        guard config.zoxide, !isAskingZoxide, let executable = Zoxide.executable() else { return }
+        isAskingZoxide = true
+        Task {
+            let projects = await Task.detached {
+                Zoxide.query(executable: executable).map { Zoxide.projects(from: $0, resolve: Zoxide.location(of:)) }
+            }.value
+            isAskingZoxide = false
+            guard let projects else {
+                log.error("Could not read zoxide's folders")
+                return
+            }
+            zoxide = projects
+            if isShown { launcher.update(items: items()) }
         }
     }
 
@@ -152,6 +176,10 @@ final class LauncherController {
         log.info("Ran \(action.rawValue, privacy: .public) on a project")
         usage.record(project.path)
         saveUsage()
+        if config.zoxide, let executable = Zoxide.executable() {
+            let path = project.path
+            Task.detached { Zoxide.add(path, executable: executable) }
+        }
         hide()
     }
 
