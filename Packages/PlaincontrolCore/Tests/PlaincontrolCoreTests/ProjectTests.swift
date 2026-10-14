@@ -14,6 +14,20 @@ import Testing
         #expect(Project(path: "~/work/my-app/").path == NSHomeDirectory() + "/work/my-app")
     }
 
+    @Test func containsFoldersByTheirLinkedToPathToo() throws {
+        let folder = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let target = folder.appending(path: "synced/notes")
+        try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
+        let link = folder.appending(path: "notes")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
+
+        let project = Project(path: link.path(percentEncoded: false))
+        let resolved = target.resolvingSymlinksInPath().path(percentEncoded: false)
+        #expect(project.contains(resolved + "/drafts"))
+        #expect(project.contains(link.path(percentEncoded: false)))
+    }
+
     @Test func containsItsFolderAndFoldersInside() {
         let project = Project(path: "/work/my-app")
         #expect(project.contains("/work/my-app"))
@@ -144,16 +158,16 @@ import Testing
         items.first { $0.project.path == path }
     }
 
-    @Test func listsRecentRepositoriesAndConfiguredProjectsAsActive() {
+    @Test func listsRecentFoldersAndConfiguredProjectsAsActive() {
         let config = ProjectsConfig(activeDays: 90, projects: [Project(path: "/work/old", name: "Old Friend")])
-        let repositories = [
-            Repository(path: "/work/new", lastCommit: now - 10 * day),
-            Repository(path: "/work/stale", lastCommit: now - 200 * day),
-            Repository(path: "/work/old", lastCommit: now - 500 * day),
-            Repository(path: "/work/empty", lastCommit: nil),
+        let folders = [
+            ProjectFolder(path: "/work/new", lastChange: now - 10 * day),
+            ProjectFolder(path: "/work/stale", lastChange: now - 200 * day),
+            ProjectFolder(path: "/work/old", lastChange: now - 500 * day),
+            ProjectFolder(path: "/work/empty", lastChange: nil),
         ]
         let items = ProjectCatalog.items(
-            config: config, repositories: repositories, usage: ProjectUsage(), sessions: [], now: now)
+            config: config, folders: folders, usage: ProjectUsage(), sessions: [], now: now)
         #expect(items.count == 4)
         #expect(item(items, "/work/new")?.isActive == true)
         #expect(item(items, "/work/stale")?.isActive == false)
@@ -162,21 +176,21 @@ import Testing
         #expect(item(items, "/work/old")?.project.name == "Old Friend")
     }
 
-    @Test func makesAStaleRepositoryActiveAgainOnceUsed() {
+    @Test func makesAStaleFolderActiveAgainOnceUsed() {
         var usage = ProjectUsage()
         usage.record("/work/stale", at: now - day)
         let items = ProjectCatalog.items(
-            config: ProjectsConfig(), repositories: [Repository(path: "/work/stale", lastCommit: now - 200 * day)],
+            config: ProjectsConfig(), folders: [ProjectFolder(path: "/work/stale", lastChange: now - 200 * day)],
             usage: usage, sessions: [], now: now)
         #expect(item(items, "/work/stale")?.isActive == true)
         #expect(item(items, "/work/stale")?.lastActivity == now - day)
     }
 
     @Test func marksProjectsWithSessions() {
-        let repositories = [
-            Repository(path: "/work/a", lastCommit: nil),
-            Repository(path: "/work/b", lastCommit: nil),
-            Repository(path: "/work/c", lastCommit: nil),
+        let folders = [
+            ProjectFolder(path: "/work/a", lastChange: nil),
+            ProjectFolder(path: "/work/b", lastChange: nil),
+            ProjectFolder(path: "/work/c", lastChange: nil),
         ]
         let sessions = [
             session(in: "/work/a/Sources"),
@@ -185,7 +199,7 @@ import Testing
             session(in: "/work/c", status: .gone),
         ]
         let items = ProjectCatalog.items(
-            config: ProjectsConfig(), repositories: repositories, usage: ProjectUsage(), sessions: sessions, now: now)
+            config: ProjectsConfig(), folders: folders, usage: ProjectUsage(), sessions: sessions, now: now)
         #expect(item(items, "/work/a")?.sessions == .running)
         #expect(item(items, "/work/a")?.isActive == true)
         #expect(item(items, "/work/b")?.sessions == .waiting)

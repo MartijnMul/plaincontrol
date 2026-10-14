@@ -4,17 +4,17 @@ import Yams
 /// What the user configures about projects, in `projects.yaml`:
 ///
 /// ```yaml
-/// roots:                # folders whose git repositories are projects
+/// roots:                # folders whose subfolders are projects
 ///   - ~/Developer
-/// activeDays: 90        # a repository is active this long after its last commit or use
+/// activeDays: 90        # a project is listed this long after its last change or use
 /// projects:             # always listed, with an optional name
 ///   - name: My App
 ///     path: ~/Developer/my-app
 /// ```
 public struct ProjectsConfig: Sendable, Equatable {
-    /// Folders whose git repositories are projects, by their absolute paths.
+    /// Folders whose subfolders are projects, by their absolute paths.
     public var roots: [String] = []
-    /// How long a project stays in the list after its last commit or use.
+    /// How long a project stays in the list after its last change or use.
     public var activeDays = 90
     /// Projects that are always listed, in the order of the file.
     public var projects: [Project] = []
@@ -37,9 +37,10 @@ public enum ProjectsFile {
     public static let template = """
         # Projects for the Plaincontrol launcher.
 
-        # Folders whose git repositories are projects. A repository is listed while you work
-        # on it: a commit, or a Claude Code session or launcher action in it, within activeDays.
-        # Older ones show up when you search for them.
+        # Folders whose subfolders are projects, such as a folder of git repositories. A project
+        # is listed while you work on it: a commit (in a git repository) or a changed file (in
+        # any other folder), or a Claude Code session or launcher action in it, within
+        # activeDays. Older ones show up when you search for them.
         roots:
         #  - ~/Developer
         activeDays: 90

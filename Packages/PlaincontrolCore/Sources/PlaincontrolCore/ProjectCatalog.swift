@@ -16,7 +16,7 @@ public struct LauncherItem: Sendable, Equatable, Identifiable {
     public var isActive: Bool
     /// How often and how recently the project was used, from ``ProjectUsage``.
     public var score: Double
-    /// The last commit, use or session event, whichever came last.
+    /// The last change in the folder or use of the project, whichever came last.
     public var lastActivity: Date?
 
     public var id: String { project.id }
@@ -34,29 +34,29 @@ public struct LauncherItem: Sendable, Equatable, Identifiable {
 }
 
 /// Puts together the projects the launcher knows: the configured ones, the repositories in the
-/// configured folders, and the repositories the user used elsewhere.
+/// configured roots, and the repositories the user used elsewhere.
 public enum ProjectCatalog {
-    /// The repositories to ask git about: those in the roots, and those used outside them.
-    public static func repositoryPaths(config: ProjectsConfig, usage: ProjectUsage) -> [String] {
-        let inRoots = Repositories.paths(in: config.roots)
-        let known = config.projects.map(\.path) + inRoots
+    /// The folders to look at: those in the roots, and the repositories used outside them.
+    public static func folderPaths(config: ProjectsConfig, usage: ProjectUsage) -> [String] {
+        let inRoots = ProjectFolders.paths(in: config.roots)
+        let known = (config.projects.map(\.path) + inRoots).map { Project(path: $0) }
         let usedElsewhere = usage.paths
-            .filter { path in !known.contains { Project(path: $0).contains(path) } }
-            .compactMap(Repositories.root(containing:))
+            .filter { path in !known.contains { $0.contains(path) } }
+            .compactMap(ProjectFolders.repositoryRoot(containing:))
         return Array(Set(inRoots + usedElsewhere)).sorted()
     }
 
     public static func items(
         config: ProjectsConfig,
-        repositories: [Repository],
+        folders: [ProjectFolder],
         usage: ProjectUsage,
         sessions: [Session],
         now: Date = .now
     ) -> [LauncherItem] {
         let configured = Set(config.projects.map(\.path))
-        let lastCommits = Dictionary(repositories.map { ($0.path, $0.lastCommit) }, uniquingKeysWith: { a, _ in a })
+        let lastChanges = Dictionary(folders.map { ($0.path, $0.lastChange) }, uniquingKeysWith: { a, _ in a })
         let projects =
-            config.projects + repositories.map { Project(path: $0.path) }.filter { !configured.contains($0.path) }
+            config.projects + folders.map { Project(path: $0.path) }.filter { !configured.contains($0.path) }
         let activeSince = now.addingTimeInterval(-Double(config.activeDays) * 24 * 3600)
         let running = sessions.filter { $0.status != .gone }
 
@@ -64,7 +64,7 @@ public enum ProjectCatalog {
             let own = running.filter { $0.cwd.map(project.contains) ?? false }
             let state: LauncherItem.Sessions =
                 own.contains { $0.status.needsAttention } ? .waiting : own.isEmpty ? .none : .running
-            let lastActivity = [lastCommits[project.path] ?? nil, usage.lastUse(of: project)]
+            let lastActivity = [lastChanges[project.path] ?? nil, usage.lastUse(of: project)]
                 .compactMap(\.self)
                 .max()
             return LauncherItem(
