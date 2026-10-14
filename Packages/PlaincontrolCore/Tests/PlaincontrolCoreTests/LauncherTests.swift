@@ -60,7 +60,7 @@ import Testing
 
     @Test func handlesAnEmptyList() {
         var launcher = makeLauncher([])
-        #expect(press(.down, .enter, on: &launcher) == [.stay, .stay])
+        #expect(press(.down, .enter, on: &launcher) == [.stay, .findFolder])
         #expect(launcher.screen == .projects)
         #expect(launcher.selectedProject == nil)
     }
@@ -156,6 +156,28 @@ import Testing
         launcher.update(items: [LauncherItem(project: site, score: 5), LauncherItem(project: app, score: 1)])
         #expect(launcher.selectedProject == site)
         #expect(launcher.selection == 0)
+    }
+
+    @Test func offersToAddAFolderWhenNothingIsListed() {
+        var empty = Launcher(items: [])
+        #expect(empty.offersToAddFolder)
+        #expect(press(.enter, on: &empty) == [.findFolder])
+
+        var launcher = makeLauncher([app, site])
+        #expect(!launcher.offersToAddFolder)
+        _ = press(.character("x"), .character("y"), on: &launcher)
+        #expect(launcher.offersToAddFolder)
+        #expect(press(.right, on: &launcher) == [.findFolder])
+    }
+
+    @Test func opensAnAddedProjectAndClearsTheSearch() {
+        var launcher = makeLauncher([app, site])
+        _ = press(.character("x"), on: &launcher)
+        launcher.update(items: [LauncherItem(project: app), LauncherItem(project: site, score: 5)])
+        launcher.open(site)
+        #expect(launcher.query.isEmpty)
+        #expect(launcher.screen == .project(site))
+        #expect(launcher.selectedProject == site)
     }
 
     @Test func actionKeysAreDistinct() {

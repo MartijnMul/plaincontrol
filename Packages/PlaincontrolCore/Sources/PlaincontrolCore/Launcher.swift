@@ -33,7 +33,8 @@ public enum ProjectAction: String, CaseIterable, Sendable {
 /// ones before working ones), then the active projects by how often and how recently they were
 /// used. Typing searches every project by name and folder, inactive ones last; Backspace
 /// edits the search and Escape clears it. Up and Down move the selection, Return or Right opens
-/// the selected project.
+/// the selected project. When the list is empty, or a search finds nothing, Return or Right
+/// asks to find a folder to add instead (``PathFinder``).
 ///
 /// An open project lists its actions: Up and Down select one, Return or Right runs it, and each
 /// action also runs straight from its own key. Left or Escape goes back to the list; Escape on
@@ -54,6 +55,8 @@ public struct Launcher: Sendable, Equatable {
         case stay
         case close
         case run(ProjectAction, Project)
+        /// Find a folder to add as a project.
+        case findFolder
     }
 
     /// How many projects the list shows at most.
@@ -93,6 +96,17 @@ public struct Launcher: Sendable, Equatable {
 
     public var selectedProject: Project? { selectedItem?.project }
 
+    /// Whether the list offers to find a folder to add, because it shows no projects.
+    public var offersToAddFolder: Bool { screen == .projects && visible.isEmpty }
+
+    /// Opens `project`, such as one just added, clearing the search.
+    public mutating func open(_ project: Project) {
+        if !query.isEmpty { search("") }
+        selection = visible.firstIndex { $0.project == project } ?? 0
+        actionSelection = 0
+        screen = .project(project)
+    }
+
     public var selectedAction: ProjectAction? {
         actions.indices.contains(actionSelection) ? actions[actionSelection] : nil
     }
@@ -104,6 +118,7 @@ public struct Launcher: Sendable, Equatable {
         case (.projects, .down):
             selection = min(selection + 1, max(visible.count - 1, 0))
         case (.projects, .enter), (.projects, .right):
+            if visible.isEmpty { return .findFolder }
             if let selectedProject {
                 actionSelection = 0
                 screen = .project(selectedProject)

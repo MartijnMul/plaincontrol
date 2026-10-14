@@ -33,6 +33,22 @@ public enum ProjectFolders {
         .sorted()
     }
 
+    /// The names of the folders inside `path`, following links, without hidden folders and
+    /// packages such as apps, in Finder's order.
+    public static func subfolders(of path: String) -> [String] {
+        let folder = URL(filePath: path, directoryHint: .isDirectory)
+        let keys: [URLResourceKey] = [.isDirectoryKey, .isPackageKey]
+        let items =
+            (try? FileManager.default.contentsOfDirectory(
+                at: folder, includingPropertiesForKeys: keys, options: [.skipsHiddenFiles])) ?? []
+        return items.filter { item in
+            let values = try? item.resolvingSymlinksInPath().resourceValues(forKeys: Set(keys))
+            return values?.isDirectory == true && values?.isPackage != true
+        }
+        .map(\.lastPathComponent)
+        .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
+
     /// Whether `path` is the top folder of a git repository or worktree.
     public static func isRepository(_ path: String) -> Bool {
         FileManager.default.fileExists(atPath: (path as NSString).appendingPathComponent(".git"))
