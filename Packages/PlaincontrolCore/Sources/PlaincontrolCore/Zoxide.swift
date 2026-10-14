@@ -1,8 +1,9 @@
 import Foundation
 
 /// Reads the folders the user visits from [zoxide](https://github.com/ajeetdsouza/zoxide), a
-/// `cd` replacement that ranks folders by how often and how recently the user goes there, and
-/// tells it about the folders the launcher opens.
+/// `cd` replacement that ranks folders by how often and how recently the user goes there.
+///
+/// zoxide is optional and only read: Plaincontrol never changes its data.
 ///
 /// zoxide knows every folder the user visits, not only projects. ``projects(from:resolve:)``
 /// turns its list into projects: a folder inside a git repository counts for the repository,
@@ -36,11 +37,6 @@ public enum Zoxide {
     public static func query(executable: String) -> [Entry]? {
         guard let output = run(executable, ["query", "--list", "--score"]) else { return nil }
         return parse(output)
-    }
-
-    /// Counts a visit to `path`, as `cd` would.
-    public static func add(_ path: String, executable: String) {
-        _ = run(executable, ["add", "--", path])
     }
 
     /// The lines of `zoxide query --list --score`: a score, spaces, and a path.

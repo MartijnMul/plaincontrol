@@ -186,6 +186,50 @@ import Testing
         #expect(item(items, "/work/stale")?.lastActivity == now - day)
     }
 
+    @Test func addsTheFoldersFromTheUsersOwnHistory() throws {
+        let home = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: home) }
+        for name in ["notes", "code/app", "code/site"] {
+            try FileManager.default.createDirectory(at: home.appending(path: name), withIntermediateDirectories: true)
+        }
+        let base = home.path(percentEncoded: false)
+        var usage = ProjectUsage()
+        for path in [
+            base, base + "/notes", base + "/code/app/Sources", base + "/gone",
+            (base as NSString).deletingLastPathComponent,
+        ] {
+            usage.record(path, at: now)
+        }
+        let config = ProjectsConfig(roots: [base + "/code"])
+        let paths = ProjectCatalog.folderPaths(config: config, usage: usage, home: base)
+        #expect(paths.map { $0.replacing(base, with: "~") } == ["~/code/app", "~/code/site", "~/notes"])
+    }
+
+    @Test func ranksByZoxideAndOwnUseTogether() {
+        var usage = ProjectUsage()
+        usage.record("/work/used", at: now)
+        let folders = ["/work/used", "/work/both", "/work/neither"].map { ProjectFolder(path: $0, lastChange: now) }
+        usage.record("/work/both", at: now - 7 * day)
+        let zoxide = [Zoxide.Entry(path: "/work/visited", score: 200), Zoxide.Entry(path: "/work/both", score: 100)]
+        let items = ProjectCatalog.items(
+            config: ProjectsConfig(), folders: folders, zoxide: zoxide, usage: usage, sessions: [], now: now)
+        let scores = Dictionary(uniqueKeysWithValues: items.map { ($0.project.name, $0.score) })
+        #expect(scores == ["used": 1, "both": 1, "visited": 1, "neither": 0])
+        #expect(item(items, "/work/visited")?.isActive == true)
+    }
+
+    @Test func ranksByOwnUseWithoutZoxide() {
+        var usage = ProjectUsage()
+        usage.record("/work/often", at: now)
+        usage.record("/work/often", at: now)
+        usage.record("/work/once", at: now)
+        let folders = ["/work/often", "/work/once"].map { ProjectFolder(path: $0, lastChange: nil) }
+        let items = ProjectCatalog.items(
+            config: ProjectsConfig(), folders: folders, usage: usage, sessions: [], now: now)
+        #expect(item(items, "/work/often")?.score == 1)
+        #expect(item(items, "/work/once")?.score == 0.5)
+    }
+
     @Test func marksProjectsWithSessions() {
         let folders = [
             ProjectFolder(path: "/work/a", lastChange: nil),

@@ -33,19 +33,29 @@ public struct LauncherItem: Sendable, Equatable, Identifiable {
     }
 }
 
-/// Puts together the projects the launcher knows: the configured ones, the folders zoxide ranks,
-/// the folders in the configured roots, and the repositories the user used elsewhere.
+/// Puts together the projects the launcher knows: the configured ones, the folders where the
+/// user started Claude Code sessions or ran launcher actions, the folders in the configured
+/// roots, and the folders zoxide ranks, when the user has it.
 ///
-/// A project zoxide knows is ranked by its zoxide score; any other by ``ProjectUsage``.
+/// Plaincontrol's own history works for everyone without setup; zoxide and the roots are
+/// optional extras. A project is ranked by both histories, each scaled to its best project, so
+/// neither source outweighs the other by its units.
 public enum ProjectCatalog {
-    /// The folders to look at: those in the roots, and the repositories used outside them.
-    public static func folderPaths(config: ProjectsConfig, usage: ProjectUsage) -> [String] {
+    /// The folders to date: those in the roots, and those in the user's own history outside the
+    /// configured projects and the roots, leaving out the home folder and the folders above it.
+    public static func folderPaths(
+        config: ProjectsConfig, usage: ProjectUsage, home: String = NSHomeDirectory()
+    ) -> [String] {
         let inRoots = ProjectFolders.paths(in: config.roots)
         let known = (config.projects.map(\.path) + inRoots).map { Project(path: $0) }
-        let usedElsewhere = usage.paths
-            .filter { path in !known.contains { $0.contains(path) } }
-            .compactMap(ProjectFolders.repositoryRoot(containing:))
-        return Array(Set(inRoots + usedElsewhere)).sorted()
+        let home = (home as NSString).standardizingPath
+        let used = usage.paths.filter { path in
+            path != home && !home.hasPrefix(path == "/" ? "/" : path + "/")
+                && !known.contains { $0.contains(path) }
+                && FileManager.default.fileExists(atPath: path)
+        }
+        var seen = Set<String>()
+        return (inRoots + used).filter { seen.insert($0).inserted }
     }
 
     public static func items(
@@ -58,13 +68,16 @@ public enum ProjectCatalog {
     ) -> [LauncherItem] {
         let configured = Set(config.projects.map(\.path))
         let lastChanges = Dictionary(folders.map { ($0.path, $0.lastChange) }, uniquingKeysWith: { a, _ in a })
-        let ranked = Dictionary(zoxide.map { (Project(path: $0.path).resolvedPath, $0.score) }, uniquingKeysWith: +)
+        let visits = Dictionary(zoxide.map { (Project(path: $0.path).resolvedPath, $0.score) }, uniquingKeysWith: +)
         var seen = Set<String>()
         let projects =
-            (config.projects + zoxide.map { Project(path: $0.path) } + folders.map { Project(path: $0.path) })
+            (config.projects + folders.map { Project(path: $0.path) } + zoxide.map { Project(path: $0.path) })
             .filter { seen.insert($0.resolvedPath.lowercased()).inserted }
         let activeSince = now.addingTimeInterval(-Double(config.activeDays) * 24 * 3600)
         let running = sessions.filter { $0.status != .gone }
+        let uses = Dictionary(projects.map { ($0.path, usage.score(of: $0, at: now)) }, uniquingKeysWith: { a, _ in a })
+        let bestVisits = visits.values.max() ?? 0
+        let bestUses = uses.values.max() ?? 0
 
         return projects.map { project in
             let own = running.filter { $0.cwd.map(project.contains) ?? false }
@@ -73,12 +86,16 @@ public enum ProjectCatalog {
             let lastActivity = [lastChanges[project.path] ?? nil, usage.lastUse(of: project)]
                 .compactMap(\.self)
                 .max()
+            let visited = visits[project.resolvedPath]
+            let score =
+                (bestVisits > 0 ? (visited ?? 0) / bestVisits : 0)
+                + (bestUses > 0 ? (uses[project.path] ?? 0) / bestUses : 0)
             return LauncherItem(
                 project: project,
                 sessions: state,
-                isActive: configured.contains(project.path) || state != .none || ranked[project.resolvedPath] != nil
+                isActive: configured.contains(project.path) || state != .none || visited != nil
                     || lastActivity.map { $0 >= activeSince } ?? false,
-                score: ranked[project.resolvedPath] ?? usage.score(of: project, at: now),
+                score: score,
                 lastActivity: lastActivity)
         }
     }

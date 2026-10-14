@@ -4,7 +4,7 @@ import Yams
 /// What the user configures about projects, in `projects.yaml`:
 ///
 /// ```yaml
-/// zoxide: true          # list the folders zoxide ranks highest, when it is installed
+/// zoxide: true          # also list and rank by zoxide's folders, when it is installed
 /// roots:                # folders whose subfolders are projects
 ///   - ~/Developer
 /// activeDays: 90        # a project is listed this long after its last change or use
@@ -13,7 +13,7 @@ import Yams
 ///     path: ~/Developer/my-app
 /// ```
 public struct ProjectsConfig: Sendable, Equatable {
-    /// Whether to list the folders the user visits most with zoxide, when it is installed.
+    /// Whether to also list and rank by the folders the user visits with zoxide, when installed.
     public var zoxide = true
     /// Folders whose subfolders are projects, by their absolute paths.
     public var roots: [String] = []
@@ -41,8 +41,9 @@ public enum ProjectsFile {
     public static let template = """
         # Projects for the Plaincontrol launcher.
 
-        # If you use zoxide (https://github.com/ajeetdsouza/zoxide), the launcher lists the
-        # folders you visit most, ranked by zoxide, and tells zoxide about the ones it opens.
+        # The launcher lists the folders where you start Claude Code or open projects from the
+        # launcher. If you use zoxide (https://github.com/ajeetdsouza/zoxide), it also lists the
+        # folders you visit most, and ranks by both. zoxide's data is only read, never changed.
         zoxide: true
 
         # Folders whose subfolders are projects, such as a folder of git repositories. A project

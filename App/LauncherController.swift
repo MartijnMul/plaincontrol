@@ -6,9 +6,10 @@ import os
 
 /// Shows the launcher panel, answers its keys and runs the chosen action on a project.
 ///
-/// The projects come from the projects file, zoxide and the folders in the file's roots. zoxide
-/// is asked in the background at start-up and whenever the launcher opens; when each folder in
-/// the roots last changed is looked up at most once a minute. The list updates as answers come.
+/// The projects come from Plaincontrol's own history (sessions started and launcher actions),
+/// the projects file and its roots, and zoxide when the user has it. zoxide is read in the
+/// background at start-up and whenever the launcher opens; when each folder last changed is
+/// looked up at most once a minute. The list updates as answers come.
 @MainActor
 @Observable
 final class LauncherController {
@@ -133,6 +134,7 @@ final class LauncherController {
             }.value
             isAskingZoxide = false
             guard let projects else {
+                // The launcher works without zoxide; keep what it said last time.
                 log.error("Could not read zoxide's folders")
                 return
             }
@@ -176,10 +178,6 @@ final class LauncherController {
         log.info("Ran \(action.rawValue, privacy: .public) on a project")
         usage.record(project.path)
         saveUsage()
-        if config.zoxide, let executable = Zoxide.executable() {
-            let path = project.path
-            Task.detached { Zoxide.add(path, executable: executable) }
-        }
         hide()
     }
 

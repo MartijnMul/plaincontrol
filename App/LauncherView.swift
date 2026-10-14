@@ -54,7 +54,7 @@ struct LauncherView: View {
                     .font(.headline)
                     .padding(.horizontal, 10)
                 Text(
-                    "Add the folder with your repositories to \(LauncherController.projectsFileForDisplay), from Edit Projects in the menu bar."
+                    "Projects appear here once you start Claude Code in them. To list folders before that, add them to \(LauncherController.projectsFileForDisplay), from Edit Projects in the menu bar."
                 )
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
