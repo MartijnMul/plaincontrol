@@ -13,6 +13,7 @@ final class SessionStore {
     /// Why the last jump to a session failed, until the next one succeeds.
     private(set) var jumpProblem: String?
     @ObservationIgnored private var server: HookServer?
+    @ObservationIgnored private var processes: ProcessWatcher?
     @ObservationIgnored private let notifier = SessionNotifier()
     @ObservationIgnored private let terminals = TerminalControllers.standard
     @ObservationIgnored private let log = Logger(subsystem: AppInfo.subsystem, category: "jump")
@@ -30,6 +31,7 @@ final class SessionStore {
 
     func start() {
         notifier.onOpen = { [weak self] sessionID in self?.jump(to: sessionID) }
+        processes = ProcessWatcher { [weak self] sessionID in self?.processExited(of: sessionID) }
         notifier.start()
         let path = HookSocket.path(environment: ProcessInfo.processInfo.environment, appName: AppInfo.name)
         let server = HookServer(path: path) { [weak self] envelope in
@@ -75,9 +77,25 @@ final class SessionStore {
     }
 
     private func receive(_ envelope: HookEnvelope) {
-        guard let change = registry.apply(envelope.event, terminal: envelope.terminal, at: envelope.sentAt),
-            let session = registry.sessions[change.sessionID]
-        else { return }
+        let change = registry.apply(envelope.event, terminal: envelope.terminal, at: envelope.sentAt)
+        let sessionID = envelope.event.sessionID
+        if registry.sessions[sessionID]?.status == .gone {
+            processes?.stopWatching(sessionID)
+        } else if let process = envelope.process {
+            processes?.watch(process, for: sessionID)
+        }
+        if let change { notify(change) }
+    }
+
+    /// Claude Code was killed or crashed, so no `SessionEnd` came.
+    private func processExited(of sessionID: String) {
+        Logger(subsystem: AppInfo.subsystem, category: "sessions")
+            .info("The process of session \(sessionID, privacy: .public) exited")
+        if let change = registry.markGone(sessionID) { notify(change) }
+    }
+
+    private func notify(_ change: StatusChange) {
+        guard let session = registry.sessions[change.sessionID] else { return }
         notifier.handle(change, of: session)
     }
 }
