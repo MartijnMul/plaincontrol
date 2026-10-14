@@ -8,6 +8,12 @@ public enum AppleScript {
     /// Asking the user for permission would be needed, but was not allowed.
     static let wouldRequireConsent = -1744
 
+    /// `text` as an AppleScript string literal, quotes included.
+    static func literal(_ text: String) -> String {
+        let escaped = text.replacing("\\", with: "\\\\").replacing("\"", with: "\\\"")
+        return "\"\(escaped)\""
+    }
+
     /// Runs `source` and returns its result as text, or an empty string when it has none.
     @MainActor
     public static func run(_ source: String) throws(TerminalControlError) -> String {

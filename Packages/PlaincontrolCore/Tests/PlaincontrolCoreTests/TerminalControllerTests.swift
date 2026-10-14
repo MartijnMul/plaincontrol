@@ -49,6 +49,17 @@ import Testing
         }
     }
 
+    @Test func opensAWindowInAFolderWithItsNameQuoted() throws {
+        var scripts: [String] = []
+        let controller = ITerm2Controller { script in
+            scripts.append(script)
+            return ""
+        }
+        try controller.openWindow(in: #"/work/a "quoted" \ folder"#, running: "claude")
+        #expect(scripts.count == 1)
+        #expect(scripts[0].contains(#"quoted form of "/work/a \"quoted\" \\ folder" & " && " & "claude""#))
+    }
+
     @Test func runsNoScriptForAnotherTerminal() {
         let controller = ITerm2Controller { _ in
             Issue.record("ran a script")

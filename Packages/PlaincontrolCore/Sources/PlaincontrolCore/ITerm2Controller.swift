@@ -29,6 +29,13 @@ public struct ITerm2Controller: TerminalController {
         }
     }
 
+    /// Opens a new iTerm2 window in `directory` and runs `command` there, through the user's
+    /// shell, as if they had typed it. Starts iTerm2 when it is not running.
+    @MainActor
+    public func openWindow(in directory: String, running command: String) throws(TerminalControlError) {
+        _ = try runScript(Self.openWindowScript(directory: directory, command: command))
+    }
+
     /// The pane's unique id, when the session runs directly in iTerm2.
     ///
     /// Inside tmux, `TERM_PROGRAM` is `tmux` and `ITERM_SESSION_ID` may belong to whichever pane
@@ -41,6 +48,19 @@ public struct ITerm2Controller: TerminalController {
         // The id goes into a script, so accept only what iTerm2 generates: a UUID.
         guard !paneID.isEmpty, paneID.allSatisfy({ $0.isHexDigit || $0 == "-" }) else { return nil }
         return String(paneID)
+    }
+
+    static func openWindowScript(directory: String, command: String) -> String {
+        // `quoted form of` quotes the folder for the shell; the literals are quoted for AppleScript.
+        """
+        tell application id "\(Self.iTerm2)"
+            activate
+            set newWindow to (create window with default profile)
+            tell current session of newWindow
+                write text "cd " & quoted form of \(AppleScript.literal(directory)) & " && " & \(AppleScript.literal(command))
+            end tell
+        end tell
+        """
     }
 
     static func focusScript(paneID: String) -> String {
