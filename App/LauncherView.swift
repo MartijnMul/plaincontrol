@@ -64,7 +64,7 @@ struct LauncherView: View {
         .padding(.horizontal, 10)
         VStack(spacing: 2) {
             ForEach(controller.launcher.actions, id: \.self) { action in
-                row(selected: false) {
+                row(selected: action == controller.launcher.selectedAction) {
                     KeyCap(String(action.key).uppercased())
                     Text(action.title).font(.title3)
                     Spacer()
@@ -86,10 +86,12 @@ struct LauncherView: View {
             switch controller.launcher.screen {
             case .projects:
                 hint("↑↓", "Select")
-                hint("↩", "Open")
+                hint("↩ →", "Open")
                 hint("esc", "Close")
             case .project:
-                hint("esc", "Back")
+                hint("↑↓", "Select")
+                hint("↩ →", "Run")
+                hint("← esc", "Back")
             }
         }
         .font(.callout)

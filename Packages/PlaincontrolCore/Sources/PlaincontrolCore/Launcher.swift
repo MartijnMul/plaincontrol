@@ -27,13 +27,13 @@ public enum ProjectAction: String, CaseIterable, Sendable {
 
 /// What the launcher shows and how it answers the keyboard.
 ///
-/// It starts on the list of projects: the arrow keys move the selection, Return opens the
-/// selected project. An open project lists its actions, each under a key; pressing that key
-/// runs the action. Escape goes back from a project to the list, and from the list closes
-/// the launcher.
+/// It starts on the list of projects: Up and Down move the selection, Return or Right opens
+/// the selected project. An open project lists its actions: Up and Down select one, Return or
+/// Right runs it, and each action also runs straight from its own key. Left or Escape goes
+/// back from a project to the list; Escape on the list closes the launcher.
 public struct Launcher: Sendable, Equatable {
     public enum Key: Equatable, Sendable {
-        case up, down, enter, escape
+        case up, down, left, right, enter, escape
         case character(Character)
     }
 
@@ -52,7 +52,10 @@ public struct Launcher: Sendable, Equatable {
     public let projects: [Project]
     /// The actions on offer, in the order shown.
     public let actions: [ProjectAction]
+    /// The selected project in the list.
     public private(set) var selection = 0
+    /// The selected action of the open project.
+    public private(set) var actionSelection = 0
     public private(set) var screen = Screen.projects
 
     public init(projects: [Project], actions: [ProjectAction] = ProjectAction.allCases) {
@@ -64,24 +67,37 @@ public struct Launcher: Sendable, Equatable {
         projects.indices.contains(selection) ? projects[selection] : nil
     }
 
+    public var selectedAction: ProjectAction? {
+        actions.indices.contains(actionSelection) ? actions[actionSelection] : nil
+    }
+
     public mutating func press(_ key: Key) -> Outcome {
         switch (screen, key) {
         case (.projects, .up):
             selection = max(selection - 1, 0)
         case (.projects, .down):
             selection = min(selection + 1, max(projects.count - 1, 0))
-        case (.projects, .enter):
-            if let selectedProject { screen = .project(selectedProject) }
+        case (.projects, .enter), (.projects, .right):
+            if let selectedProject {
+                actionSelection = 0
+                screen = .project(selectedProject)
+            }
         case (.projects, .escape):
             return .close
-        case (.project, .escape):
+        case (.project, .up):
+            actionSelection = max(actionSelection - 1, 0)
+        case (.project, .down):
+            actionSelection = min(actionSelection + 1, max(actions.count - 1, 0))
+        case (.project(let project), .enter), (.project(let project), .right):
+            if let selectedAction { return .run(selectedAction, project) }
+        case (.project, .left), (.project, .escape):
             screen = .projects
         case (.project(let project), .character(let character)):
             let character = Character(character.lowercased())
             if let action = actions.first(where: { $0.key == character }) {
                 return .run(action, project)
             }
-        case (.projects, .character), (.project, .up), (.project, .down), (.project, .enter):
+        case (.projects, .left), (.projects, .character):
             break
         }
         return .stay

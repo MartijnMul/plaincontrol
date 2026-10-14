@@ -22,6 +22,9 @@ final class LauncherHotkey {
 
     static var isAllowed: Bool { AXIsProcessTrusted() }
 
+    static let accessibilitySettings = URL(
+        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
+
     /// Starts watching the keyboard, asking for the Accessibility permission first if needed.
     func start() {
         guard monitors.isEmpty else { return }

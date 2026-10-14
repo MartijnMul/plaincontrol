@@ -56,6 +56,32 @@ import Testing
         #expect(launcher.selectedProject == nil)
     }
 
+    @Test func rightOpensAndLeftGoesBack() {
+        var launcher = Launcher(projects: [app, site])
+        _ = press(.down, .right, on: &launcher)
+        #expect(launcher.screen == .project(site))
+        #expect(press(.left, on: &launcher) == [.stay])
+        #expect(launcher.screen == .projects)
+        #expect(launcher.selectedProject == site)
+        #expect(press(.left, on: &launcher) == [.stay])
+        #expect(launcher.screen == .projects)
+    }
+
+    @Test func runsTheSelectedActionWithReturnOrRight() {
+        var launcher = Launcher(projects: [app], actions: [.claude, .finder, .vsCode])
+        _ = press(.enter, on: &launcher)
+        #expect(launcher.selectedAction == .claude)
+        #expect(press(.down, .down, .down, .enter, on: &launcher) == [.stay, .stay, .stay, .run(.vsCode, app)])
+        #expect(press(.up, .right, on: &launcher) == [.stay, .run(.finder, app)])
+    }
+
+    @Test func opensAProjectWithTheFirstActionSelected() {
+        var launcher = Launcher(projects: [app, site])
+        _ = press(.right, .down, .left, .down, .right, on: &launcher)
+        #expect(launcher.screen == .project(site))
+        #expect(launcher.selectedAction == .claude)
+    }
+
     @Test func actionKeysAreDistinct() {
         #expect(Set(ProjectAction.allCases.map(\.key)).count == ProjectAction.allCases.count)
     }

@@ -12,7 +12,7 @@ final class LauncherController {
     /// Why the projects could not be read or the last action failed, while the panel is open.
     private(set) var problem: String?
     @ObservationIgnored private var panel: LauncherPanel?
-    @ObservationIgnored private var keyMonitor: Any?
+    @ObservationIgnored private var keyTap: LauncherKeyTap?
     @ObservationIgnored private var recency: ProjectRecency
     @ObservationIgnored private let sessions: () -> [Session]
     @ObservationIgnored private let log = Logger(subsystem: AppInfo.subsystem, category: "launcher")
@@ -27,7 +27,20 @@ final class LauncherController {
 
     var isShown: Bool { panel?.isVisible ?? false }
 
+    /// Shows the launcher, or the Accessibility settings when it may not take the keyboard.
     func show() {
+        let keyTap =
+            keyTap
+            ?? LauncherKeyTap(
+                onKey: { [weak self] key in self?.handle(key) },
+                onClick: { [weak self] in self?.hide() })
+        self.keyTap = keyTap
+        guard keyTap.start() else {
+            log.notice("The launcher may not take the keyboard; asking for Accessibility")
+            NSWorkspace.shared.open(LauncherHotkey.accessibilitySettings)
+            return
+        }
+
         let projects: [Project]
         do {
             projects = try ProjectsFile.load()
@@ -40,19 +53,13 @@ final class LauncherController {
             projects: recency.ordered(projects, sessions: sessions()),
             actions: ProjectAction.allCases.filter(isAvailable))
 
-        let panel = panel ?? LauncherPanel(content: LauncherView(controller: self)) { [weak self] in self?.hide() }
+        let panel = panel ?? LauncherPanel(content: LauncherView(controller: self))
         self.panel = panel
         panel.present()
-        keyMonitor =
-            keyMonitor
-            ?? NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-                MainActor.assumeIsolated { self?.handle(event) ?? false } ? nil : event
-            }
     }
 
     func hide() {
-        if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
-        keyMonitor = nil
+        keyTap?.stop()
         panel?.orderOut(nil)
     }
 
@@ -71,15 +78,13 @@ final class LauncherController {
         (ProjectsFile.defaultPath as NSString).abbreviatingWithTildeInPath
     }
 
-    /// Handles a key while the panel is open, and returns whether it was the launcher's.
-    private func handle(_ event: NSEvent) -> Bool {
-        guard isShown, let key = Launcher.Key(event) else { return false }
+    private func handle(_ key: Launcher.Key) {
+        guard isShown else { return }
         switch launcher.press(key) {
         case .stay: break
         case .close: hide()
         case .run(let action, let project): run(action, on: project)
         }
-        return true
     }
 
     private func run(_ action: ProjectAction, on project: Project) {
@@ -147,16 +152,17 @@ final class LauncherController {
 }
 
 extension Launcher.Key {
-    /// The launcher key for a key press, if it is one; shortcuts with Command or Control are not.
-    init?(_ event: NSEvent) {
-        guard event.modifierFlags.intersection([.command, .control]).isEmpty else { return nil }
-        switch event.keyCode {
+    /// The launcher key for a key press, if it is one.
+    init?(keyCode: UInt16, characters: String?) {
+        switch keyCode {
         case 126: self = .up
         case 125: self = .down
+        case 123: self = .left
+        case 124: self = .right
         case 36, 76: self = .enter
         case 53: self = .escape
         default:
-            guard let character = event.charactersIgnoringModifiers?.first else { return nil }
+            guard let character = characters?.first else { return nil }
             self = .character(character)
         }
     }
@@ -173,33 +179,28 @@ extension TerminalControlError {
     }
 }
 
-/// A floating panel that takes the keyboard without activating the app, like Spotlight.
-final class LauncherPanel: NSPanel, NSWindowDelegate {
-    private let onResign: () -> Void
-
-    init(content: some View, onResign: @escaping () -> Void) {
-        self.onResign = onResign
+/// A floating panel over every app and Space, which never takes the focus from the app in
+/// front; ``LauncherKeyTap`` brings it the keys.
+final class LauncherPanel: NSPanel {
+    init(content: some View) {
         super.init(
             contentRect: NSRect(x: 0, y: 0, width: 520, height: 640),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: true)
-        // The window is transparent; the SwiftUI view draws the card and its shadow, and clicks
-        // on the transparent part pass through to the windows below.
+        // The window is transparent; the SwiftUI view draws the card and its shadow.
         contentView = NSHostingView(rootView: content)
         isOpaque = false
         backgroundColor = .clear
         hasShadow = false
+        ignoresMouseEvents = true
         level = .floating
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         hidesOnDeactivate = false
         isReleasedWhenClosed = false
-        delegate = self
     }
 
-    override var canBecomeKey: Bool { true }
-
-    /// Shows the panel near the top of the screen with the mouse pointer, and gives it the keyboard.
+    /// Shows the panel near the top of the screen with the mouse pointer.
     func present() {
         let mouse = NSEvent.mouseLocation
         let screen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main
@@ -207,10 +208,6 @@ final class LauncherPanel: NSPanel, NSWindowDelegate {
             setFrameTopLeftPoint(
                 NSPoint(x: visible.midX - frame.width / 2, y: visible.maxY - visible.height * 0.18))
         }
-        makeKeyAndOrderFront(nil)
-    }
-
-    func windowDidResignKey(_ notification: Notification) {
-        onResign()
+        orderFrontRegardless()
     }
 }

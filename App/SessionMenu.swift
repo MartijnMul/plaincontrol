@@ -31,9 +31,8 @@ struct SessionMenu: View {
             launcher.show()
         }
         if !LauncherHotkey.isAllowed {
-            Button("Allow Accessibility to Open the Launcher with Right Option…") {
-                let pane = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
-                NSWorkspace.shared.open(URL(string: pane)!)
+            Button("Allow Accessibility to Use the Launcher…") {
+                NSWorkspace.shared.open(LauncherHotkey.accessibilitySettings)
             }
         }
         Button("Edit Projects…") {
