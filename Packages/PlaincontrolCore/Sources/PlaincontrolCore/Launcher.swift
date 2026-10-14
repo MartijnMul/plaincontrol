@@ -4,6 +4,8 @@ import Foundation
 public enum ProjectAction: String, CaseIterable, Sendable {
     /// A new iTerm2 window in the project's folder, running Claude Code.
     case claude
+    /// A new iTerm2 window in the project's folder, with nothing running.
+    case terminal
     /// The project's folder in Finder.
     case finder
     /// The project's folder in the user's editor.
@@ -13,6 +15,7 @@ public enum ProjectAction: String, CaseIterable, Sendable {
     public var key: Character {
         switch self {
         case .claude: "c"
+        case .terminal: "t"
         case .finder: "f"
         case .editor: "e"
         }
@@ -21,6 +24,7 @@ public enum ProjectAction: String, CaseIterable, Sendable {
     public var title: String {
         switch self {
         case .claude: "Claude Code in iTerm2"
+        case .terminal: "iTerm2"
         case .finder: "Finder"
         case .editor: "Editor"
         }

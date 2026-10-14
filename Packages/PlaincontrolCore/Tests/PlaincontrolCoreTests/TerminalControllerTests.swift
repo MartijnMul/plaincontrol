@@ -61,6 +61,18 @@ import Testing
         #expect(scripts[0].contains(#"quoted form of "/work/a \"quoted\" \\ folder" & " && " & "claude""#))
     }
 
+    @Test func opensAWindowWithNothingRunning() throws {
+        var scripts: [String] = []
+        let controller = ITerm2Controller { script in
+            scripts.append(script)
+            return ""
+        }
+        try controller.openWindow(in: "/work/app")
+        #expect(scripts.count == 1)
+        #expect(scripts[0].contains(#"write text "cd " & quoted form of "/work/app""#))
+        #expect(!scripts[0].contains("&&"))
+    }
+
     @Test func runsNoScriptForAnotherTerminal() {
         let controller = ITerm2Controller { _ in
             Issue.record("ran a script")

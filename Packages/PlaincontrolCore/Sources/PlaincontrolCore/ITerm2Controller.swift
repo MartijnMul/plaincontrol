@@ -31,10 +31,10 @@ public struct ITerm2Controller: TerminalController {
         }
     }
 
-    /// Opens a new iTerm2 window in `directory` and runs `command` there, through the user's
-    /// shell, as if they had typed it. Starts iTerm2 when it is not running.
+    /// Opens a new iTerm2 window in `directory` and runs `command` there, if any, through the
+    /// user's shell, as if they had typed it. Starts iTerm2 when it is not running.
     @MainActor
-    public func openWindow(in directory: String, running command: String) throws(TerminalControlError) {
+    public func openWindow(in directory: String, running command: String? = nil) throws(TerminalControlError) {
         _ = try runScript(Self.openWindowScript(directory: directory, command: command))
     }
 
@@ -52,17 +52,18 @@ public struct ITerm2Controller: TerminalController {
         return String(paneID)
     }
 
-    static func openWindowScript(directory: String, command: String) -> String {
+    static func openWindowScript(directory: String, command: String?) -> String {
         // `quoted form of` quotes the folder for the shell; the literals are quoted for AppleScript.
-        """
-        tell application id "\(Self.iTerm2)"
-            activate
-            set newWindow to (create window with default profile)
-            tell current session of newWindow
-                write text "cd " & quoted form of \(AppleScript.literal(directory)) & " && " & \(AppleScript.literal(command))
+        let run = command.map { " & \" && \" & " + AppleScript.literal($0) } ?? ""
+        return """
+            tell application id "\(Self.iTerm2)"
+                activate
+                set newWindow to (create window with default profile)
+                tell current session of newWindow
+                    write text "cd " & quoted form of \(AppleScript.literal(directory))\(run)
+                end tell
             end tell
-        end tell
-        """
+            """
     }
 
     static func focusScript(paneID: String) -> String {

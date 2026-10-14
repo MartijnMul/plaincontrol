@@ -29,7 +29,7 @@ Hold the right Option key on its own for a moment, or choose Open Launcher in th
 | Left | | Back to the list |
 | Escape | Clear the search, then close | Back to the list |
 
-An open project offers **C** for Claude Code in a new iTerm2 window in its folder, **F** for Finder and **E** for your editor.
+An open project offers **C** for Claude Code in a new iTerm2 window in its folder, **T** for a plain iTerm2 window there, **F** for Finder and **E** for your editor.
 
 **Which projects it lists.** The folders where you start Claude Code sessions and the projects you open from the launcher, ranked by how often and how recently you used them, with running sessions first. Nothing to set up: the list fills as you work. If you use [zoxide](https://github.com/ajeetdsouza/zoxide), the folders you visit most are listed from day one; Plaincontrol only reads zoxide's data. When the list is empty, or a search finds nothing, Return offers to add a folder: walk to it from your home folder (Return or Right to go into a folder, Left to go up), then choose the Add row at the top.
 

@@ -90,7 +90,7 @@ final class LauncherController {
     func title(of action: ProjectAction) -> String {
         switch action {
         case .editor: editor.map(EditorApp.name(of:)) ?? action.title
-        case .claude, .finder: action.title
+        case .claude, .terminal, .finder: action.title
         }
     }
 
@@ -208,10 +208,11 @@ final class LauncherController {
         }
         let folder = URL(filePath: project.path, directoryHint: .isDirectory)
         switch action {
-        case .claude:
+        case .claude, .terminal:
             do {
                 NSApp.yieldActivation(toApplicationWithBundleIdentifier: ITerm2Controller().bundleIdentifier)
-                try ITerm2Controller().openWindow(in: project.path, running: config.claudeCommand)
+                let command = action == .claude ? config.claudeCommand : nil
+                try ITerm2Controller().openWindow(in: project.path, running: command)
             } catch {
                 fail("Could not open iTerm2: \(error.launcherMessage)")
                 return
@@ -235,7 +236,7 @@ final class LauncherController {
 
     private func isAvailable(_ action: ProjectAction) -> Bool {
         switch action {
-        case .claude, .finder: true
+        case .claude, .terminal, .finder: true
         case .editor: editor != nil
         }
     }
