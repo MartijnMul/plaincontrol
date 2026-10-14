@@ -2,13 +2,14 @@
 
 A native macOS menu bar app for people who run several Claude Code sessions at once. It shows every session at a glance, tells you when one is done or waiting for you, and takes you to the right terminal pane in one click or keystroke, on any Space.
 
-> **Status: early development.** The session list, notifications and jumping to iTerm2 panes work; there are no releases yet. Watch the repository to follow along.
+> **Status: early development.** The session list, notifications, jumping to iTerm2 panes and the project launcher work; there are no releases yet. Watch the repository to follow along.
 
 ## What it will do
 
 - **Sessions at a glance**: a menu bar icon with a badge for the sessions waiting on you, and a list of every session with its project, branch, status and how long it has been in that status.
 - **Never miss a question**: a native notification when a session finishes or asks for input or permission, unless you respond within a few seconds.
 - **Jump to it**: click a session, or press a global hotkey for the next one waiting, and the right window and pane come to the front.
+- **Projects from the keyboard**: hold the right Option key for a launcher with your projects, the most recent first, and open one in Claude Code, Finder or VS Code with a single key.
 - **Start a project in one click**: worktree, dev server and Claude Code, in your saved layout.
 
 ## How it works

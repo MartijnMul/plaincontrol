@@ -4,6 +4,7 @@ import SwiftUI
 /// The menu that opens from the menu bar icon.
 struct SessionMenu: View {
     let store: SessionStore
+    let launcher: LauncherController
 
     var body: some View {
         if let problem = store.problem {
@@ -24,6 +25,19 @@ struct SessionMenu: View {
                 }
                 .disabled(!store.canJump(to: session))
             }
+        }
+        Divider()
+        Button("Open Launcher") {
+            launcher.show()
+        }
+        if !LauncherHotkey.isAllowed {
+            Button("Allow Accessibility to Open the Launcher with Right Option…") {
+                let pane = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+                NSWorkspace.shared.open(URL(string: pane)!)
+            }
+        }
+        Button("Edit Projects…") {
+            launcher.editProjects()
         }
         Divider()
         Button("Quit \(AppInfo.name)") {
