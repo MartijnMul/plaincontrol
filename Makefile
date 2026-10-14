@@ -23,8 +23,8 @@ build: generate ## Build the development app
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Debug \
 		-destination "platform=macOS" -derivedDataPath $(DERIVED) -quiet build
 
-test: ## Run the core package tests
-	swift test --package-path $(CORE)
+test: ## Run the core package tests, with this Mac's test values from .env
+	set -a; [ ! -f .env ] || . ./.env; set +a; swift test --package-path $(CORE)
 
 lint: ## Check formatting
 	swift format lint --strict --recursive App $(CORE)

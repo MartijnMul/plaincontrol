@@ -56,6 +56,13 @@ There are three loops, from fastest to most real:
 
 `make check` runs the format check, the tests and the build. Run it before every commit.
 
+A few tests need folders on your own Mac, such as a cloud folder reached through a link. Their paths are personal, so they never go in the repository: put them in a `.env` file in the repository root, which git ignores, and `make test` passes them on. Without a value, those tests are skipped.
+
+```sh
+# .env
+PLAINCONTROL_TEST_LINKED_FOLDER=~/Dropbox   # a folder reached through a symbolic link, with folders inside
+```
+
 ## License
 
 [Apache License 2.0](LICENSE).
