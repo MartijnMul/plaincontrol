@@ -1,7 +1,9 @@
 {"session_id": "demo-2", "hook_event_name": "SessionStart", "cwd": "/tmp/notes-app", "source": "startup"}
 {"session_id": "demo-2", "hook_event_name": "UserPromptSubmit", "cwd": "/tmp/notes-app", "prompt": "Plan the sync feature"}
 {"session_id": "demo-2", "hook_event_name": "PreToolUse", "cwd": "/tmp/notes-app", "tool_name": "AskUserQuestion"}
+8
 {"session_id": "demo-2", "hook_event_name": "PostToolUse", "cwd": "/tmp/notes-app", "tool_name": "AskUserQuestion"}
 {"session_id": "demo-2", "hook_event_name": "PreToolUse", "cwd": "/tmp/notes-app", "tool_name": "ExitPlanMode"}
+8
 {"session_id": "demo-2", "hook_event_name": "PostToolUse", "cwd": "/tmp/notes-app", "tool_name": "ExitPlanMode"}
 {"session_id": "demo-2", "hook_event_name": "Stop", "cwd": "/tmp/notes-app"}

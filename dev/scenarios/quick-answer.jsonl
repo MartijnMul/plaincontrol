@@ -1,0 +1,7 @@
+{"session_id": "demo-6", "hook_event_name": "SessionStart", "cwd": "/tmp/blog", "source": "startup"}
+{"session_id": "demo-6", "hook_event_name": "UserPromptSubmit", "cwd": "/tmp/blog", "prompt": "Publish the draft"}
+{"session_id": "demo-6", "hook_event_name": "PermissionRequest", "cwd": "/tmp/blog", "tool_name": "Bash"}
+{"session_id": "demo-6", "hook_event_name": "PostToolUse", "cwd": "/tmp/blog", "tool_name": "Bash"}
+{"session_id": "demo-6", "hook_event_name": "UserPromptSubmit", "cwd": "/tmp/blog", "prompt": "And tag it"}
+{"session_id": "demo-6", "hook_event_name": "Stop", "cwd": "/tmp/blog"}
+{"session_id": "demo-6", "hook_event_name": "UserPromptSubmit", "cwd": "/tmp/blog", "prompt": "Thanks"}
