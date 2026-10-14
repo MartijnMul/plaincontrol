@@ -23,6 +23,9 @@ targets:
     sources: [App]
     dependencies:
       - package: PlaincontrolCore
+    configFiles:
+      Debug: Config/Signing.xcconfig
+      Release: Config/Signing.xcconfig
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.github.martijnmul.plaincontrol
@@ -30,8 +33,6 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: Plaincontrol
         INFOPLIST_KEY_LSUIElement: YES
         ENABLE_HARDENED_RUNTIME: YES
-        CODE_SIGN_STYLE: Manual
-        CODE_SIGN_IDENTITY: "-"
       configs:
         # The development build is a separate app, so it can run next to the release build.
         Debug:

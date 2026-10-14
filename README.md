@@ -31,12 +31,15 @@ make run
 
 `make help` lists all commands. The Xcode project is generated from `project.yml`; run `make open` to work in Xcode.
 
+Builds are signed ad hoc, which is enough to run them on your own Mac. macOS asks again for permissions such as controlling your terminal after every rebuild, because an ad-hoc signature changes each time. To keep them, sign with your own certificate: create `Config/Local.xcconfig` (ignored by git) as described in `Config/Signing.xcconfig`.
+
 ```
 App/                        SwiftUI app: menu bar, windows, settings
 Packages/PlaincontrolCore/  Sessions, hook events and the local socket, with tests
   Sources/plaincontrol-hook The command Claude Code runs for each hook event
 plugin/                     The Claude Code plugin that installs the hooks
 dev/                        Scenarios for trying the app without Claude Code
+Config/                     Build settings, such as code signing
 project.yml                 XcodeGen project definition
 ```
 

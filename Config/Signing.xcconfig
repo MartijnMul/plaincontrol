@@ -1,0 +1,15 @@
+// Code signing for every build of the app.
+//
+// Without further setup, builds are signed ad hoc, so they run on the machine that built
+// them. macOS ties permissions such as Automation to the signature, and an ad-hoc signature
+// changes with every build. To keep those permissions, create Config/Local.xcconfig (ignored
+// by git) with your own signing identity:
+//
+//     CODE_SIGN_IDENTITY = Apple Development
+//     DEVELOPMENT_TEAM = <your team ID>
+
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = -
+DEVELOPMENT_TEAM =
+
+#include? "Local.xcconfig"
