@@ -4,21 +4,44 @@ A native macOS menu bar app for people who run several Claude Code sessions at o
 
 > **Status: early development.** The session list, notifications, jumping to iTerm2 panes and the project launcher work; there are no releases yet. Watch the repository to follow along.
 
-## What it will do
+## What it does
 
-- **Sessions at a glance**: a menu bar icon with a badge for the sessions waiting on you, and a list of every session with its project, branch, status and how long it has been in that status.
+- **Sessions at a glance**: a menu bar icon with a badge for the sessions waiting on you, and a list of every session with its status, waiting ones first.
 - **Never miss a question**: a native notification when a session finishes or asks for input or permission, unless you respond within a few seconds.
-- **Jump to it**: click a session, or press a global hotkey for the next one waiting, and the right window and pane come to the front.
-- **Projects from the keyboard**: hold the right Option key for a launcher with your projects, the most recent first, and open one in Claude Code, Finder or VS Code with a single key.
-- **Start a project in one click**: worktree, dev server and Claude Code, in your saved layout.
+- **Jump to it**: click a session, or its notification, and its iTerm2 window, tab and pane come to the front, on any Space.
+- **Projects from the keyboard**: hold the right Option key for a launcher with the projects you work on, and open one in Claude Code, Finder or your editor with a single key.
+
+Planned: a hotkey for the next waiting session, terminals other than iTerm2, and starting a project with its worktree, dev server and window layout.
 
 ## How it works
 
-Claude Code reports what each session is doing through [hooks](https://code.claude.com/docs/en/hooks). A small script passes those events to Plaincontrol over a local Unix socket. Plaincontrol keeps track of every session and drives your terminal to bring the right pane forward. iTerm2 is supported first.
+Claude Code reports what each session is doing through [hooks](https://code.claude.com/docs/en/hooks). A small command passes those events to Plaincontrol over a local Unix socket. Plaincontrol keeps track of every session and drives your terminal to bring the right pane forward. iTerm2 is supported first.
+
+## The launcher
+
+Hold the right Option key on its own for a moment, or choose Open Launcher in the menu. Everything works from the keyboard:
+
+| Key | In the list of projects | In a project |
+| --- | --- | --- |
+| Type | Search all projects | Run the action under that key |
+| Up, Down | Select a project | Select an action |
+| Return, Right | Open the project | Run the action |
+| Left | | Back to the list |
+| Escape | Clear the search, then close | Back to the list |
+
+An open project offers **C** for Claude Code in a new iTerm2 window in its folder, **F** for Finder and **E** for your editor.
+
+**Which projects it lists.** The folders where you start Claude Code sessions and the projects you open from the launcher, ranked by how often and how recently you used them, with running sessions first. Nothing to set up: the list fills as you work. If you use [zoxide](https://github.com/ajeetdsouza/zoxide), the folders you visit most are listed from day one; Plaincontrol only reads zoxide's data. When the list is empty, or a search finds nothing, Return offers to add a folder: walk to it from your home folder (Return or Right to go into a folder, Left to go up), then choose the Add row at the top.
+
+**Settings** live in `~/.config/plaincontrol/launcher.yaml`; Launcher Settings in the menu creates it, with every setting explained. You can choose the key to hold (right Option, Command, Control or Shift), the editor (any app, such as Cursor or Zed), the command that starts Claude Code, and folders whose subfolders are always projects, such as a folder of git repositories.
 
 ## Privacy
 
-Plaincontrol runs entirely on your Mac. It opens no network port and sends nothing anywhere. Hook events can contain your prompts and file paths: Plaincontrol keeps only what it needs to show a session's status, and never stores or logs prompt text.
+Plaincontrol runs entirely on your Mac. It opens no network port and sends nothing anywhere.
+
+- **Claude Code sessions**: hook events can contain your prompts and file paths. Plaincontrol keeps only what it needs to show a session's status, and never stores or logs prompt text.
+- **The keyboard**: to notice the launcher's key, Plaincontrol watches which modifier keys go down in any app, and whether another key is pressed meanwhile; it does not record what you type. While the launcher is open, it takes every key without Command or Control, so your typing reaches the launcher and not the app behind it. Both need the Accessibility permission, which macOS asks for once; the launcher does not work without it.
+- **Your folders**: the launcher remembers which folders you used it and Claude Code in, and reads when each project folder last changed. With zoxide, it reads zoxide's list of folders, but never changes it. This history stays in `~/Library/Application Support/Plaincontrol`.
 
 ## Building from source
 
