@@ -36,19 +36,45 @@ struct LauncherView: View {
     @ViewBuilder
     private var projectList: some View {
         let launcher = controller.launcher
-        if launcher.projects.isEmpty {
-            Text("No projects yet")
-                .font(.headline)
-            Text("Add folders to \(LauncherController.projectsFileForDisplay), from Edit Projects in the menu bar.")
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+            if launcher.query.isEmpty {
+                Text("Type to search all projects")
+            } else {
+                Text(launcher.query).foregroundStyle(.primary)
+            }
+            Spacer()
+        }
+        .font(.title3)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 10)
+        if launcher.visible.isEmpty {
+            if launcher.query.isEmpty {
+                Text("No projects yet")
+                    .font(.headline)
+                    .padding(.horizontal, 10)
+                Text(
+                    "Add the folder with your repositories to \(LauncherController.projectsFileForDisplay), from Edit Projects in the menu bar."
+                )
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 10)
+            } else {
+                Text("No project matches “\(launcher.query)”")
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 10)
+            }
         } else {
             VStack(spacing: 2) {
-                ForEach(Array(launcher.projects.enumerated()), id: \.element.id) { index, project in
-                    row(selected: index == launcher.selection) {
-                        Text(project.name).font(.title3.weight(.medium))
+                ForEach(Array(launcher.visible.enumerated()), id: \.element.id) { index, item in
+                    let selected = index == launcher.selection
+                    row(selected: selected) {
+                        SessionMark(sessions: item.sessions, selected: selected)
+                        Text(item.project.name)
+                            .font(.title3.weight(.medium))
+                            .opacity(item.isActive ? 1 : 0.55)
                         Spacer()
-                        Text(project.displayPath).foregroundStyle(.secondary).lineLimit(1).truncationMode(.head)
+                        Text(item.project.displayPath).foregroundStyle(.secondary).lineLimit(1).truncationMode(.head)
                     }
                 }
             }
@@ -87,7 +113,7 @@ struct LauncherView: View {
             case .projects:
                 hint("↑↓", "Select")
                 hint("↩ →", "Open")
-                hint("esc", "Close")
+                hint("esc", controller.launcher.query.isEmpty ? "Close" : "Clear")
             case .project:
                 hint("↑↓", "Select")
                 hint("↩ →", "Run")
@@ -103,6 +129,35 @@ struct LauncherView: View {
         HStack(spacing: 5) {
             KeyCap(key)
             Text(label)
+        }
+    }
+}
+
+/// Whether a project has Claude Code sessions, and whether one waits for the user.
+private struct SessionMark: View {
+    let sessions: LauncherItem.Sessions
+    let selected: Bool
+
+    var body: some View {
+        Circle()
+            .fill(color)
+            .frame(width: 8, height: 8)
+            .help(help)
+    }
+
+    private var color: Color {
+        switch sessions {
+        case .waiting: selected ? .white : .orange
+        case .running: selected ? .white.opacity(0.6) : .green
+        case .none: .clear
+        }
+    }
+
+    private var help: String {
+        switch sessions {
+        case .waiting: "A session is waiting for you"
+        case .running: "Claude Code is running here"
+        case .none: ""
         }
     }
 }

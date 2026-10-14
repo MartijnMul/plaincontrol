@@ -5,24 +5,34 @@ import SwiftUI
 import os
 
 /// Shows the launcher panel, answers its keys and runs the chosen action on a project.
+///
+/// The projects come from the projects file and the git repositories in its folders. Git is
+/// asked for their last commits in the background, at start-up and when the launcher opens,
+/// at most once a minute; the list updates when the answer comes.
 @MainActor
 @Observable
 final class LauncherController {
-    private(set) var launcher = Launcher(projects: [])
+    private(set) var launcher = Launcher(items: [])
     /// Why the projects could not be read or the last action failed, while the panel is open.
     private(set) var problem: String?
     @ObservationIgnored private var panel: LauncherPanel?
     @ObservationIgnored private var keyTap: LauncherKeyTap?
-    @ObservationIgnored private var recency: ProjectRecency
+    @ObservationIgnored private var config = ProjectsConfig()
+    @ObservationIgnored private var repositories: [Repository] = []
+    @ObservationIgnored private var lastScan: Date?
+    @ObservationIgnored private var isScanning = false
+    @ObservationIgnored private var usage: ProjectUsage
     @ObservationIgnored private let sessions: () -> [Session]
     @ObservationIgnored private let log = Logger(subsystem: AppInfo.subsystem, category: "launcher")
 
     static let vsCode = "com.microsoft.VSCode"
 
-    /// - Parameter sessions: The current sessions, which count as use of their project.
+    /// - Parameter sessions: The current sessions, which put their projects at the top.
     init(sessions: @escaping () -> [Session]) {
         self.sessions = sessions
-        recency = Self.loadRecency()
+        usage = Self.loadUsage()
+        loadConfig()
+        scanRepositories()
     }
 
     var isShown: Bool { panel?.isVisible ?? false }
@@ -41,26 +51,23 @@ final class LauncherController {
             return
         }
 
-        let projects: [Project]
-        do {
-            projects = try ProjectsFile.load()
-            problem = nil
-        } catch {
-            projects = []
-            problem = "Cannot read \(Self.projectsFileForDisplay): \(error.message)"
-        }
-        launcher = Launcher(
-            projects: recency.ordered(projects, sessions: sessions()),
-            actions: ProjectAction.allCases.filter(isAvailable))
-
+        loadConfig()
+        launcher = Launcher(items: items(), actions: ProjectAction.allCases.filter(isAvailable))
         let panel = panel ?? LauncherPanel(content: LauncherView(controller: self))
         self.panel = panel
         panel.present()
+        scanRepositories()
     }
 
     func hide() {
         keyTap?.stop()
         panel?.orderOut(nil)
+    }
+
+    /// A Claude Code session started in `folder`, which counts as use of its project.
+    func sessionStarted(in folder: String) {
+        usage.record(Repositories.root(containing: folder) ?? folder)
+        saveUsage()
     }
 
     /// Opens the projects file, creating it from a template first if needed.
@@ -76,6 +83,33 @@ final class LauncherController {
 
     static var projectsFileForDisplay: String {
         (ProjectsFile.defaultPath as NSString).abbreviatingWithTildeInPath
+    }
+
+    private func loadConfig() {
+        do {
+            config = try ProjectsFile.load()
+            problem = nil
+        } catch {
+            problem = "Cannot read \(Self.projectsFileForDisplay): \(error.message)"
+        }
+    }
+
+    private func items() -> [LauncherItem] {
+        ProjectCatalog.items(config: config, repositories: repositories, usage: usage, sessions: sessions())
+    }
+
+    /// Asks git for the last commit of every repository, unless it did less than a minute ago.
+    private func scanRepositories() {
+        guard !isScanning, lastScan.map({ Date.now.timeIntervalSince($0) > 60 }) ?? true else { return }
+        isScanning = true
+        let paths = ProjectCatalog.repositoryPaths(config: config, usage: usage)
+        Task {
+            let found = await Repositories.scan(paths)
+            repositories = found
+            lastScan = .now
+            isScanning = false
+            if isShown { launcher.update(items: items()) }
+        }
     }
 
     private func handle(_ key: Launcher.Key) {
@@ -111,8 +145,8 @@ final class LauncherController {
             NSWorkspace.shared.open([folder], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
         }
         log.info("Ran \(action.rawValue, privacy: .public) on a project")
-        recency.markUsed(project)
-        saveRecency()
+        usage.record(project.path)
+        saveUsage()
         hide()
     }
 
@@ -128,25 +162,25 @@ final class LauncherController {
         }
     }
 
-    // MARK: Recency
+    // MARK: Usage
 
-    private static var recencyURL: URL {
-        URL.applicationSupportDirectory.appending(path: "\(AppInfo.name)/recent-projects.json")
+    private static var usageURL: URL {
+        URL.applicationSupportDirectory.appending(path: "\(AppInfo.name)/project-usage.json")
     }
 
-    private static func loadRecency() -> ProjectRecency {
-        guard let data = try? Data(contentsOf: recencyURL) else { return ProjectRecency() }
-        return (try? JSONDecoder().decode(ProjectRecency.self, from: data)) ?? ProjectRecency()
+    private static func loadUsage() -> ProjectUsage {
+        guard let data = try? Data(contentsOf: usageURL) else { return ProjectUsage() }
+        return (try? JSONDecoder().decode(ProjectUsage.self, from: data)) ?? ProjectUsage()
     }
 
-    private func saveRecency() {
+    private func saveUsage() {
         do {
-            let url = Self.recencyURL
+            let url = Self.usageURL
             try FileManager.default.createDirectory(
                 at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try JSONEncoder().encode(recency).write(to: url, options: .atomic)
+            try JSONEncoder().encode(usage).write(to: url, options: .atomic)
         } catch {
-            log.error("Could not save recent projects: \(String(describing: error), privacy: .public)")
+            log.error("Could not save project usage: \(String(describing: error), privacy: .public)")
         }
     }
 }
@@ -161,6 +195,7 @@ extension Launcher.Key {
         case 124: self = .right
         case 36, 76: self = .enter
         case 53: self = .escape
+        case 51: self = .backspace
         default:
             guard let character = characters?.first else { return nil }
             self = .character(character)
