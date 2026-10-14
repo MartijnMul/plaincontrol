@@ -32,3 +32,9 @@ targets:
         ENABLE_HARDENED_RUNTIME: YES
         CODE_SIGN_STYLE: Manual
         CODE_SIGN_IDENTITY: "-"
+      configs:
+        # The development build is a separate app, so it can run next to the release build.
+        Debug:
+          PRODUCT_NAME: Plaincontrol Dev
+          PRODUCT_BUNDLE_IDENTIFIER: io.github.martijnmul.plaincontrol.dev
+          INFOPLIST_KEY_CFBundleDisplayName: Plaincontrol Dev

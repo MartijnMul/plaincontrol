@@ -1,0 +1,72 @@
+import PlaincontrolCore
+import SwiftUI
+
+/// The menu that opens from the menu bar icon.
+struct SessionMenu: View {
+    let store: SessionStore
+
+    var body: some View {
+        if let problem = store.problem {
+            Text(problem)
+            Divider()
+        }
+        if store.sessions.isEmpty {
+            Text("No Claude Code sessions")
+        } else {
+            ForEach(store.sessions) { session in
+                Text("\(session.status.symbol)  \(session.displayName) — \(session.status.label)")
+            }
+        }
+        Divider()
+        Button("Quit \(AppInfo.name)") {
+            NSApplication.shared.terminate(nil)
+        }
+        .keyboardShortcut("q")
+    }
+}
+
+/// The menu bar icon, with the number of sessions waiting for the user.
+struct MenuBarLabel: View {
+    let store: SessionStore
+
+    var body: some View {
+        let waiting = store.waitingCount
+        if waiting > 0 {
+            Label("\(waiting)", systemImage: "rectangle.stack.badge.person.crop")
+                .labelStyle(.titleAndIcon)
+        } else {
+            Image(systemName: "rectangle.stack")
+        }
+    }
+}
+
+extension Session {
+    /// The session's title when it has one, and otherwise the name of its folder.
+    var displayName: String {
+        if let title, !title.isEmpty { return title }
+        if let cwd { return URL(filePath: cwd).lastPathComponent }
+        return "Session \(id.prefix(8))"
+    }
+}
+
+extension SessionStatus {
+    var label: String {
+        switch self {
+        case .working: "Working"
+        case .waiting(.permission): "Needs permission"
+        case .waiting(.question): "Has a question"
+        case .waiting(.planApproval): "Plan to review"
+        case .waiting(.input): "Needs input"
+        case .idle: "Idle"
+        case .gone: "Ended"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .waiting: "●"
+        case .working: "◐"
+        case .idle, .gone: "○"
+        }
+    }
+}

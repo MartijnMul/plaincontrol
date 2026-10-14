@@ -1,16 +1,20 @@
-import PlaincontrolCore
 import SwiftUI
 
 @main
 struct PlaincontrolApp: App {
+    @State private var store: SessionStore
+
+    init() {
+        let store = SessionStore()
+        store.start()
+        _store = State(initialValue: store)
+    }
+
     var body: some Scene {
-        MenuBarExtra("Plaincontrol", systemImage: "rectangle.stack") {
-            Text("No sessions yet")
-            Divider()
-            Button("Quit Plaincontrol") {
-                NSApplication.shared.terminate(nil)
-            }
-            .keyboardShortcut("q")
+        MenuBarExtra {
+            SessionMenu(store: store)
+        } label: {
+            MenuBarLabel(store: store)
         }
     }
 }
