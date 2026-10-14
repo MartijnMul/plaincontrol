@@ -1,0 +1,10 @@
+{"session_id": "demo-3", "hook_event_name": "SessionStart", "cwd": "/tmp/api-server", "session_title": "Rate limiting"}
+{"session_id": "demo-4", "hook_event_name": "SessionStart", "cwd": "/tmp/website"}
+{"session_id": "demo-5", "hook_event_name": "SessionStart", "cwd": "/tmp/mobile-app"}
+{"session_id": "demo-3", "hook_event_name": "UserPromptSubmit", "cwd": "/tmp/api-server", "prompt": "Add rate limiting"}
+{"session_id": "demo-4", "hook_event_name": "UserPromptSubmit", "cwd": "/tmp/website", "prompt": "Fix the footer"}
+{"session_id": "demo-5", "hook_event_name": "UserPromptSubmit", "cwd": "/tmp/mobile-app", "prompt": "Update the icons"}
+{"session_id": "demo-4", "hook_event_name": "PermissionRequest", "cwd": "/tmp/website", "tool_name": "Edit"}
+{"session_id": "demo-5", "hook_event_name": "Stop", "cwd": "/tmp/mobile-app"}
+{"session_id": "demo-3", "hook_event_name": "PreToolUse", "cwd": "/tmp/api-server", "tool_name": "AskUserQuestion"}
+{"session_id": "demo-5", "hook_event_name": "SessionEnd", "cwd": "/tmp/mobile-app"}

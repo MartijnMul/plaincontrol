@@ -1,0 +1,6 @@
+{"session_id": "demo-1", "hook_event_name": "SessionStart", "cwd": "/tmp/demo-shop", "source": "startup"}
+{"session_id": "demo-1", "hook_event_name": "UserPromptSubmit", "cwd": "/tmp/demo-shop", "prompt": "Run the tests"}
+{"session_id": "demo-1", "hook_event_name": "PreToolUse", "cwd": "/tmp/demo-shop", "tool_name": "Bash"}
+{"session_id": "demo-1", "hook_event_name": "PermissionRequest", "cwd": "/tmp/demo-shop", "tool_name": "Bash"}
+{"session_id": "demo-1", "hook_event_name": "PostToolUse", "cwd": "/tmp/demo-shop", "tool_name": "Bash"}
+{"session_id": "demo-1", "hook_event_name": "Stop", "cwd": "/tmp/demo-shop"}
