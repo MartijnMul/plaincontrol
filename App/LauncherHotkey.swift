@@ -1,22 +1,23 @@
 import AppKit
 import PlaincontrolCore
 
-/// Opens the launcher when the right Option key is held on its own, in any app.
+/// Opens the launcher when its hold key, such as the right Option key, is held on its own, in
+/// any app.
 ///
-/// Watching the keyboard outside the app needs the Accessibility permission; until it is
-/// granted, the launcher only opens from the menu.
+/// Watching the keyboard outside the app needs the Accessibility permission, as does the
+/// launcher itself (``LauncherKeyTap``).
 @MainActor
 final class LauncherHotkey {
     private var trigger = HoldTrigger()
     private var monitors: [Any] = []
+    private let holdKey: () -> HoldKey
     private let onHold: () -> Void
 
-    /// The right and left Option keys in `NSEvent.modifierFlags`, below the public flags.
-    private static let rightOptionFlag: UInt = 0x40
-    private static let leftOptionFlag: UInt = 0x20
-    private static let otherModifiers: NSEvent.ModifierFlags = [.command, .control, .shift, .function]
-
-    init(onHold: @escaping () -> Void) {
+    /// - Parameters:
+    ///   - holdKey: The key to hold, asked on every key event so a new setting takes effect.
+    ///   - onHold: Called when the key has been held on its own.
+    init(holdKey: @escaping () -> HoldKey, onHold: @escaping () -> Void) {
+        self.holdKey = holdKey
         self.onHold = onHold
     }
 
@@ -67,12 +68,15 @@ final class LauncherHotkey {
         case .keyDown:
             trigger.keyPressed()
         case .flagsChanged:
-            let flags = event.modifierFlags
+            let key = holdKey()
+            if trigger.keyCode != key.keyCode { trigger = HoldTrigger(keyCode: key.keyCode) }
+            // The device-dependent bits tell the right key from the left one.
+            let flags = event.modifierFlags.rawValue
             let press = trigger.modifierChanged(
                 keyCode: event.keyCode,
-                isDown: flags.rawValue & Self.rightOptionFlag != 0,
-                othersDown: !flags.intersection(Self.otherModifiers).isEmpty
-                    || flags.rawValue & Self.leftOptionFlag != 0)
+                isDown: flags & key.deviceFlag != 0,
+                othersDown: flags & HoldKey.allDeviceFlags & ~key.deviceFlag != 0
+                    || event.modifierFlags.contains(.function))
             if let press { fire(after: press) }
         default:
             break

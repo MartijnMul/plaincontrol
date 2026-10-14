@@ -11,7 +11,7 @@ struct PlaincontrolApp: App {
         store.start()
         let launcher = LauncherController { store.registry.sessions.values.map(\.self) }
         store.onSessionStart = { folder in launcher.sessionStarted(in: folder) }
-        hotkey = LauncherHotkey { launcher.show() }
+        hotkey = LauncherHotkey(holdKey: { launcher.holdKey }, onHold: { launcher.show() })
         hotkey.start()
         _store = State(initialValue: store)
         _launcher = State(initialValue: launcher)

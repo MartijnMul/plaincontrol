@@ -35,8 +35,8 @@ struct SessionMenu: View {
                 NSWorkspace.shared.open(LauncherHotkey.accessibilitySettings)
             }
         }
-        Button("Edit Projects…") {
-            launcher.editProjects()
+        Button("Launcher Settings…") {
+            launcher.editSettings()
         }
         Divider()
         Button("Quit \(AppInfo.name)") {

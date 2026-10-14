@@ -6,15 +6,15 @@ public enum ProjectAction: String, CaseIterable, Sendable {
     case claude
     /// The project's folder in Finder.
     case finder
-    /// The project's folder in Visual Studio Code.
-    case vsCode
+    /// The project's folder in the user's editor.
+    case editor
 
     /// The key that runs the action, once a project is open in the launcher.
     public var key: Character {
         switch self {
         case .claude: "c"
         case .finder: "f"
-        case .vsCode: "v"
+        case .editor: "e"
         }
     }
 
@@ -22,7 +22,7 @@ public enum ProjectAction: String, CaseIterable, Sendable {
         switch self {
         case .claude: "Claude Code in iTerm2"
         case .finder: "Finder"
-        case .vsCode: "VS Code"
+        case .editor: "Editor"
         }
     }
 }

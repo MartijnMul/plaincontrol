@@ -44,7 +44,7 @@ public enum ProjectCatalog {
     /// The folders to date: those in the roots, and those in the user's own history outside the
     /// configured projects and the roots, leaving out the home folder and the folders above it.
     public static func folderPaths(
-        config: ProjectsConfig, usage: ProjectUsage, home: String = NSHomeDirectory()
+        config: LauncherConfig, usage: ProjectUsage, home: String = NSHomeDirectory()
     ) -> [String] {
         let inRoots = ProjectFolders.paths(in: config.roots)
         let known = (config.projects.map(\.path) + inRoots).map { Project(path: $0) }
@@ -59,7 +59,7 @@ public enum ProjectCatalog {
     }
 
     public static func items(
-        config: ProjectsConfig,
+        config: LauncherConfig,
         folders: [ProjectFolder],
         zoxide: [Zoxide.Entry] = [],
         usage: ProjectUsage,

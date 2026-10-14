@@ -5,16 +5,14 @@
 /// in the keyboard events, waits ``duration`` after a press starts, and then asks
 /// ``holdElapsed(_:)`` whether that press is still going.
 public struct HoldTrigger: Sendable {
-    /// The virtual key code of the modifier to hold (61 is the right Option key).
+    /// The virtual key code of the modifier to hold.
     public let keyCode: UInt16
     public let duration: Duration
     /// The press being held, if any.
     private var current: Int?
     private var presses = 0
 
-    public static let rightOption: UInt16 = 61
-
-    public init(keyCode: UInt16 = HoldTrigger.rightOption, duration: Duration = .milliseconds(350)) {
+    public init(keyCode: UInt16 = HoldKey.rightOption.keyCode, duration: Duration = .milliseconds(350)) {
         self.keyCode = keyCode
         self.duration = duration
     }

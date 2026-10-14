@@ -20,7 +20,7 @@ final class LauncherController {
     private(set) var problem: String?
     @ObservationIgnored private var panel: LauncherPanel?
     @ObservationIgnored private var keyTap: LauncherKeyTap?
-    @ObservationIgnored private var config = ProjectsConfig()
+    @ObservationIgnored private var config = LauncherConfig()
     @ObservationIgnored private var folders: [ProjectFolder] = []
     @ObservationIgnored private var lastScan: Date?
     @ObservationIgnored private var isScanning = false
@@ -30,7 +30,8 @@ final class LauncherController {
     @ObservationIgnored private let sessions: () -> [Session]
     @ObservationIgnored private let log = Logger(subsystem: AppInfo.subsystem, category: "launcher")
 
-    static let vsCode = "com.microsoft.VSCode"
+    /// The app the editor action opens, if one is set or Visual Studio Code is installed.
+    @ObservationIgnored private var editor: URL?
 
     /// - Parameter sessions: The current sessions, which put their projects at the top.
     init(sessions: @escaping () -> [Session]) {
@@ -59,6 +60,10 @@ final class LauncherController {
 
         loadConfig()
         pathFinder = nil
+        editor = EditorApp.url(for: config.editor)
+        if let name = config.editor, editor == nil {
+            problem = "Cannot find the editor “\(name)” set in \(Self.settingsFileForDisplay)."
+        }
         launcher = Launcher(items: items(), actions: ProjectAction.allCases.filter(isAvailable))
         let panel = panel ?? LauncherPanel(content: LauncherView(controller: self))
         self.panel = panel
@@ -78,27 +83,38 @@ final class LauncherController {
         saveUsage()
     }
 
-    /// Opens the projects file, creating it from a template first if needed.
-    func editProjects() {
+    /// The key that opens the launcher when held, as last read from the settings.
+    var holdKey: HoldKey { config.holdKey }
+
+    /// What the launcher calls an action; the editor action is named after the editor.
+    func title(of action: ProjectAction) -> String {
+        switch action {
+        case .editor: editor.map(EditorApp.name(of:)) ?? action.title
+        case .claude, .finder: action.title
+        }
+    }
+
+    /// Opens the settings file, creating it from a template first if needed.
+    func editSettings() {
         do {
-            try ProjectsFile.createIfMissing()
-            NSWorkspace.shared.open(URL(filePath: ProjectsFile.defaultPath))
+            try LauncherConfigFile.createIfMissing()
+            NSWorkspace.shared.open(URL(filePath: LauncherConfigFile.defaultPath))
         } catch {
-            log.error("Could not create the projects file: \(String(describing: error), privacy: .public)")
+            log.error("Could not create the settings file: \(String(describing: error), privacy: .public)")
             NSSound.beep()
         }
     }
 
-    static var projectsFileForDisplay: String {
-        (ProjectsFile.defaultPath as NSString).abbreviatingWithTildeInPath
+    static var settingsFileForDisplay: String {
+        (LauncherConfigFile.defaultPath as NSString).abbreviatingWithTildeInPath
     }
 
     private func loadConfig() {
         do {
-            config = try ProjectsFile.load()
+            config = try LauncherConfigFile.load()
             problem = nil
         } catch {
-            problem = "Cannot read \(Self.projectsFileForDisplay): \(error.message)"
+            problem = "Cannot read \(Self.settingsFileForDisplay): \(error.message)"
         }
     }
 
@@ -195,16 +211,16 @@ final class LauncherController {
         case .claude:
             do {
                 NSApp.yieldActivation(toApplicationWithBundleIdentifier: ITerm2Controller().bundleIdentifier)
-                try ITerm2Controller().openWindow(in: project.path, running: "claude")
+                try ITerm2Controller().openWindow(in: project.path, running: config.claudeCommand)
             } catch {
                 fail("Could not open iTerm2: \(error.launcherMessage)")
                 return
             }
         case .finder:
             NSWorkspace.shared.open(folder)
-        case .vsCode:
-            guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: Self.vsCode) else { return }
-            NSWorkspace.shared.open([folder], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
+        case .editor:
+            guard let editor else { return }
+            NSWorkspace.shared.open([folder], withApplicationAt: editor, configuration: NSWorkspace.OpenConfiguration())
         }
         log.info("Ran \(action.rawValue, privacy: .public) on a project")
         usage.record(project.path)
@@ -220,7 +236,7 @@ final class LauncherController {
     private func isAvailable(_ action: ProjectAction) -> Bool {
         switch action {
         case .claude, .finder: true
-        case .vsCode: NSWorkspace.shared.urlForApplication(withBundleIdentifier: Self.vsCode) != nil
+        case .editor: editor != nil
         }
     }
 

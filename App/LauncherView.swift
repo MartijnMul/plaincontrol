@@ -58,7 +58,7 @@ struct LauncherView: View {
                     .font(.headline)
                     .padding(.horizontal, 10)
                 Text(
-                    "Projects appear here once you start Claude Code in them. To list folders before that, add them to \(LauncherController.projectsFileForDisplay), from Edit Projects in the menu bar."
+                    "Projects appear here once you start Claude Code in them. To list folders before that, add them to \(LauncherController.settingsFileForDisplay), from Launcher Settings in the menu bar."
                 )
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -145,7 +145,7 @@ struct LauncherView: View {
             ForEach(controller.launcher.actions, id: \.self) { action in
                 row(selected: action == controller.launcher.selectedAction) {
                     KeyCap(String(action.key).uppercased())
-                    Text(action.title).font(.title3)
+                    Text(controller.title(of: action)).font(.title3)
                     Spacer()
                 }
             }

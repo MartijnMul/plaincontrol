@@ -46,7 +46,7 @@ import Testing
 
     @Test func offersOnlyTheGivenActions() {
         var launcher = makeLauncher([app], actions: [.claude, .finder])
-        #expect(press(.enter, .character("v"), on: &launcher) == [.stay, .stay])
+        #expect(press(.enter, .character("e"), on: &launcher) == [.stay, .stay])
     }
 
     @Test func escapeGoesBackThenCloses() {
@@ -77,10 +77,10 @@ import Testing
     }
 
     @Test func runsTheSelectedActionWithReturnOrRight() {
-        var launcher = makeLauncher([app], actions: [.claude, .finder, .vsCode])
+        var launcher = makeLauncher([app], actions: [.claude, .finder, .editor])
         _ = press(.enter, on: &launcher)
         #expect(launcher.selectedAction == .claude)
-        #expect(press(.down, .down, .down, .enter, on: &launcher) == [.stay, .stay, .stay, .run(.vsCode, app)])
+        #expect(press(.down, .down, .down, .enter, on: &launcher) == [.stay, .stay, .stay, .run(.editor, app)])
         #expect(press(.up, .right, on: &launcher) == [.stay, .run(.finder, app)])
     }
 
@@ -186,7 +186,7 @@ import Testing
 }
 
 @Suite struct HoldTriggerTests {
-    let option = HoldTrigger.rightOption
+    let option = HoldKey.rightOption.keyCode
     let command: UInt16 = 54
 
     /// Presses the right Option key alone and returns the press.

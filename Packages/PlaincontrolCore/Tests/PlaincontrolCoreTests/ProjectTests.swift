@@ -38,9 +38,9 @@ import Testing
     }
 }
 
-@Suite struct ProjectsFileTests {
+@Suite struct LauncherConfigFileTests {
     @Test func readsRootsDaysAndProjectsInOrder() throws {
-        let config = try ProjectsFile.parse(
+        let config = try LauncherConfigFile.parse(
             """
             roots:
               - /work
@@ -56,8 +56,35 @@ import Testing
             config.projects == [Project(path: "/work/my-app", name: "My App"), Project(path: "/elsewhere/website")])
     }
 
+    @Test func readsTheLauncherSettings() throws {
+        let config = try LauncherConfigFile.parse(
+            """
+            holdKey: rightCommand
+            editor: Cursor
+            claudeCommand: claude --continue
+            zoxide: false
+            """)
+        #expect(config.holdKey == .rightCommand)
+        #expect(config.editor == "Cursor")
+        #expect(config.claudeCommand == "claude --continue")
+        #expect(!config.zoxide)
+    }
+
+    @Test func usesTheDefaultsForMissingSettings() throws {
+        let config = try LauncherConfigFile.parse("editor: \"  \"\n")
+        #expect(config.holdKey == .rightOption)
+        #expect(config.editor == nil)
+        #expect(config.claudeCommand == "claude")
+        #expect(config.zoxide)
+    }
+
+    @Test func reportsAnUnknownHoldKeyOrEmptyCommand() {
+        #expect(throws: LauncherConfigError.self) { try LauncherConfigFile.parse("holdKey: capsLock\n") }
+        #expect(throws: LauncherConfigError.self) { try LauncherConfigFile.parse("claudeCommand: \"\"\n") }
+    }
+
     @Test func countsAFolderListedTwiceOnce() throws {
-        let config = try ProjectsFile.parse(
+        let config = try LauncherConfigFile.parse(
             """
             projects:
               - path: /work/my-app
@@ -68,29 +95,29 @@ import Testing
     }
 
     @Test func isEmptyWithoutSettings() throws {
-        #expect(try ProjectsFile.parse("") == ProjectsConfig())
-        #expect(try ProjectsFile.parse("# nothing yet\n") == ProjectsConfig())
-        #expect(try ProjectsFile.parse(ProjectsFile.template) == ProjectsConfig())
-        #expect(ProjectsConfig().activeDays == 90)
+        #expect(try LauncherConfigFile.parse("") == LauncherConfig())
+        #expect(try LauncherConfigFile.parse("# nothing yet\n") == LauncherConfig())
+        #expect(try LauncherConfigFile.parse(LauncherConfigFile.template) == LauncherConfig())
+        #expect(LauncherConfig().activeDays == 90)
     }
 
     @Test func reportsMistakes() {
-        #expect(throws: ProjectsFileError.self) { try ProjectsFile.parse("projects:\n  - name: No Path\n") }
-        #expect(throws: ProjectsFileError.self) { try ProjectsFile.parse("activeDays: 0\n") }
+        #expect(throws: LauncherConfigError.self) { try LauncherConfigFile.parse("projects:\n  - name: No Path\n") }
+        #expect(throws: LauncherConfigError.self) { try LauncherConfigFile.parse("activeDays: 0\n") }
     }
 
     @Test func createsTheTemplateOnlyWhenMissing() throws {
         let folder = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: folder) }
-        let path = folder.appending(path: "nested/projects.yaml").path(percentEncoded: false)
+        let path = folder.appending(path: "nested/launcher.yaml").path(percentEncoded: false)
 
-        #expect(try ProjectsFile.load(from: path) == ProjectsConfig())
-        try ProjectsFile.createIfMissing(at: path)
-        #expect(try String(contentsOfFile: path, encoding: .utf8) == ProjectsFile.template)
+        #expect(try LauncherConfigFile.load(from: path) == LauncherConfig())
+        try LauncherConfigFile.createIfMissing(at: path)
+        #expect(try String(contentsOfFile: path, encoding: .utf8) == LauncherConfigFile.template)
 
         try "projects:\n  - path: /work/my-app\n".write(toFile: path, atomically: true, encoding: .utf8)
-        try ProjectsFile.createIfMissing(at: path)
-        #expect(try ProjectsFile.load(from: path).projects == [Project(path: "/work/my-app")])
+        try LauncherConfigFile.createIfMissing(at: path)
+        #expect(try LauncherConfigFile.load(from: path).projects == [Project(path: "/work/my-app")])
     }
 }
 
@@ -159,7 +186,7 @@ import Testing
     }
 
     @Test func listsRecentFoldersAndConfiguredProjectsAsActive() {
-        let config = ProjectsConfig(activeDays: 90, projects: [Project(path: "/work/old", name: "Old Friend")])
+        let config = LauncherConfig(activeDays: 90, projects: [Project(path: "/work/old", name: "Old Friend")])
         let folders = [
             ProjectFolder(path: "/work/new", lastChange: now - 10 * day),
             ProjectFolder(path: "/work/stale", lastChange: now - 200 * day),
@@ -180,7 +207,7 @@ import Testing
         var usage = ProjectUsage()
         usage.record("/work/stale", at: now - day)
         let items = ProjectCatalog.items(
-            config: ProjectsConfig(), folders: [ProjectFolder(path: "/work/stale", lastChange: now - 200 * day)],
+            config: LauncherConfig(), folders: [ProjectFolder(path: "/work/stale", lastChange: now - 200 * day)],
             usage: usage, sessions: [], now: now)
         #expect(item(items, "/work/stale")?.isActive == true)
         #expect(item(items, "/work/stale")?.lastActivity == now - day)
@@ -200,7 +227,7 @@ import Testing
         ] {
             usage.record(path, at: now)
         }
-        let config = ProjectsConfig(roots: [base + "/code"])
+        let config = LauncherConfig(roots: [base + "/code"])
         let paths = ProjectCatalog.folderPaths(config: config, usage: usage, home: base)
         #expect(paths.map { $0.replacing(base, with: "~") } == ["~/code/app", "~/code/site", "~/notes"])
     }
@@ -212,7 +239,7 @@ import Testing
         usage.record("/work/both", at: now - 7 * day)
         let zoxide = [Zoxide.Entry(path: "/work/visited", score: 200), Zoxide.Entry(path: "/work/both", score: 100)]
         let items = ProjectCatalog.items(
-            config: ProjectsConfig(), folders: folders, zoxide: zoxide, usage: usage, sessions: [], now: now)
+            config: LauncherConfig(), folders: folders, zoxide: zoxide, usage: usage, sessions: [], now: now)
         let scores = Dictionary(uniqueKeysWithValues: items.map { ($0.project.name, $0.score) })
         #expect(scores == ["used": 1, "both": 1, "visited": 1, "neither": 0])
         #expect(item(items, "/work/visited")?.isActive == true)
@@ -225,7 +252,7 @@ import Testing
         usage.record("/work/once", at: now)
         let folders = ["/work/often", "/work/once"].map { ProjectFolder(path: $0, lastChange: nil) }
         let items = ProjectCatalog.items(
-            config: ProjectsConfig(), folders: folders, usage: usage, sessions: [], now: now)
+            config: LauncherConfig(), folders: folders, usage: usage, sessions: [], now: now)
         #expect(item(items, "/work/often")?.score == 1)
         #expect(item(items, "/work/once")?.score == 0.5)
     }
@@ -243,7 +270,7 @@ import Testing
             session(in: "/work/c", status: .gone),
         ]
         let items = ProjectCatalog.items(
-            config: ProjectsConfig(), folders: folders, usage: ProjectUsage(), sessions: sessions, now: now)
+            config: LauncherConfig(), folders: folders, usage: ProjectUsage(), sessions: sessions, now: now)
         #expect(item(items, "/work/a")?.sessions == .running)
         #expect(item(items, "/work/a")?.isActive == true)
         #expect(item(items, "/work/b")?.sessions == .waiting)
