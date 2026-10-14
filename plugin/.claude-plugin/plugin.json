@@ -1,0 +1,10 @@
+{
+  "name": "plaincontrol",
+  "version": "0.1.0",
+  "description": "Reports the status of every Claude Code session to Plaincontrol, a macOS menu bar app.",
+  "author": {
+    "name": "Martijn Mullié"
+  },
+  "repository": "https://github.com/MartijnMul/plaincontrol",
+  "license": "Apache-2.0"
+}
