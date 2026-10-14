@@ -4,6 +4,7 @@ import Yams
 /// What the user configures about projects, in `projects.yaml`:
 ///
 /// ```yaml
+/// zoxide: true          # list the folders zoxide ranks highest, when it is installed
 /// roots:                # folders whose subfolders are projects
 ///   - ~/Developer
 /// activeDays: 90        # a project is listed this long after its last change or use
@@ -12,6 +13,8 @@ import Yams
 ///     path: ~/Developer/my-app
 /// ```
 public struct ProjectsConfig: Sendable, Equatable {
+    /// Whether to list the folders the user visits most with zoxide, when it is installed.
+    public var zoxide = true
     /// Folders whose subfolders are projects, by their absolute paths.
     public var roots: [String] = []
     /// How long a project stays in the list after its last change or use.
@@ -19,7 +22,8 @@ public struct ProjectsConfig: Sendable, Equatable {
     /// Projects that are always listed, in the order of the file.
     public var projects: [Project] = []
 
-    public init(roots: [String] = [], activeDays: Int = 90, projects: [Project] = []) {
+    public init(zoxide: Bool = true, roots: [String] = [], activeDays: Int = 90, projects: [Project] = []) {
+        self.zoxide = zoxide
         self.roots = roots.map { ($0 as NSString).standardizingPath }
         self.activeDays = activeDays
         self.projects = projects
@@ -36,6 +40,10 @@ public enum ProjectsFile {
     /// What a new projects file starts with.
     public static let template = """
         # Projects for the Plaincontrol launcher.
+
+        # If you use zoxide (https://github.com/ajeetdsouza/zoxide), the launcher lists the
+        # folders you visit most, ranked by zoxide, and tells zoxide about the ones it opens.
+        zoxide: true
 
         # Folders whose subfolders are projects, such as a folder of git repositories. A project
         # is listed while you work on it: a commit (in a git repository) or a changed file (in
@@ -69,7 +77,8 @@ public enum ProjectsFile {
         let projects = (file.projects ?? [])
             .map { Project(path: $0.path, name: $0.name) }
             .filter { seen.insert($0.path).inserted }
-        return ProjectsConfig(roots: file.roots ?? [], activeDays: file.activeDays ?? 90, projects: projects)
+        return ProjectsConfig(
+            zoxide: file.zoxide ?? true, roots: file.roots ?? [], activeDays: file.activeDays ?? 90, projects: projects)
     }
 
     /// Reads the configuration at `path`, or an empty one when there is no file yet.
@@ -93,6 +102,7 @@ public enum ProjectsFile {
     }
 
     private struct File: Decodable {
+        var zoxide: Bool?
         var roots: [String]?
         var activeDays: Int?
         var projects: [Entry]?

@@ -33,8 +33,10 @@ public struct LauncherItem: Sendable, Equatable, Identifiable {
     }
 }
 
-/// Puts together the projects the launcher knows: the configured ones, the repositories in the
-/// configured roots, and the repositories the user used elsewhere.
+/// Puts together the projects the launcher knows: the configured ones, the folders zoxide ranks,
+/// the folders in the configured roots, and the repositories the user used elsewhere.
+///
+/// A project zoxide knows is ranked by its zoxide score; any other by ``ProjectUsage``.
 public enum ProjectCatalog {
     /// The folders to look at: those in the roots, and the repositories used outside them.
     public static func folderPaths(config: ProjectsConfig, usage: ProjectUsage) -> [String] {
@@ -49,14 +51,18 @@ public enum ProjectCatalog {
     public static func items(
         config: ProjectsConfig,
         folders: [ProjectFolder],
+        zoxide: [Zoxide.Entry] = [],
         usage: ProjectUsage,
         sessions: [Session],
         now: Date = .now
     ) -> [LauncherItem] {
         let configured = Set(config.projects.map(\.path))
         let lastChanges = Dictionary(folders.map { ($0.path, $0.lastChange) }, uniquingKeysWith: { a, _ in a })
+        let ranked = Dictionary(zoxide.map { (Project(path: $0.path).resolvedPath, $0.score) }, uniquingKeysWith: +)
+        var seen = Set<String>()
         let projects =
-            config.projects + folders.map { Project(path: $0.path) }.filter { !configured.contains($0.path) }
+            (config.projects + zoxide.map { Project(path: $0.path) } + folders.map { Project(path: $0.path) })
+            .filter { seen.insert($0.resolvedPath.lowercased()).inserted }
         let activeSince = now.addingTimeInterval(-Double(config.activeDays) * 24 * 3600)
         let running = sessions.filter { $0.status != .gone }
 
@@ -70,9 +76,9 @@ public enum ProjectCatalog {
             return LauncherItem(
                 project: project,
                 sessions: state,
-                isActive: configured.contains(project.path) || state != .none
+                isActive: configured.contains(project.path) || state != .none || ranked[project.resolvedPath] != nil
                     || lastActivity.map { $0 >= activeSince } ?? false,
-                score: usage.score(of: project, at: now),
+                score: ranked[project.resolvedPath] ?? usage.score(of: project, at: now),
                 lastActivity: lastActivity)
         }
     }
