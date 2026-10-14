@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import PlaincontrolCore
+@testable import PlaincontrolHooks
 
 struct HookEventTests {
     private func decode(_ json: String) throws -> HookEvent {

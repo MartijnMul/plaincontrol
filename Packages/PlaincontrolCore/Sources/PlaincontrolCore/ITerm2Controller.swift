@@ -1,3 +1,5 @@
+import PlaincontrolHooks
+
 /// Brings iTerm2 panes to the front through iTerm2's AppleScript interface.
 ///
 /// iTerm2 gives every pane an `ITERM_SESSION_ID` such as `w0t1p0:6B9F…`. The part after the

@@ -1,6 +1,7 @@
 import AppKit
 import Observation
 import PlaincontrolCore
+import PlaincontrolHooks
 import os
 
 /// Receives hook events and keeps the sessions the app shows.

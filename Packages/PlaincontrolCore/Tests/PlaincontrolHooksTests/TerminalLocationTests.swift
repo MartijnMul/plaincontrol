@@ -1,6 +1,6 @@
 import Testing
 
-@testable import PlaincontrolCore
+@testable import PlaincontrolHooks
 
 @Test func keepsOnlyTheTerminalAndPaneVariables() {
     let location = TerminalLocation(environment: [

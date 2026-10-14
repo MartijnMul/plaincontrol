@@ -1,4 +1,5 @@
 import Foundation
+import PlaincontrolHooks
 
 /// A Claude Code session as Plaincontrol tracks it.
 public struct Session: Sendable, Equatable, Identifiable {

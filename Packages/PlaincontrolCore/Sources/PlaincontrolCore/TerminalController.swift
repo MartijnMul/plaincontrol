@@ -1,3 +1,5 @@
+import PlaincontrolHooks
+
 /// Brings the terminal pane of a session to the front.
 ///
 /// There is one controller per terminal program; ``TerminalControllers`` picks the one that

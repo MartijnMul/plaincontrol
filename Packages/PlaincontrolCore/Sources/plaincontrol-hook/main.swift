@@ -1,5 +1,5 @@
 import Foundation
-import PlaincontrolCore
+import PlaincontrolHooks
 
 // The command Claude Code runs for every hook event. It reads the event from stdin, keeps
 // only the fields Plaincontrol needs, adds where the session runs and which Claude Code

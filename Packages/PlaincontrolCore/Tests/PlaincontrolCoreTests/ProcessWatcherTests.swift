@@ -1,4 +1,5 @@
 import Foundation
+import PlaincontrolHooks
 import Testing
 
 @testable import PlaincontrolCore
@@ -10,34 +11,6 @@ private func startSleeping(_ seconds: Double) throws -> Process {
     process.arguments = [String(seconds)]
     try process.run()
     return process
-}
-
-struct SessionProcessTests {
-    @Test func findsARunningProcess() throws {
-        let process = try #require(SessionProcess(pid: getpid()))
-        #expect(process.startTime > 0)
-        #expect(process.isRunning)
-    }
-
-    @Test func aProcessThatExitedIsNotRunning() throws {
-        let child = try startSleeping(0)
-        let process = try #require(SessionProcess(pid: child.processIdentifier))
-        child.waitUntilExit()
-        #expect(!process.isRunning)
-    }
-
-    @Test func anotherProcessWithTheSameIDIsNotTheSame() throws {
-        let process = try #require(SessionProcess(pid: getpid()))
-        var reused = process
-        reused.startTime += 1
-        #expect(!reused.isRunning)
-    }
-
-    @Test func readsTheClaudeCodeProcessFromTheEnvironment() {
-        #expect(SessionProcess(environment: ["CLAUDE_PID": String(getpid())])?.pid == getpid())
-        #expect(SessionProcess(environment: ["CLAUDE_PID": "not a number"]) == nil)
-        #expect(SessionProcess(environment: [:]) == nil)
-    }
 }
 
 @MainActor

@@ -23,6 +23,9 @@ targets:
     sources: [App]
     dependencies:
       - package: PlaincontrolCore
+        product: PlaincontrolCore
+      - package: PlaincontrolCore
+        product: PlaincontrolHooks
     configFiles:
       Debug: Config/Signing.xcconfig
       Release: Config/Signing.xcconfig

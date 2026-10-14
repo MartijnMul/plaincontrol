@@ -1,5 +1,6 @@
 import Foundation
 import PlaincontrolCore
+import PlaincontrolHooks
 
 enum AppInfo {
     /// The app's name, which also names its folder in Application Support.

@@ -1,3 +1,4 @@
+import PlaincontrolHooks
 import Testing
 
 @testable import PlaincontrolCore

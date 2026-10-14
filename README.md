@@ -36,7 +36,9 @@ Builds are signed ad hoc, which is enough to run them on your own Mac. macOS ask
 
 ```
 App/                        SwiftUI app: menu bar, windows, settings
-Packages/PlaincontrolCore/  Sessions, hook events and the local socket, with tests
+Packages/PlaincontrolCore/  The logic, with tests, in two modules:
+  Sources/PlaincontrolHooks Hook events and the local socket: all the hook command needs
+  Sources/PlaincontrolCore  Sessions, terminal control and the project launcher
   Sources/plaincontrol-hook The command Claude Code runs for each hook event
 plugin/                     The Claude Code plugin that installs the hooks
 dev/                        Scenarios for trying the app without Claude Code

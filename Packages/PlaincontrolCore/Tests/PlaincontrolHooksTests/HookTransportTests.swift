@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import PlaincontrolCore
+@testable import PlaincontrolHooks
 
 struct HookTransportTests {
     /// A short socket path: socket addresses hold only about 100 bytes, and the default
