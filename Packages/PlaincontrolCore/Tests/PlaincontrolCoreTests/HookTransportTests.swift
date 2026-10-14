@@ -11,6 +11,7 @@ struct HookTransportTests {
     private let envelope = HookEnvelope(
         event: HookEvent(sessionID: "s1", kind: .permissionRequest, cwd: "/tmp/demo", toolName: "Bash"),
         terminal: TerminalLocation(program: "iTerm.app", paneIDs: ["ITERM_SESSION_ID": "w0t0p0:ABC"]),
+        process: SessionProcess(pid: 4242, startTime: 1_000_000_000_000),
         sentAt: Date(timeIntervalSince1970: 1_000_000)
     )
 

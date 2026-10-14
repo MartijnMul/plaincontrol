@@ -64,6 +64,18 @@ public struct SessionRegistry: Sendable {
         return changed ? StatusChange(sessionID: event.sessionID, from: existing?.status, to: newStatus) : nil
     }
 
+    /// Marks a session as gone because its process exited without a `SessionEnd`, such as
+    /// after a crash.
+    @discardableResult
+    public mutating func markGone(_ sessionID: String, at date: Date = .now) -> StatusChange? {
+        guard var session = sessions[sessionID], session.status != .gone else { return nil }
+        let change = StatusChange(sessionID: sessionID, from: session.status, to: .gone)
+        session.status = .gone
+        session.statusSince = date
+        sessions[sessionID] = session
+        return change
+    }
+
     /// The status an event moves a session to, or nil when it leaves the status as it is.
     static func status(after event: HookEvent, from current: SessionStatus?) -> SessionStatus? {
         switch event.kind {

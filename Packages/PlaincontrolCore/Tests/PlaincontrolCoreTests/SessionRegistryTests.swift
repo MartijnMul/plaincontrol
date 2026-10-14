@@ -110,4 +110,21 @@ struct SessionRegistryTests {
         ])
         #expect(registry.needingAttention.map(\.id) == ["late", "later"])
     }
+
+    @Test func aSessionWhoseProcessExitedIsGone() {
+        var registry = registry(after: [event(.sessionStart), event(.userPromptSubmit)])
+        let end = start.addingTimeInterval(60)
+        #expect(registry.markGone("s1", at: end) == StatusChange(sessionID: "s1", from: .working, to: .gone))
+        #expect(registry.sessions["s1"]?.status == .gone)
+        #expect(registry.sessions["s1"]?.statusSince == end)
+        #expect(registry.markGone("s1") == nil)
+        #expect(registry.markGone("unknown") == nil)
+    }
+
+    @Test func aGoneSessionCanBeResumed() {
+        var registry = registry(after: [event(.sessionStart)])
+        registry.markGone("s1")
+        registry.apply(event(.sessionStart))
+        #expect(registry.sessions["s1"]?.status == .idle)
+    }
 }

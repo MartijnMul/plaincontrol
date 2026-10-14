@@ -1,23 +1,26 @@
 import Foundation
 
 /// What the hook command sends to Plaincontrol for each hook event: the reduced event,
-/// where the session runs, and when the hook ran.
+/// where the session runs, its Claude Code process, and when the hook ran.
 ///
 /// On the wire it is one line of JSON per event.
 public struct HookEnvelope: Sendable, Equatable, Codable {
     public var event: HookEvent
     public var terminal: TerminalLocation?
+    public var process: SessionProcess?
     public var sentAt: Date
 
-    public init(event: HookEvent, terminal: TerminalLocation?, sentAt: Date) {
+    public init(event: HookEvent, terminal: TerminalLocation?, process: SessionProcess? = nil, sentAt: Date) {
         self.event = event
         self.terminal = terminal
+        self.process = process
         self.sentAt = sentAt
     }
 
     private enum CodingKeys: String, CodingKey {
         case event
         case terminal
+        case process
         case sentAt = "sent_at"
     }
 
