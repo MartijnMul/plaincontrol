@@ -1,14 +1,32 @@
 import Foundation
 import Yams
 
-/// The file in which the user lists their projects, by hand:
+/// What the user configures about projects, in `projects.yaml`:
 ///
 /// ```yaml
-/// projects:
+/// roots:                # folders whose git repositories are projects
+///   - ~/Developer
+/// activeDays: 90        # a repository is active this long after its last commit or use
+/// projects:             # always listed, with an optional name
 ///   - name: My App
 ///     path: ~/Developer/my-app
-///   - path: ~/Developer/website   # named after its folder
 /// ```
+public struct ProjectsConfig: Sendable, Equatable {
+    /// Folders whose git repositories are projects, by their absolute paths.
+    public var roots: [String] = []
+    /// How long a project stays in the list after its last commit or use.
+    public var activeDays = 90
+    /// Projects that are always listed, in the order of the file.
+    public var projects: [Project] = []
+
+    public init(roots: [String] = [], activeDays: Int = 90, projects: [Project] = []) {
+        self.roots = roots.map { ($0 as NSString).standardizingPath }
+        self.activeDays = activeDays
+        self.projects = projects
+    }
+}
+
+/// The file in which the user configures projects, by hand.
 public enum ProjectsFile {
     /// `~/.config/plaincontrol/projects.yaml`, shared by the release and development builds.
     public static var defaultPath: String {
@@ -17,33 +35,45 @@ public enum ProjectsFile {
 
     /// What a new projects file starts with.
     public static let template = """
-        # Projects for the Plaincontrol launcher. A project is a folder, with an optional name;
-        # without one, it is named after its folder.
+        # Projects for the Plaincontrol launcher.
+
+        # Folders whose git repositories are projects. A repository is listed while you work
+        # on it: a commit, or a Claude Code session or launcher action in it, within activeDays.
+        # Older ones show up when you search for them.
+        roots:
+        #  - ~/Developer
+        activeDays: 90
+
+        # Projects that are always listed, with an optional name; without one, a project is
+        # named after its folder.
         projects:
         #  - name: My App
         #    path: ~/Developer/my-app
-        #  - path: ~/Developer/website
 
         """
 
-    /// The projects in `text`, in the order of the file; a folder listed twice counts once.
-    public static func parse(_ text: String) throws(ProjectsFileError) -> [Project] {
+    /// The configuration in `text`; a project listed twice counts once.
+    public static func parse(_ text: String) throws(ProjectsFileError) -> ProjectsConfig {
         let file: File
         do {
-            guard let node = try Yams.compose(yaml: text) else { return [] }
+            guard let node = try Yams.compose(yaml: text) else { return ProjectsConfig() }
             file = try YAMLDecoder().decode(File.self, from: node)
         } catch {
             throw ProjectsFileError(message: String(describing: error))
         }
+        if let days = file.activeDays, days < 1 {
+            throw ProjectsFileError(message: "activeDays must be at least 1.")
+        }
         var seen = Set<String>()
-        return (file.projects ?? [])
+        let projects = (file.projects ?? [])
             .map { Project(path: $0.path, name: $0.name) }
             .filter { seen.insert($0.path).inserted }
+        return ProjectsConfig(roots: file.roots ?? [], activeDays: file.activeDays ?? 90, projects: projects)
     }
 
-    /// Reads the projects at `path`, or none when there is no file yet.
-    public static func load(from path: String = defaultPath) throws(ProjectsFileError) -> [Project] {
-        guard FileManager.default.fileExists(atPath: path) else { return [] }
+    /// Reads the configuration at `path`, or an empty one when there is no file yet.
+    public static func load(from path: String = defaultPath) throws(ProjectsFileError) -> ProjectsConfig {
+        guard FileManager.default.fileExists(atPath: path) else { return ProjectsConfig() }
         let text: String
         do {
             text = try String(contentsOfFile: path, encoding: .utf8)
@@ -62,6 +92,8 @@ public enum ProjectsFile {
     }
 
     private struct File: Decodable {
+        var roots: [String]?
+        var activeDays: Int?
         var projects: [Entry]?
     }
 
