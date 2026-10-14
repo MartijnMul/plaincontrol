@@ -10,6 +10,7 @@ final class SessionStore {
     /// Why the app cannot receive events, when it cannot.
     private(set) var problem: String?
     @ObservationIgnored private var server: HookServer?
+    @ObservationIgnored private let notifier = SessionNotifier()
 
     /// The sessions to show: everything still running, waiting ones first.
     var sessions: [Session] {
@@ -23,6 +24,7 @@ final class SessionStore {
     }
 
     func start() {
+        notifier.start()
         let path = HookSocket.path(environment: ProcessInfo.processInfo.environment, appName: AppInfo.name)
         let server = HookServer(path: path) { [weak self] envelope in
             // The server calls in order on its own queue; the main queue keeps that order.
@@ -41,7 +43,10 @@ final class SessionStore {
     }
 
     private func receive(_ envelope: HookEnvelope) {
-        registry.apply(envelope.event, terminal: envelope.terminal, at: envelope.sentAt)
+        guard let change = registry.apply(envelope.event, terminal: envelope.terminal, at: envelope.sentAt),
+            let session = registry.sessions[change.sessionID]
+        else { return }
+        notifier.handle(change, of: session)
     }
 }
 
