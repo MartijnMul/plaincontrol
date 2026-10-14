@@ -11,11 +11,16 @@ public struct TerminalLocation: Sendable, Equatable, Codable {
     /// The environment variables that identify a pane, per terminal.
     public static let paneVariables = [
         "ITERM_SESSION_ID",  // iTerm2
-        "TERM_SESSION_ID",  // Terminal.app
+        "TERM_SESSION_ID",  // Terminal.app (iTerm2 sets it too)
         "TMUX_PANE",  // tmux, inside any terminal
         "KITTY_WINDOW_ID",  // kitty
         "WEZTERM_PANE",  // WezTerm
     ]
+
+    private enum CodingKeys: String, CodingKey {
+        case program
+        case paneIDs = "pane_ids"
+    }
 
     public init(program: String?, paneIDs: [String: String] = [:]) {
         self.program = program

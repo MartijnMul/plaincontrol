@@ -68,10 +68,30 @@ extension HookEvent {
             default: self = .other(name)
             }
         }
+
+        /// The hook event name as Claude Code writes it.
+        public var name: String {
+            switch self {
+            case .sessionStart: "SessionStart"
+            case .userPromptSubmit: "UserPromptSubmit"
+            case .preToolUse: "PreToolUse"
+            case .permissionRequest: "PermissionRequest"
+            case .postToolUse: "PostToolUse"
+            case .postToolUseFailure: "PostToolUseFailure"
+            case .postToolBatch: "PostToolBatch"
+            case .subagentStart: "SubagentStart"
+            case .subagentStop: "SubagentStop"
+            case .notification: "Notification"
+            case .stop: "Stop"
+            case .stopFailure: "StopFailure"
+            case .sessionEnd: "SessionEnd"
+            case .other(let name): name
+            }
+        }
     }
 }
 
-extension HookEvent: Decodable {
+extension HookEvent: Codable {
     private enum CodingKeys: String, CodingKey {
         case sessionID = "session_id"
         case hookEventName = "hook_event_name"
@@ -91,5 +111,16 @@ extension HookEvent: Decodable {
             notificationType: try? container.decodeIfPresent(String.self, forKey: .notificationType),
             sessionTitle: try? container.decodeIfPresent(String.self, forKey: .sessionTitle)
         )
+    }
+
+    /// Encodes the event in the shape Claude Code sends it, with only the fields kept.
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(sessionID, forKey: .sessionID)
+        try container.encode(kind.name, forKey: .hookEventName)
+        try container.encodeIfPresent(cwd, forKey: .cwd)
+        try container.encodeIfPresent(toolName, forKey: .toolName)
+        try container.encodeIfPresent(notificationType, forKey: .notificationType)
+        try container.encodeIfPresent(sessionTitle, forKey: .sessionTitle)
     }
 }
