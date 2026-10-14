@@ -4,12 +4,14 @@ import PlaincontrolCore
 /// Opens the launcher when its hold key, such as the right Option key, is held on its own, in
 /// any app.
 ///
-/// Watching the keyboard outside the app needs the Accessibility permission, as does the
-/// launcher itself (``LauncherKeyTap``).
+/// It listens through an event tap that only reads, which sees the keys whichever app is in
+/// front, Plaincontrol included. A global `NSEvent` monitor would be simpler, but while one is
+/// installed, the menu bar menu does not close when the user clicks elsewhere, and swallows the
+/// clicks. Like the launcher itself (``LauncherKeyTap``), it needs the Accessibility permission.
 @MainActor
 final class LauncherHotkey {
     private var trigger = HoldTrigger()
-    private var monitors: [Any] = []
+    private var tap: CFMachPort?
     private let holdKey: () -> HoldKey
     private let onHold: () -> Void
 
@@ -28,29 +30,23 @@ final class LauncherHotkey {
 
     /// Starts watching the keyboard, asking for the Accessibility permission first if needed.
     func start() {
-        guard monitors.isEmpty else { return }
+        guard tap == nil else { return }
         guard Self.isAllowed else {
             // The value of `kAXTrustedCheckOptionPrompt`, a global Swift 6 cannot read safely.
             AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
             waitForPermission()
             return
         }
-        let events: NSEvent.EventTypeMask = [.flagsChanged, .keyDown]
-        if let global = NSEvent.addGlobalMonitorForEvents(
-            matching: events,
-            handler: { [weak self] event in MainActor.assumeIsolated { self?.handle(event) } })
-        {
-            monitors.append(global)
-        }
-        if let local = NSEvent.addLocalMonitorForEvents(
-            matching: events,
-            handler: { [weak self] event in
-                MainActor.assumeIsolated { self?.handle(event) }
-                return event
-            })
-        {
-            monitors.append(local)
-        }
+        let events: [CGEventType] = [.flagsChanged, .keyDown]
+        let mask = events.reduce(CGEventMask(0)) { $0 | (1 << $1.rawValue) }
+        guard
+            let tap = CGEvent.tapCreate(
+                tap: .cgSessionEventTap, place: .tailAppendEventTap, options: .listenOnly,
+                eventsOfInterest: mask, callback: Self.callback,
+                userInfo: Unmanaged.passUnretained(self).toOpaque())
+        else { return }
+        CFRunLoopAddSource(CFRunLoopGetMain(), CFMachPortCreateRunLoopSource(nil, tap, 0), .commonModes)
+        self.tap = tap
     }
 
     /// Starts once the user grants the permission in System Settings.
@@ -63,20 +59,35 @@ final class LauncherHotkey {
         }
     }
 
-    private func handle(_ event: NSEvent) {
-        switch event.type {
+    /// What the hotkey needs from an event, taken out of it before it crosses to the main actor.
+    private struct Input: Sendable {
+        var type: CGEventType
+        var keyCode: UInt16
+        var flags: UInt64
+
+        init(_ type: CGEventType, _ event: CGEvent) {
+            self.type = type
+            keyCode = UInt16(truncatingIfNeeded: event.getIntegerValueField(.keyboardEventKeycode))
+            flags = event.flags.rawValue
+        }
+    }
+
+    private func handle(_ input: Input) {
+        switch input.type {
+        case .tapDisabledByTimeout, .tapDisabledByUserInput:
+            if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
         case .keyDown:
             trigger.keyPressed()
         case .flagsChanged:
             let key = holdKey()
             if trigger.keyCode != key.keyCode { trigger = HoldTrigger(keyCode: key.keyCode) }
             // The device-dependent bits tell the right key from the left one.
-            let flags = event.modifierFlags.rawValue
+            let flags = UInt(input.flags)
             let press = trigger.modifierChanged(
-                keyCode: event.keyCode,
+                keyCode: input.keyCode,
                 isDown: flags & key.deviceFlag != 0,
                 othersDown: flags & HoldKey.allDeviceFlags & ~key.deviceFlag != 0
-                    || event.modifierFlags.contains(.function))
+                    || input.flags & CGEventFlags.maskSecondaryFn.rawValue != 0)
             if let press { fire(after: press) }
         default:
             break
@@ -89,5 +100,15 @@ final class LauncherHotkey {
             guard let self, self.trigger.holdElapsed(press) else { return }
             self.onHold()
         }
+    }
+
+    private static let callback: CGEventTapCallBack = { _, type, event, userInfo in
+        if let userInfo {
+            let hotkey = Unmanaged<LauncherHotkey>.fromOpaque(userInfo).takeUnretainedValue()
+            let input = Input(type, event)
+            // The tap's run loop source is on the main run loop.
+            MainActor.assumeIsolated { hotkey.handle(input) }
+        }
+        return Unmanaged.passUnretained(event)
     }
 }
