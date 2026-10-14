@@ -6,9 +6,9 @@ import os
 
 /// Shows the launcher panel, answers its keys and runs the chosen action on a project.
 ///
-/// The projects come from the projects file and the git repositories in its folders. Git is
-/// asked for their last commits in the background, at start-up and when the launcher opens,
-/// at most once a minute; the list updates when the answer comes.
+/// The projects come from the projects file and the folders in its roots. When each folder last
+/// changed is looked up in the background, at start-up and when the launcher opens, at most
+/// once a minute; the list updates when the answer comes.
 @MainActor
 @Observable
 final class LauncherController {
@@ -18,7 +18,7 @@ final class LauncherController {
     @ObservationIgnored private var panel: LauncherPanel?
     @ObservationIgnored private var keyTap: LauncherKeyTap?
     @ObservationIgnored private var config = ProjectsConfig()
-    @ObservationIgnored private var repositories: [Repository] = []
+    @ObservationIgnored private var folders: [ProjectFolder] = []
     @ObservationIgnored private var lastScan: Date?
     @ObservationIgnored private var isScanning = false
     @ObservationIgnored private var usage: ProjectUsage
@@ -32,7 +32,7 @@ final class LauncherController {
         self.sessions = sessions
         usage = Self.loadUsage()
         loadConfig()
-        scanRepositories()
+        scanFolders()
     }
 
     var isShown: Bool { panel?.isVisible ?? false }
@@ -56,7 +56,7 @@ final class LauncherController {
         let panel = panel ?? LauncherPanel(content: LauncherView(controller: self))
         self.panel = panel
         panel.present()
-        scanRepositories()
+        scanFolders()
     }
 
     func hide() {
@@ -66,7 +66,7 @@ final class LauncherController {
 
     /// A Claude Code session started in `folder`, which counts as use of its project.
     func sessionStarted(in folder: String) {
-        usage.record(Repositories.root(containing: folder) ?? folder)
+        usage.record(ProjectFolders.repositoryRoot(containing: folder) ?? folder)
         saveUsage()
     }
 
@@ -95,20 +95,25 @@ final class LauncherController {
     }
 
     private func items() -> [LauncherItem] {
-        ProjectCatalog.items(config: config, repositories: repositories, usage: usage, sessions: sessions())
+        ProjectCatalog.items(config: config, folders: folders, usage: usage, sessions: sessions())
     }
 
-    /// Asks git for the last commit of every repository, unless it did less than a minute ago.
-    private func scanRepositories() {
+    /// Looks up when every project folder last changed, unless it did less than a minute ago.
+    /// A folder seen for the first time is listed undated, so only a search finds it, until
+    /// its date comes in.
+    private func scanFolders() {
         guard !isScanning, lastScan.map({ Date.now.timeIntervalSince($0) > 60 }) ?? true else { return }
         isScanning = true
-        let paths = ProjectCatalog.repositoryPaths(config: config, usage: usage)
+        let paths = ProjectCatalog.folderPaths(config: config, usage: usage)
+        let known = Dictionary(folders.map { ($0.path, $0) }, uniquingKeysWith: { a, _ in a })
+        folders = paths.map { known[$0] ?? ProjectFolder(path: $0, lastChange: nil) }
         Task {
-            let found = await Repositories.scan(paths)
-            repositories = found
+            for await folder in ProjectFolders.scan(paths) {
+                if let index = folders.firstIndex(where: { $0.path == folder.path }) { folders[index] = folder }
+                if isShown { launcher.update(items: items()) }
+            }
             lastScan = .now
             isScanning = false
-            if isShown { launcher.update(items: items()) }
         }
     }
 
