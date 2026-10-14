@@ -14,6 +14,8 @@ import os
 @Observable
 final class LauncherController {
     private(set) var launcher = Launcher(items: [])
+    /// The folder search to add a project, while it is open.
+    private(set) var pathFinder: PathFinder?
     /// Why the projects could not be read or the last action failed, while the panel is open.
     private(set) var problem: String?
     @ObservationIgnored private var panel: LauncherPanel?
@@ -56,6 +58,7 @@ final class LauncherController {
         }
 
         loadConfig()
+        pathFinder = nil
         launcher = Launcher(items: items(), actions: ProjectAction.allCases.filter(isAvailable))
         let panel = panel ?? LauncherPanel(content: LauncherView(controller: self))
         self.panel = panel
@@ -145,11 +148,37 @@ final class LauncherController {
 
     private func handle(_ key: Launcher.Key) {
         guard isShown else { return }
+        if var finder = pathFinder {
+            let outcome = finder.press(key, list: ProjectFolders.subfolders(of:))
+            pathFinder = finder
+            switch outcome {
+            case .stay: break
+            case .cancel: pathFinder = nil
+            case .add(let path): add(path)
+            }
+            return
+        }
         switch launcher.press(key) {
         case .stay: break
         case .close: hide()
         case .run(let action, let project): run(action, on: project)
+        case .findFolder: pathFinder = PathFinder(folder: NSHomeDirectory(), list: ProjectFolders.subfolders(of:))
         }
+    }
+
+    /// Adds the folder at `path` as a project, by counting it as used, and opens it.
+    private func add(_ path: String) {
+        usage.record(path)
+        saveUsage()
+        if !folders.contains(where: { $0.path == path }) {
+            folders.append(ProjectFolder(path: path, lastChange: nil))
+        }
+        launcher.update(items: items())
+        let added = Project(path: path)
+        let project = launcher.items.first { $0.project.resolvedPath == added.resolvedPath }?.project ?? added
+        log.info("Added a project from the launcher")
+        pathFinder = nil
+        launcher.open(project)
     }
 
     private func run(_ action: ProjectAction, on project: Project) {

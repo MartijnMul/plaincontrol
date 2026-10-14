@@ -15,9 +15,13 @@ struct LauncherView: View {
 
     private var card: some View {
         VStack(alignment: .leading, spacing: 10) {
-            switch controller.launcher.screen {
-            case .projects: projectList
-            case .project(let project): actionList(for: project)
+            if let finder = controller.pathFinder {
+                pathFinderList(finder)
+            } else {
+                switch controller.launcher.screen {
+                case .projects: projectList
+                case .project(let project): actionList(for: project)
+                }
             }
             if let problem = controller.problem {
                 Text(problem)
@@ -64,6 +68,11 @@ struct LauncherView: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 10)
             }
+            row(selected: true) {
+                Image(systemName: "folder.badge.plus")
+                Text("Add a folder…").font(.title3.weight(.medium))
+                Spacer()
+            }
         } else {
             VStack(spacing: 2) {
                 ForEach(Array(launcher.visible.enumerated()), id: \.element.id) { index, item in
@@ -75,6 +84,49 @@ struct LauncherView: View {
                             .opacity(item.isActive ? 1 : 0.55)
                         Spacer()
                         Text(item.project.displayPath).foregroundStyle(.secondary).lineLimit(1).truncationMode(.head)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func pathFinderList(_ finder: PathFinder) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "folder")
+            Text((finder.folder as NSString).abbreviatingWithTildeInPath + (finder.folder == "/" ? "" : "/"))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.head)
+            Text(finder.filter)
+            Spacer()
+        }
+        .font(.title3)
+        .padding(.horizontal, 10)
+        let rows = finder.rows
+        if rows.isEmpty {
+            Text(finder.filter.isEmpty ? "No folders here" : "No folder matches “\(finder.filter)”")
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 10)
+        } else {
+            // Show the rows around the selection, as many as the project list shows.
+            let first = min(
+                max(finder.selection - Launcher.visibleLimit + 1, 0), max(rows.count - Launcher.visibleLimit, 0))
+            VStack(spacing: 2) {
+                ForEach(first..<min(first + Launcher.visibleLimit, rows.count), id: \.self) { index in
+                    row(selected: index == finder.selection) {
+                        switch rows[index] {
+                        case .current:
+                            Image(systemName: "plus.circle")
+                            Text("This folder").font(.title3.weight(.medium))
+                        case .subfolder(let name):
+                            Image(systemName: "folder")
+                            Text(name).font(.title3)
+                        }
+                        Spacer()
+                        if case .subfolder = rows[index] {
+                            Image(systemName: "chevron.right").foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
@@ -109,6 +161,24 @@ struct LauncherView: View {
 
     private var hints: some View {
         HStack(spacing: 14) {
+            if controller.pathFinder != nil {
+                hint("↑↓", "Select")
+                hint("→", "Open")
+                hint("←", "Up")
+                hint("↩", "Add")
+                hint("esc", "Back")
+            } else {
+                launcherHints
+            }
+        }
+        .font(.callout)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 10)
+    }
+
+    @ViewBuilder
+    private var launcherHints: some View {
+        HStack(spacing: 14) {
             switch controller.launcher.screen {
             case .projects:
                 hint("↑↓", "Select")
@@ -120,9 +190,6 @@ struct LauncherView: View {
                 hint("← esc", "Back")
             }
         }
-        .font(.callout)
-        .foregroundStyle(.secondary)
-        .padding(.horizontal, 10)
     }
 
     private func hint(_ key: String, _ label: String) -> some View {
