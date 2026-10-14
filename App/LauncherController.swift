@@ -162,7 +162,9 @@ final class LauncherController {
         case .stay: break
         case .close: hide()
         case .run(let action, let project): run(action, on: project)
-        case .findFolder: pathFinder = PathFinder(folder: NSHomeDirectory(), list: ProjectFolders.subfolders(of:))
+        case .findFolder:
+            pathFinder = PathFinder(
+                folder: NSHomeDirectory(), home: NSHomeDirectory(), list: ProjectFolders.subfolders(of:))
         }
     }
 

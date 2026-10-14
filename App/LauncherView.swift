@@ -116,9 +116,10 @@ struct LauncherView: View {
                 ForEach(first..<min(first + Launcher.visibleLimit, rows.count), id: \.self) { index in
                     row(selected: index == finder.selection) {
                         switch rows[index] {
-                        case .current:
-                            Image(systemName: "plus.circle")
-                            Text("This folder").font(.title3.weight(.medium))
+                        case .add:
+                            Image(systemName: "plus.circle.fill")
+                            Text("Add “\((finder.folder as NSString).lastPathComponent)” as a project")
+                                .font(.title3.weight(.medium))
                         case .subfolder(let name):
                             Image(systemName: "folder")
                             Text(name).font(.title3)
@@ -163,9 +164,8 @@ struct LauncherView: View {
         HStack(spacing: 14) {
             if controller.pathFinder != nil {
                 hint("↑↓", "Select")
-                hint("→", "Open")
+                hint("↩ →", "Open folder")
                 hint("←", "Up")
-                hint("↩", "Add")
                 hint("esc", "Back")
             } else {
                 launcherHints

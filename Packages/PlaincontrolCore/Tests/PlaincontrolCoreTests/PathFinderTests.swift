@@ -8,9 +8,11 @@ import Testing
     let disk: [String: [String]] = [
         "/": ["Users"],
         "/Users": ["me"],
-        "/Users/me": ["Code", "Documents", "workspaces"],
+        "/Users/me": ["Code", "Documents", "Dropbox", "workspaces"],
         "/Users/me/workspaces": ["client", "private", "proxy-tools"],
         "/Users/me/workspaces/private": ["homelab", "website"],
+        "/Users/me/Dropbox": ["Personal", "Scans"],
+        "/Users/me/Dropbox/Personal": ["House plans", "Taxes"],
     ]
 
     func list(_ folder: String) -> [String] { disk[folder] ?? [] }
@@ -21,36 +23,51 @@ import Testing
 
     func type(_ text: String) -> [Launcher.Key] { text.map(Launcher.Key.character) }
 
-    @Test func showsTheCurrentFolderAboveTheFoldersInside() {
-        let finder = PathFinder(folder: "/Users/me", list: list)
-        #expect(finder.rows == [.current, .subfolder("Code"), .subfolder("Documents"), .subfolder("workspaces")])
-        #expect(finder.selectedRow == .subfolder("Code"))
+    func finder(at folder: String) -> PathFinder {
+        PathFinder(folder: folder, home: "/Users/me", list: list)
     }
 
-    @Test func walksDownAndAddsAFolder() {
-        var finder = PathFinder(folder: "/Users/me", list: list)
-        _ = press(.down, .down, .right, on: &finder)
-        #expect(finder.folder == "/Users/me/workspaces")
-        for key in type("pri") { _ = finder.press(key, list: list) }
-        #expect(finder.rows == [.subfolder("private")])
-        _ = press(.right, on: &finder)
-        #expect(finder.folder == "/Users/me/workspaces/private")
-        #expect(press(.enter, on: &finder) == [.add("/Users/me/workspaces/private/homelab")])
+    @Test func offersToAddTheCurrentFolderAboveTheFoldersInside() {
+        let finder = finder(at: "/Users/me/workspaces")
+        #expect(finder.rows == [.add, .subfolder("client"), .subfolder("private"), .subfolder("proxy-tools")])
+        #expect(finder.selectedRow == .subfolder("client"))
     }
 
-    @Test func addsTheCurrentFolder() {
-        var finder = PathFinder(folder: "/Users/me/workspaces", list: list)
-        #expect(press(.up, .enter, on: &finder) == [.stay, .add("/Users/me/workspaces")])
+    @Test func returnGoesIntoAFolderInsteadOfAddingIt() {
+        var finder = finder(at: "/Users/me")
+        for key in type("drop") { _ = finder.press(key, list: list) }
+        #expect(press(.enter, on: &finder) == [.stay])
+        #expect(finder.folder == "/Users/me/Dropbox")
+        #expect(press(.enter, .enter, on: &finder) == [.stay, .stay])
+        #expect(finder.folder == "/Users/me/Dropbox/Personal/House plans")
+        #expect(finder.rows == [.add])
     }
 
-    @Test func slashGoesIntoTheBestMatch() {
-        var finder = PathFinder(folder: "/Users/me", list: list)
+    @Test func addsOnlyWithTheAddRow() {
+        var finder = finder(at: "/Users/me/Dropbox/Personal")
+        #expect(finder.selectedRow == .subfolder("House plans"))
+        #expect(press(.right, on: &finder) == [.stay])
+        #expect(finder.selectedRow == .add)
+        #expect(press(.right, on: &finder) == [.stay])
+        #expect(press(.enter, on: &finder) == [.add("/Users/me/Dropbox/Personal/House plans")])
+    }
+
+    @Test func neverOffersToAddTheHomeFolderOrAbove() {
+        #expect(!finder(at: "/Users/me").rows.contains(.add))
+        #expect(!finder(at: "/Users").rows.contains(.add))
+        #expect(!finder(at: "/").rows.contains(.add))
+        #expect(finder(at: "/Users/me/Code").rows == [.add])
+    }
+
+    @Test func walksDownByTypingWithSlashes() {
+        var finder = finder(at: "/Users/me")
         for key in type("work/pri/") { _ = finder.press(key, list: list) }
         #expect(finder.folder == "/Users/me/workspaces/private")
+        #expect(finder.selectedRow == .subfolder("homelab"))
     }
 
-    @Test func listsNamesStartingWithTheFilterFirst() {
-        var finder = PathFinder(folder: "/Users/me/workspaces", list: list)
+    @Test func hidesTheAddRowWhileFiltering() {
+        var finder = finder(at: "/Users/me/workspaces")
         for key in type("pr") { _ = finder.press(key, list: list) }
         #expect(finder.rows == [.subfolder("private"), .subfolder("proxy-tools")])
         for key in type("o") { _ = finder.press(key, list: list) }
@@ -61,7 +78,7 @@ import Testing
     }
 
     @Test func goesUpWithTheFolderItCameFromSelected() {
-        var finder = PathFinder(folder: "/Users/me/workspaces/private", list: list)
+        var finder = finder(at: "/Users/me/workspaces/private")
         _ = press(.left, on: &finder)
         #expect(finder.folder == "/Users/me/workspaces")
         #expect(finder.selectedRow == .subfolder("private"))
@@ -73,17 +90,18 @@ import Testing
     }
 
     @Test func backspaceEditsTheFilterFirst() {
-        var finder = PathFinder(folder: "/Users/me/workspaces", list: list)
+        var finder = finder(at: "/Users/me/workspaces")
         _ = press(.character("c"), .character("l"), .backspace, on: &finder)
         #expect(finder.filter == "c")
         #expect(finder.folder == "/Users/me/workspaces")
     }
 
     @Test func escapeClearsTheFilterThenGivesUp() {
-        var finder = PathFinder(folder: "/Users/me", list: list)
+        var finder = finder(at: "/Users/me/workspaces")
         _ = press(.character("c"), on: &finder)
         #expect(press(.escape, on: &finder) == [.stay])
         #expect(finder.filter.isEmpty)
+        #expect(finder.selectedRow == .subfolder("client"))
         #expect(press(.escape, on: &finder) == [.cancel])
     }
 
@@ -99,5 +117,10 @@ import Testing
         #expect(
             ProjectFolders.subfolders(of: folder.path(percentEncoded: false))
                 == ["A-folder", "b-folder", "folder 9", "folder 10", "linked"])
+
+        try FileManager.default.createDirectory(
+            at: folder.appending(path: "b-folder/inside"), withIntermediateDirectories: true)
+        #expect(
+            ProjectFolders.subfolders(of: folder.appending(path: "linked").path(percentEncoded: false)) == ["inside"])
     }
 }

@@ -36,7 +36,8 @@ public enum ProjectFolders {
     /// The names of the folders inside `path`, following links, without hidden folders and
     /// packages such as apps, in Finder's order.
     public static func subfolders(of path: String) -> [String] {
-        let folder = URL(filePath: path, directoryHint: .isDirectory)
+        // Resolve a link first: listing a link to a folder fails with "not a directory".
+        let folder = URL(filePath: path, directoryHint: .isDirectory).resolvingSymlinksInPath()
         let keys: [URLResourceKey] = [.isDirectoryKey, .isPackageKey]
         let items =
             (try? FileManager.default.contentsOfDirectory(
