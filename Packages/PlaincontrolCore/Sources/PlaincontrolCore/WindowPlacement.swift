@@ -41,14 +41,18 @@ public struct WindowLayout: Sendable, Equatable {
 
 /// Where a new window goes.
 ///
-/// It takes the first free columns, from left to right, as many as it spans side by side: on
-/// the screen with the pointer first, then on the other external screens, nearest first, then
-/// on the built-in screen. A column is free while other windows cover less than a quarter of
-/// it. When a screen has enough free columns but not side by side, the windows that fill
-/// columns there slide over to make room, keeping their order, as few of them as possible;
-/// that is tried on the external screens before the built-in one gets the window. When no
-/// columns can be had, the window goes in the first columns of the built-in screen, in front
-/// of what is there.
+/// It takes free columns, as many as it spans side by side: on the screen with the pointer
+/// first, then on the other external screens, nearest first, then on the built-in screen. A
+/// column is free while other windows cover less than a quarter of it. Each screen fills from
+/// the columns nearest the user, who is taken to sit in front of the built-in screen, or of
+/// the main one without it: a screen in front fills from its middle, then from left to right;
+/// a screen to the left fills from right to left, and one to the right from left to right.
+///
+/// When a screen has enough free columns but not side by side, the windows that fill columns
+/// there slide over to make room, keeping their order, as few of them as possible; that is
+/// tried on the external screens before the built-in one gets the window. When no columns can
+/// be had, the window goes in the best columns of the built-in screen, in front of what is
+/// there.
 ///
 /// Frames are in global screen coordinates with the origin at the top left of the main screen
 /// and y growing downwards, as window lists and AppleScript give them.
@@ -112,18 +116,19 @@ public enum WindowPlacement {
         for action: ProjectAction, screens: [Screen], current: Int?, windows: [Window], layout: WindowLayout
     ) -> Placement? {
         let ordered = order(screens, current: current)
+        let viewer = (screens.first(where: \.isBuiltIn) ?? screens.first)?.visibleFrame.midX ?? 0
         // The current screen and the external ones come before a built-in screen the user is
         // not working on, also when making room means moving windows.
         let preferred = ordered.enumerated().filter { $0.offset == 0 || !$0.element.isBuiltIn }.map(\.element)
         let others = ordered.enumerated().filter { $0.offset != 0 && $0.element.isBuiltIn }.map(\.element)
         for screens in [preferred, others] {
             for screen in screens {
-                if let frame = freeColumns(on: screen, for: action, windows: windows, layout: layout) {
+                if let frame = freeColumns(on: screen, for: action, windows: windows, layout: layout, viewer: viewer) {
                     return Placement(frame: frame)
                 }
             }
             for screen in screens {
-                if let placement = makeRoom(on: screen, for: action, windows: windows, layout: layout) {
+                if let placement = makeRoom(on: screen, for: action, windows: windows, layout: layout, viewer: viewer) {
                     return placement
                 }
             }
@@ -134,30 +139,64 @@ public enum WindowPlacement {
         guard let fallback else { return nil }
         let columns = columns(of: fallback, layout: layout)
         let span = layout.span(of: action, on: fallback)
-        guard columns.count >= span else { return nil }
-        return Placement(frame: union(columns[0..<span]))
+        guard let run = runs(of: span, on: fallback, columns: columns.count, viewer: viewer).first else { return nil }
+        return Placement(frame: union(columns[run]))
     }
 
-    /// The first free columns side by side on `screen` for a window of `action`.
+    /// The best free columns side by side on `screen` for a window of `action`.
     private static func freeColumns(
-        on screen: Screen, for action: ProjectAction, windows: [Window], layout: WindowLayout
+        on screen: Screen, for action: ProjectAction, windows: [Window], layout: WindowLayout, viewer: Double
     ) -> CGRect? {
         let columns = columns(of: screen, layout: layout)
         let span = layout.span(of: action, on: screen)
         let frames = windows.map(\.frame)
-        guard columns.count >= span else { return nil }
-        for first in 0...(columns.count - span) {
-            let run = columns[first..<first + span]
-            if run.allSatisfy({ isFree($0, windows: frames) }) { return union(run) }
+        let free = runs(of: span, on: screen, columns: columns.count, viewer: viewer).first { run in
+            columns[run].allSatisfy { isFree($0, windows: frames) }
         }
-        return nil
+        return free.map { union(columns[$0]) }
+    }
+
+    /// How much the user prefers each column of `screen`, 0 for the first choice, given the
+    /// user's place `viewer` along the screens.
+    static func preference(on screen: Screen, columns count: Int, viewer: Double) -> [Int] {
+        let order: [Int]
+        if screen.visibleFrame.maxX <= viewer {
+            order = Array((0..<count).reversed())
+        } else if screen.visibleFrame.minX >= viewer {
+            order = Array(0..<count)
+        } else {
+            // In front: from the middle out, the left one first of two as near.
+            let middle = Double(count - 1) / 2
+            order = (0..<count).sorted { a, b in
+                let da = abs(Double(a) - middle)
+                let db = abs(Double(b) - middle)
+                return da == db ? a < b : da < db
+            }
+        }
+        var preference = Array(repeating: 0, count: count)
+        for (rank, column) in order.enumerated() { preference[column] = rank }
+        return preference
+    }
+
+    /// Every run of `span` columns side by side on `screen`, the user's first choice first: the
+    /// one with the most preferred column, then the next, and so on.
+    static func runs(of span: Int, on screen: Screen, columns count: Int, viewer: Double) -> [Range<Int>] {
+        guard span >= 1, count >= span else { return [] }
+        let preference = preference(on: screen, columns: count, viewer: viewer)
+        return (0...(count - span)).map { $0..<$0 + span }.sorted { a, b in
+            score(a, preference).lexicographicallyPrecedes(score(b, preference))
+        }
+    }
+
+    private static func score(_ run: Range<Int>, _ preference: [Int]) -> [Int] {
+        run.map { preference[$0] }.sorted()
     }
 
     /// Room for a window of `action` on `screen`, made by sliding the windows that fill
     /// columns there, keeping their order. The arrangement that moves the fewest windows wins,
-    /// then the one that slides them furthest to the left.
+    /// then the one that leaves the user's preferred columns for the new window.
     private static func makeRoom(
-        on screen: Screen, for action: ProjectAction, windows: [Window], layout: WindowLayout
+        on screen: Screen, for action: ProjectAction, windows: [Window], layout: WindowLayout, viewer: Double
     ) -> Placement? {
         let columns = columns(of: screen, layout: layout)
         let span = layout.span(of: action, on: screen)
@@ -183,19 +222,17 @@ public enum WindowPlacement {
         for (a, b) in zip(tiles, tiles.dropFirst()) where a.start + a.width > b.start { return nil }
         let blocked = columns.indices.filter { !isFree(columns[$0], windows: loose) }
 
+        let preference = preference(on: screen, columns: columns.count, viewer: viewer)
+        let runs = runs(of: span, on: screen, columns: columns.count, viewer: viewer)
         var best: (rank: [Int], run: Range<Int>, starts: [Int])?
         for starts in arrangements(of: tiles.map(\.width), in: columns.count, avoiding: Set(blocked)) {
             var taken = Set(blocked)
             for (tile, start) in zip(tiles, starts) { taken.formUnion(start..<start + tile.width) }
-            guard
-                let first = (0...(columns.count - span)).first(where: { first in
-                    (first..<first + span).allSatisfy { !taken.contains($0) }
-                })
-            else { continue }
+            guard let run = runs.first(where: { $0.allSatisfy { !taken.contains($0) } }) else { continue }
             let moved = zip(tiles, starts).filter { $0.start != $1 }.reduce(0) { $0 + $1.0.windows.count }
-            let rank = [moved, starts.reduce(0, +), first]
+            let rank = [moved] + score(run, preference)
             if best.map({ rank.lexicographicallyPrecedes($0.rank) }) ?? true {
-                best = (rank, first..<first + span, starts)
+                best = (rank, run, starts)
             }
         }
         guard let best else { return nil }

@@ -43,7 +43,7 @@ public enum HoldKey: String, CaseIterable, Sendable {
 /// projects:             # always listed, with an optional name
 ///   - name: My App
 ///     path: ~/Developer/my-app
-/// windows:              # put new windows in the first free columns
+/// windows:              # put new windows in free columns, nearest the user first
 ///   builtIn: 2          # columns on the built-in screen
 ///   external: 3         # columns on every other screen
 ///   gap: 10             # points around and between windows
@@ -129,10 +129,12 @@ public enum LauncherConfigFile {
 
         # Where the windows the launcher opens go. Without this, each app decides. With it,
         # every screen is split into columns, as a window manager such as Rectangle does, and a
-        # new window takes the first free column: on the screen with the pointer first, then on
-        # the other external screens, then on the built-in one. When every column is taken, it
-        # goes in the first column of the built-in screen. The editor takes several columns side
-        # by side. Finder and the editor are moved once their window appears.
+        # new window takes a free column: on the screen with the pointer first, then on the
+        # other external screens, then on the built-in one. Each screen fills from the columns
+        # nearest you, taking you to sit in front of the built-in screen: a screen in front of
+        # you from its middle, then from left to right; one to your left from right to left.
+        # The editor takes several columns side by side. Finder and the editor are moved once
+        # their window appears.
         # windows:
         #   builtIn: 2    # columns on the built-in screen
         #   external: 3   # columns on every other screen
