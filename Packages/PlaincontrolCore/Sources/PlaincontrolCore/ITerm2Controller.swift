@@ -1,3 +1,4 @@
+import CoreGraphics
 import PlaincontrolHooks
 
 /// Brings iTerm2 panes to the front through iTerm2's AppleScript interface.
@@ -33,9 +34,14 @@ public struct ITerm2Controller: TerminalController {
 
     /// Opens a new iTerm2 window in `directory` and runs `command` there, if any, through the
     /// user's shell, as if they had typed it. Starts iTerm2 when it is not running.
+    ///
+    /// - Parameter frame: Where the window goes, in global coordinates from the top left of the
+    ///   main screen; without one, iTerm2 decides.
     @MainActor
-    public func openWindow(in directory: String, running command: String? = nil) throws(TerminalControlError) {
-        _ = try runScript(Self.openWindowScript(directory: directory, command: command))
+    public func openWindow(
+        in directory: String, running command: String? = nil, frame: CGRect? = nil
+    ) throws(TerminalControlError) {
+        _ = try runScript(Self.openWindowScript(directory: directory, command: command, frame: frame))
     }
 
     /// The pane's unique id, when the session runs directly in iTerm2.
@@ -52,13 +58,18 @@ public struct ITerm2Controller: TerminalController {
         return String(paneID)
     }
 
-    static func openWindowScript(directory: String, command: String?) -> String {
+    static func openWindowScript(directory: String, command: String?, frame: CGRect? = nil) -> String {
         // `quoted form of` quotes the folder for the shell; the literals are quoted for AppleScript.
         let run = command.map { " & \" && \" & " + AppleScript.literal($0) } ?? ""
+        // AppleScript bounds are {left, top, right, bottom}.
+        let bounds = frame.map { frame in
+            let edges = [frame.minX, frame.minY, frame.maxX, frame.maxY].map { String(Int($0.rounded())) }
+            return "\n        set bounds of newWindow to {\(edges.joined(separator: ", "))}"
+        }
         return """
             tell application id "\(Self.iTerm2)"
                 activate
-                set newWindow to (create window with default profile)
+                set newWindow to (create window with default profile)\(bounds ?? "")
                 tell current session of newWindow
                     write text "cd " & quoted form of \(AppleScript.literal(directory))\(run)
                 end tell

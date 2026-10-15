@@ -210,9 +210,10 @@ final class LauncherController {
         switch action {
         case .claude, .terminal:
             do {
+                let frame = newWindowFrame()
                 NSApp.yieldActivation(toApplicationWithBundleIdentifier: ITerm2Controller().bundleIdentifier)
                 let command = action == .claude ? config.claudeCommand : nil
-                try ITerm2Controller().openWindow(in: project.path, running: command)
+                try ITerm2Controller().openWindow(in: project.path, running: command, frame: frame)
             } catch {
                 fail("Could not open iTerm2: \(error.launcherMessage)")
                 return
@@ -227,6 +228,23 @@ final class LauncherController {
         usage.record(project.path)
         saveUsage()
         hide()
+    }
+
+    /// Where a new terminal window goes, when the settings arrange windows.
+    private func newWindowFrame() -> CGRect? {
+        guard let layout = config.windows, let main = NSScreen.screens.first else { return nil }
+        // AppKit puts the origin at the bottom left of the main screen; window lists and
+        // AppleScript at its top left.
+        let screens = NSScreen.screens.map { screen in
+            var frame = screen.visibleFrame
+            frame.origin.y = main.frame.maxY - frame.maxY
+            return WindowPlacement.Screen(visibleFrame: frame, isBuiltIn: screen.isBuiltIn)
+        }
+        let mouse = NSEvent.mouseLocation
+        return WindowPlacement.frame(
+            screens: screens, current: NSScreen.screens.firstIndex { $0.frame.contains(mouse) },
+            windows: WindowPlacement.windowsOnScreen(excluding: ProcessInfo.processInfo.processIdentifier),
+            layout: layout)
     }
 
     private func fail(_ message: String) {
@@ -279,6 +297,16 @@ extension Launcher.Key {
             guard let character = characters?.first else { return nil }
             self = .character(character)
         }
+    }
+}
+
+extension NSScreen {
+    /// Whether this is the Mac's own display, such as a laptop's.
+    fileprivate var isBuiltIn: Bool {
+        guard let number = deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else {
+            return false
+        }
+        return CGDisplayIsBuiltin(number.uint32Value) != 0
     }
 }
 

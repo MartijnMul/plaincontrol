@@ -35,7 +35,7 @@ public enum HoldKey: String, CaseIterable, Sendable {
 /// ```yaml
 /// holdKey: rightOption  # rightOption, rightCommand, rightControl or rightShift
 /// editor: Cursor        # the app for 4, by name or bundle identifier
-/// claudeCommand: claude # what C runs in the new terminal window
+/// claudeCommand: claude # what 1 runs in the new terminal window
 /// zoxide: true          # also list and rank by zoxide's folders, when it is installed
 /// roots:                # folders whose subfolders are projects
 ///   - ~/Developer
@@ -43,6 +43,10 @@ public enum HoldKey: String, CaseIterable, Sendable {
 /// projects:             # always listed, with an optional name
 ///   - name: My App
 ///     path: ~/Developer/my-app
+/// windows:              # put new terminal windows in the first free column
+///   builtIn: 2          # columns on the built-in screen
+///   external: 3         # columns on every other screen
+///   gap: 10             # points around and between windows
 /// ```
 public struct LauncherConfig: Sendable, Equatable {
     /// The key that opens the launcher when held on its own.
@@ -60,10 +64,13 @@ public struct LauncherConfig: Sendable, Equatable {
     public var activeDays = 90
     /// Projects that are always listed, in the order of the file.
     public var projects: [Project] = []
+    /// How to arrange new terminal windows, or nil to leave it to the terminal.
+    public var windows: WindowLayout?
 
     public init(
         holdKey: HoldKey = .rightOption, editor: String? = nil, claudeCommand: String = "claude",
-        zoxide: Bool = true, roots: [String] = [], activeDays: Int = 90, projects: [Project] = []
+        zoxide: Bool = true, roots: [String] = [], activeDays: Int = 90, projects: [Project] = [],
+        windows: WindowLayout? = nil
     ) {
         self.holdKey = holdKey
         self.editor = editor
@@ -72,6 +79,7 @@ public struct LauncherConfig: Sendable, Equatable {
         self.roots = roots.map { ($0 as NSString).standardizingPath }
         self.activeDays = activeDays
         self.projects = projects
+        self.windows = windows
     }
 }
 
@@ -94,7 +102,7 @@ public enum LauncherConfigFile {
         # Without one, it is Visual Studio Code, if installed.
         # editor: Visual Studio Code
 
-        # What C runs in a new iTerm2 window in the project's folder.
+        # What 1 runs in a new iTerm2 window in the project's folder.
         claudeCommand: claude
 
         # The launcher lists the folders where you start Claude Code or open projects from the
@@ -115,6 +123,16 @@ public enum LauncherConfigFile {
         projects:
         #  - name: My App
         #    path: ~/Developer/my-app
+
+        # Where new iTerm2 windows from the launcher go. Without this, iTerm2 decides. With it,
+        # every screen is split into columns, as a window manager such as Rectangle does, and a
+        # new window takes the first free column: on the screen with the pointer first, then on
+        # the other external screens, then on the built-in one. When every column is taken, it
+        # goes in the first column of the built-in screen.
+        # windows:
+        #   builtIn: 2    # columns on the built-in screen
+        #   external: 3   # columns on every other screen
+        #   gap: 10       # points around and between windows
 
         """
 
@@ -143,6 +161,18 @@ public enum LauncherConfigFile {
             throw LauncherConfigError(message: "claudeCommand cannot be empty.")
         }
         let editor = file.editor?.trimmingCharacters(in: .whitespaces)
+        var windows: WindowLayout?
+        if let section = file.windows {
+            let layout = WindowLayout(
+                builtInColumns: section.builtIn ?? 2, externalColumns: section.external ?? 3, gap: section.gap ?? 10)
+            guard (1...6).contains(layout.builtInColumns), (1...6).contains(layout.externalColumns) else {
+                throw LauncherConfigError(message: "windows: builtIn and external must be from 1 to 6 columns.")
+            }
+            guard (0...100).contains(layout.gap) else {
+                throw LauncherConfigError(message: "windows: gap must be from 0 to 100.")
+            }
+            windows = layout
+        }
         var seen = Set<String>()
         let projects = (file.projects ?? [])
             .map { Project(path: $0.path, name: $0.name) }
@@ -150,7 +180,7 @@ public enum LauncherConfigFile {
         return LauncherConfig(
             holdKey: holdKey, editor: editor?.isEmpty == false ? editor : nil, claudeCommand: claudeCommand,
             zoxide: file.zoxide ?? true, roots: file.roots ?? [], activeDays: file.activeDays ?? 90,
-            projects: projects)
+            projects: projects, windows: windows)
     }
 
     /// Reads the configuration at `path`, or the defaults when there is no file yet.
@@ -181,6 +211,13 @@ public enum LauncherConfigFile {
         var roots: [String]?
         var activeDays: Int?
         var projects: [Entry]?
+        var windows: Windows?
+    }
+
+    private struct Windows: Decodable {
+        var builtIn: Int?
+        var external: Int?
+        var gap: Double?
     }
 
     private struct Entry: Decodable {

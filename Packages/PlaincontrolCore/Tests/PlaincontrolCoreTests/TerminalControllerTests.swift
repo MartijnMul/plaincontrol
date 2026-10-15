@@ -1,3 +1,4 @@
+import CoreGraphics
 import PlaincontrolHooks
 import Testing
 
@@ -71,6 +72,18 @@ import Testing
         #expect(scripts.count == 1)
         #expect(scripts[0].contains(#"write text "cd " & quoted form of "/work/app""#))
         #expect(!scripts[0].contains("&&"))
+    }
+
+    @Test func opensAWindowAtAFrame() throws {
+        var scripts: [String] = []
+        let controller = ITerm2Controller { script in
+            scripts.append(script)
+            return ""
+        }
+        try controller.openWindow(in: "/work/app", frame: CGRect(x: -230, y: -1400, width: 840, height: 1390))
+        #expect(scripts[0].contains("set bounds of newWindow to {-230, -1400, 610, -10}"))
+        try controller.openWindow(in: "/work/app")
+        #expect(!scripts[1].contains("bounds"))
     }
 
     @Test func runsNoScriptForAnotherTerminal() {

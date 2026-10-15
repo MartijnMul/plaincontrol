@@ -94,6 +94,12 @@ import Testing
         #expect(config.projects.map(\.name) == ["my-app"])
     }
 
+    @Test func readsTheWindowLayout() throws {
+        #expect(try LauncherConfigFile.parse("zoxide: true\n").windows == nil)
+        let config = try LauncherConfigFile.parse("windows:\n  external: 4\n")
+        #expect(config.windows == WindowLayout(builtInColumns: 2, externalColumns: 4, gap: 10))
+    }
+
     @Test func isEmptyWithoutSettings() throws {
         #expect(try LauncherConfigFile.parse("") == LauncherConfig())
         #expect(try LauncherConfigFile.parse("# nothing yet\n") == LauncherConfig())
@@ -104,6 +110,8 @@ import Testing
     @Test func reportsMistakes() {
         #expect(throws: LauncherConfigError.self) { try LauncherConfigFile.parse("projects:\n  - name: No Path\n") }
         #expect(throws: LauncherConfigError.self) { try LauncherConfigFile.parse("activeDays: 0\n") }
+        #expect(throws: LauncherConfigError.self) { try LauncherConfigFile.parse("windows:\n  external: 0\n") }
+        #expect(throws: LauncherConfigError.self) { try LauncherConfigFile.parse("windows:\n  gap: -1\n") }
     }
 
     @Test func createsTheTemplateOnlyWhenMissing() throws {

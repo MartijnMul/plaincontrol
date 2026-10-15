@@ -36,6 +36,8 @@ Every row shows its digit. An open project offers **1** for Claude Code in a new
 
 **Settings** live in `~/.config/plaincontrol/launcher.yaml`; Launcher Settings in the menu creates it, with every setting explained. You can choose the key to hold (right Option, Command, Control or Shift), the editor (any app, such as Cursor or Zed), the command that starts Claude Code, and folders whose subfolders are always projects, such as a folder of git repositories.
 
+**Where new windows go.** Set `windows` in the settings and the launcher splits every screen into columns, as a window manager such as Rectangle does: two on the built-in screen and three on others by default, with a 10-point gap. A new iTerm2 window takes the first free column on the screen with the pointer, then on the other external screens, then on the built-in one. When every column is taken, it goes in the first column of the built-in screen.
+
 ## Privacy
 
 Plaincontrol runs entirely on your Mac. It opens no network port and sends nothing anywhere.
