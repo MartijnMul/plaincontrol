@@ -207,10 +207,10 @@ final class LauncherController {
             return
         }
         let folder = URL(filePath: project.path, directoryHint: .isDirectory)
+        let frame = newWindowFrame(for: action)
         switch action {
         case .claude, .terminal:
             do {
-                let frame = newWindowFrame()
                 NSApp.yieldActivation(toApplicationWithBundleIdentifier: ITerm2Controller().bundleIdentifier)
                 let command = action == .claude ? config.claudeCommand : nil
                 try ITerm2Controller().openWindow(in: project.path, running: command, frame: frame)
@@ -219,10 +219,16 @@ final class LauncherController {
                 return
             }
         case .finder:
+            let mover = frame.map { WindowMover(bundleIdentifier: "com.apple.finder", frame: $0) }
             NSWorkspace.shared.open(folder)
+            mover?.moveNewWindow()
         case .editor:
             guard let editor else { return }
+            let mover = frame.flatMap { frame in
+                Bundle(url: editor)?.bundleIdentifier.map { WindowMover(bundleIdentifier: $0, frame: frame) }
+            }
             NSWorkspace.shared.open([folder], withApplicationAt: editor, configuration: NSWorkspace.OpenConfiguration())
+            mover?.moveNewWindow()
         }
         log.info("Ran \(action.rawValue, privacy: .public) on a project")
         usage.record(project.path)
@@ -230,8 +236,8 @@ final class LauncherController {
         hide()
     }
 
-    /// Where a new terminal window goes, when the settings arrange windows.
-    private func newWindowFrame() -> CGRect? {
+    /// Where the window `action` opens goes, when the settings arrange windows.
+    private func newWindowFrame(for action: ProjectAction) -> CGRect? {
         guard let layout = config.windows, let main = NSScreen.screens.first else { return nil }
         // AppKit puts the origin at the bottom left of the main screen; window lists and
         // AppleScript at its top left.
@@ -242,7 +248,7 @@ final class LauncherController {
         }
         let mouse = NSEvent.mouseLocation
         return WindowPlacement.frame(
-            screens: screens, current: NSScreen.screens.firstIndex { $0.frame.contains(mouse) },
+            for: action, screens: screens, current: NSScreen.screens.firstIndex { $0.frame.contains(mouse) },
             windows: WindowPlacement.windowsOnScreen(excluding: ProcessInfo.processInfo.processIdentifier),
             layout: layout)
     }

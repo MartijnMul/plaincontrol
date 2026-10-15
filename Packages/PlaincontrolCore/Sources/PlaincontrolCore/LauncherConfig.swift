@@ -43,10 +43,13 @@ public enum HoldKey: String, CaseIterable, Sendable {
 /// projects:             # always listed, with an optional name
 ///   - name: My App
 ///     path: ~/Developer/my-app
-/// windows:              # put new terminal windows in the first free column
+/// windows:              # put new windows in the first free columns
 ///   builtIn: 2          # columns on the built-in screen
 ///   external: 3         # columns on every other screen
 ///   gap: 10             # points around and between windows
+///   editor:             # columns the editor takes, side by side
+///     builtIn: 2
+///     external: 2
 /// ```
 public struct LauncherConfig: Sendable, Equatable {
     /// The key that opens the launcher when held on its own.
@@ -64,7 +67,7 @@ public struct LauncherConfig: Sendable, Equatable {
     public var activeDays = 90
     /// Projects that are always listed, in the order of the file.
     public var projects: [Project] = []
-    /// How to arrange new terminal windows, or nil to leave it to the terminal.
+    /// How to arrange the windows the launcher opens, or nil to leave it to each app.
     public var windows: WindowLayout?
 
     public init(
@@ -124,15 +127,19 @@ public enum LauncherConfigFile {
         #  - name: My App
         #    path: ~/Developer/my-app
 
-        # Where new iTerm2 windows from the launcher go. Without this, iTerm2 decides. With it,
+        # Where the windows the launcher opens go. Without this, each app decides. With it,
         # every screen is split into columns, as a window manager such as Rectangle does, and a
         # new window takes the first free column: on the screen with the pointer first, then on
         # the other external screens, then on the built-in one. When every column is taken, it
-        # goes in the first column of the built-in screen.
+        # goes in the first column of the built-in screen. The editor takes several columns side
+        # by side. Finder and the editor are moved once their window appears.
         # windows:
         #   builtIn: 2    # columns on the built-in screen
         #   external: 3   # columns on every other screen
         #   gap: 10       # points around and between windows
+        #   editor:       # columns the editor takes
+        #     builtIn: 2
+        #     external: 2
 
         """
 
@@ -164,9 +171,15 @@ public enum LauncherConfigFile {
         var windows: WindowLayout?
         if let section = file.windows {
             let layout = WindowLayout(
-                builtInColumns: section.builtIn ?? 2, externalColumns: section.external ?? 3, gap: section.gap ?? 10)
-            guard (1...6).contains(layout.builtInColumns), (1...6).contains(layout.externalColumns) else {
-                throw LauncherConfigError(message: "windows: builtIn and external must be from 1 to 6 columns.")
+                builtInColumns: section.builtIn ?? 2, externalColumns: section.external ?? 3, gap: section.gap ?? 10,
+                editorBuiltInColumns: section.editor?.builtIn ?? 2, editorExternalColumns: section.editor?.external ?? 2
+            )
+            let columns = [
+                layout.builtInColumns, layout.externalColumns, layout.editorBuiltInColumns,
+                layout.editorExternalColumns,
+            ]
+            guard columns.allSatisfy((1...6).contains) else {
+                throw LauncherConfigError(message: "windows: every number of columns must be from 1 to 6.")
             }
             guard (0...100).contains(layout.gap) else {
                 throw LauncherConfigError(message: "windows: gap must be from 0 to 100.")
@@ -218,6 +231,12 @@ public enum LauncherConfigFile {
         var builtIn: Int?
         var external: Int?
         var gap: Double?
+        var editor: Columns?
+    }
+
+    private struct Columns: Decodable {
+        var builtIn: Int?
+        var external: Int?
     }
 
     private struct Entry: Decodable {

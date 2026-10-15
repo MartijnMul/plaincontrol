@@ -31,29 +31,30 @@ import Testing
 
     @Test func takesTheFirstFreeColumnOfTheCurrentScreen() {
         let windows = [columns(right)[0], columns(right)[2]]
-        let frame = WindowPlacement.frame(screens: screens, current: 2, windows: windows, layout: layout)
+        let frame = WindowPlacement.frame(for: .claude, screens: screens, current: 2, windows: windows, layout: layout)
         #expect(frame == columns(right)[1])
     }
 
     @Test func movesOnToAnotherExternalScreenBeforeTheBuiltInOne() {
-        let frame = WindowPlacement.frame(screens: screens, current: 2, windows: columns(right), layout: layout)
+        let frame = WindowPlacement.frame(
+            for: .claude, screens: screens, current: 2, windows: columns(right), layout: layout)
         #expect(frame == columns(left)[0])
     }
 
     @Test func triesTheBuiltInScreenAfterTheExternalOnes() {
         let windows = columns(right) + columns(left)
-        let frame = WindowPlacement.frame(screens: screens, current: 2, windows: windows, layout: layout)
+        let frame = WindowPlacement.frame(for: .claude, screens: screens, current: 2, windows: windows, layout: layout)
         #expect(frame == columns(laptop)[0])
     }
 
     @Test func startsOnTheBuiltInScreenWhenTheUserWorksThere() {
-        let frame = WindowPlacement.frame(screens: screens, current: 0, windows: [], layout: layout)
+        let frame = WindowPlacement.frame(for: .claude, screens: screens, current: 0, windows: [], layout: layout)
         #expect(frame == columns(laptop)[0])
     }
 
     @Test func goesInTheFirstColumnOfTheBuiltInScreenWhenAllAreTaken() {
         let windows = columns(right) + columns(left) + columns(laptop)
-        let frame = WindowPlacement.frame(screens: screens, current: 2, windows: windows, layout: layout)
+        let frame = WindowPlacement.frame(for: .claude, screens: screens, current: 2, windows: windows, layout: layout)
         #expect(frame == columns(laptop)[0])
     }
 
@@ -67,22 +68,51 @@ import Testing
     @Test func countsAColumnAsTakenFromAQuarterCovered() {
         let column = columns(right)[0]
         let small = CGRect(x: column.minX, y: column.minY, width: column.width / 5, height: column.height)
-        let frame = WindowPlacement.frame(screens: screens, current: 2, windows: [small], layout: layout)
+        let frame = WindowPlacement.frame(for: .claude, screens: screens, current: 2, windows: [small], layout: layout)
         #expect(frame == column)
         let wide = CGRect(x: column.minX, y: column.minY, width: column.width / 3, height: column.height)
         #expect(
-            WindowPlacement.frame(screens: screens, current: 2, windows: [wide], layout: layout) == columns(right)[1])
+            WindowPlacement.frame(for: .claude, screens: screens, current: 2, windows: [wide], layout: layout)
+                == columns(right)[1])
     }
 
     @Test func countsOneWindowOverSeveralColumnsForEach() {
         let full = right.visibleFrame
-        let frame = WindowPlacement.frame(screens: screens, current: 2, windows: [full], layout: layout)
+        let frame = WindowPlacement.frame(for: .claude, screens: screens, current: 2, windows: [full], layout: layout)
         #expect(frame == columns(left)[0])
+    }
+
+    @Test func givesTheEditorTwoColumnsOfAnExternalScreen() {
+        let frame = WindowPlacement.frame(for: .editor, screens: screens, current: 2, windows: [], layout: layout)
+        #expect(frame == columns(right)[0].union(columns(right)[1]))
+    }
+
+    @Test func givesTheEditorTheNextTwoFreeColumnsSideBySide() {
+        let frame = WindowPlacement.frame(
+            for: .editor, screens: screens, current: 2, windows: [columns(right)[0]], layout: layout)
+        #expect(frame == columns(right)[1].union(columns(right)[2]))
+        let split = [columns(right)[1], columns(left)[1]]
+        let elsewhere = WindowPlacement.frame(
+            for: .editor, screens: screens, current: 2, windows: split, layout: layout)
+        #expect(elsewhere == columns(laptop)[0].union(columns(laptop)[1]))
+    }
+
+    @Test func givesTheEditorTheWholeBuiltInScreen() {
+        let frame = WindowPlacement.frame(for: .editor, screens: screens, current: 0, windows: [], layout: layout)
+        #expect(frame == CGRect(x: 10, y: 50, width: 1580, height: 880))
+    }
+
+    @Test func givesOtherActionsOneColumn() {
+        for action in [ProjectAction.claude, .terminal, .finder] {
+            let frame = WindowPlacement.frame(for: action, screens: screens, current: 2, windows: [], layout: layout)
+            #expect(frame == columns(right)[0])
+        }
     }
 
     @Test func managesWithoutABuiltInScreen() {
         let windows = columns(right) + columns(left)
-        let frame = WindowPlacement.frame(screens: [left, right], current: 1, windows: windows, layout: layout)
+        let frame = WindowPlacement.frame(
+            for: .claude, screens: [left, right], current: 1, windows: windows, layout: layout)
         #expect(frame == columns(right)[0])
     }
 }

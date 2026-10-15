@@ -96,8 +96,11 @@ import Testing
 
     @Test func readsTheWindowLayout() throws {
         #expect(try LauncherConfigFile.parse("zoxide: true\n").windows == nil)
-        let config = try LauncherConfigFile.parse("windows:\n  external: 4\n")
-        #expect(config.windows == WindowLayout(builtInColumns: 2, externalColumns: 4, gap: 10))
+        let config = try LauncherConfigFile.parse("windows:\n  external: 4\n  editor:\n    external: 3\n")
+        #expect(
+            config.windows
+                == WindowLayout(
+                    builtInColumns: 2, externalColumns: 4, gap: 10, editorBuiltInColumns: 2, editorExternalColumns: 3))
     }
 
     @Test func isEmptyWithoutSettings() throws {
@@ -112,6 +115,9 @@ import Testing
         #expect(throws: LauncherConfigError.self) { try LauncherConfigFile.parse("activeDays: 0\n") }
         #expect(throws: LauncherConfigError.self) { try LauncherConfigFile.parse("windows:\n  external: 0\n") }
         #expect(throws: LauncherConfigError.self) { try LauncherConfigFile.parse("windows:\n  gap: -1\n") }
+        #expect(throws: LauncherConfigError.self) {
+            try LauncherConfigFile.parse("windows:\n  editor:\n    builtIn: 9\n")
+        }
     }
 
     @Test func createsTheTemplateOnlyWhenMissing() throws {

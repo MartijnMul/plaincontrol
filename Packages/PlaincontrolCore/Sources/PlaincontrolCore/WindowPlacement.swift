@@ -2,7 +2,8 @@ import CoreGraphics
 import Foundation
 
 /// How the launcher arranges the windows it opens: every screen split into columns of equal
-/// width, with a gap around and between them, as a window manager such as Rectangle does.
+/// width, with a gap around and between them, as a window manager such as Rectangle does. A
+/// window takes one column, except the editor's, which takes several side by side.
 public struct WindowLayout: Sendable, Equatable {
     /// The number of columns on the built-in screen.
     public var builtInColumns: Int
@@ -10,20 +11,41 @@ public struct WindowLayout: Sendable, Equatable {
     public var externalColumns: Int
     /// The space around and between the columns, in points.
     public var gap: Double
+    /// How many columns the editor takes on the built-in screen.
+    public var editorBuiltInColumns: Int
+    /// How many columns the editor takes on every other screen.
+    public var editorExternalColumns: Int
 
-    public init(builtInColumns: Int = 2, externalColumns: Int = 3, gap: Double = 10) {
+    public init(
+        builtInColumns: Int = 2, externalColumns: Int = 3, gap: Double = 10, editorBuiltInColumns: Int = 2,
+        editorExternalColumns: Int = 2
+    ) {
         self.builtInColumns = builtInColumns
         self.externalColumns = externalColumns
         self.gap = gap
+        self.editorBuiltInColumns = editorBuiltInColumns
+        self.editorExternalColumns = editorExternalColumns
+    }
+
+    /// How many columns a window of `action` takes on `screen`, at most all of them.
+    func span(of action: ProjectAction, on screen: WindowPlacement.Screen) -> Int {
+        let columns = screen.isBuiltIn ? builtInColumns : externalColumns
+        let span =
+            switch action {
+            case .editor: screen.isBuiltIn ? editorBuiltInColumns : editorExternalColumns
+            case .claude, .terminal, .finder: 1
+            }
+        return min(max(span, 1), max(columns, 1))
     }
 }
 
 /// Where a new window goes.
 ///
-/// It takes the first free column, from left to right: on the screen with the pointer first,
-/// then on the other external screens, nearest first, then on the built-in screen. When every
-/// column is taken, it goes in the first column of the built-in screen, in front of what is
-/// there. A column is free while other windows cover less than a quarter of it.
+/// It takes the first free columns, from left to right, as many as it spans side by side: on
+/// the screen with the pointer first, then on the other external screens, nearest first, then
+/// on the built-in screen. When none are free, it goes in the first columns of the built-in
+/// screen, in front of what is there. A column is free while other windows cover less than a
+/// quarter of it.
 ///
 /// Frames are in global screen coordinates with the origin at the top left of the main screen
 /// and y growing downwards, as window lists and AppleScript give them.
@@ -42,21 +64,31 @@ public enum WindowPlacement {
     /// How much of a column other windows may cover before it counts as taken.
     static let takenShare = 0.25
 
-    /// The frame for a new window.
+    /// The frame for a new window of `action`.
     ///
     /// - Parameters:
     ///   - current: The index in `screens` of the screen the user works on, if known.
     ///   - windows: The frames of the windows on the screens now.
     public static func frame(
-        screens: [Screen], current: Int?, windows: [CGRect], layout: WindowLayout
+        for action: ProjectAction, screens: [Screen], current: Int?, windows: [CGRect], layout: WindowLayout
     ) -> CGRect? {
         for screen in order(screens, current: current) {
-            if let column = columns(of: screen, layout: layout).first(where: { isFree($0, windows: windows) }) {
-                return column
+            let columns = columns(of: screen, layout: layout)
+            let span = layout.span(of: action, on: screen)
+            guard columns.count >= span else { continue }
+            for first in 0...(columns.count - span) {
+                let run = columns[first..<first + span]
+                if run.allSatisfy({ isFree($0, windows: windows) }) { return run.reduce(run[first]) { $0.union($1) } }
             }
         }
-        let fallback = screens.first(where: \.isBuiltIn) ?? current.map { screens[$0] } ?? screens.first
-        return fallback.flatMap { columns(of: $0, layout: layout).first }
+        let fallback =
+            screens.first(where: \.isBuiltIn) ?? current.flatMap { screens.indices.contains($0) ? screens[$0] : nil }
+            ?? screens.first
+        guard let fallback else { return nil }
+        let columns = columns(of: fallback, layout: layout)
+        let span = layout.span(of: action, on: fallback)
+        guard columns.count >= span else { return nil }
+        return columns[0..<span].reduce(columns[0]) { $0.union($1) }
     }
 
     /// The columns of `screen`, from left to right, rounded to whole points.
