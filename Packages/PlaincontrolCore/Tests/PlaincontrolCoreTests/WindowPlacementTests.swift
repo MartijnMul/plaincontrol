@@ -128,18 +128,18 @@ import Testing
         #expect(placed == columns(right)[1].union(columns(right)[2]))
     }
 
-    @Test func slidesWindowsAsideToMakeRoomForTheEditor() {
+    @Test func slidesAWindowFromTheMiddleToItsNextChoiceToMakeRoomForTheEditor() {
         let middle = columns(right)[1]
         let result = placement(for: .editor, screens: screens, current: 2, windows: [middle, columns(left)[1]])
-        #expect(result?.frame == columns(right)[0].union(columns(right)[1]))
-        #expect(result?.moves == [WindowPlacement.Move(window: window(middle), frame: columns(right)[2])])
+        #expect(result?.frame == columns(right)[1].union(columns(right)[2]))
+        #expect(result?.moves == [WindowPlacement.Move(window: window(middle), frame: columns(right)[0])])
     }
 
-    @Test func slidesWindowsAwayFromTheUserOnAScreenToTheLeft() {
+    @Test func slidesWindowsTowardsTheUserOnAScreenToTheLeft() {
         let middle = columns(left)[1]
         let result = placement(for: .editor, screens: screens, current: 1, windows: [middle, columns(right)[1]])
-        #expect(result?.frame == columns(left)[1].union(columns(left)[2]))
-        #expect(result?.moves == [WindowPlacement.Move(window: window(middle), frame: columns(left)[0])])
+        #expect(result?.frame == columns(left)[0].union(columns(left)[1]))
+        #expect(result?.moves == [WindowPlacement.Move(window: window(middle), frame: columns(left)[2])])
     }
 
     @Test func usesFreeColumnsElsewhereBeforeMovingWindows() {
@@ -150,8 +150,8 @@ import Testing
     @Test func makesRoomOnAnExternalScreenBeforeUsingTheBuiltInOne() {
         let windows = [columns(right)[1], columns(left)[0], columns(left)[2]]
         let result = placement(for: .editor, screens: screens, current: 2, windows: windows)
-        #expect(result?.frame == columns(right)[0].union(columns(right)[1]))
-        #expect(result?.moves.map(\.frame) == [columns(right)[2]])
+        #expect(result?.frame == columns(right)[1].union(columns(right)[2]))
+        #expect(result?.moves.map(\.frame) == [columns(right)[0]])
     }
 
     @Test func movesAStackOfWindowsInAColumnTogether() {
@@ -159,7 +159,7 @@ import Testing
         let nudged = middle.offsetBy(dx: 2, dy: 0).insetBy(dx: 0, dy: 4)
         let result = placement(for: .editor, screens: screens, current: 2, windows: [middle, nudged, columns(left)[1]])
         #expect(result?.moves.map(\.window) == [window(middle), window(nudged)])
-        #expect(result?.moves.map(\.frame) == [columns(right)[2], columns(right)[2]])
+        #expect(result?.moves.map(\.frame) == [columns(right)[0], columns(right)[0]])
     }
 
     @Test func leavesWindowsOutsideTheColumnsWhereTheyAre() {

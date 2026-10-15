@@ -49,8 +49,9 @@ public struct WindowLayout: Sendable, Equatable {
 /// a screen to the left fills from right to left, and one to the right from left to right.
 ///
 /// When a screen has enough free columns but not side by side, the windows that fill columns
-/// there slide over to make room, keeping their order, as few of them as possible; that is
-/// tried on the external screens before the built-in one gets the window. When no columns can
+/// there slide over to make room, keeping their order, as few of them as possible; they keep
+/// the user's preferred columns, and the new window takes the rest. That is tried on the
+/// external screens before the built-in one gets the window. When no columns can
 /// be had, the window goes in the best columns of the built-in screen, in front of what is
 /// there.
 ///
@@ -194,7 +195,7 @@ public enum WindowPlacement {
 
     /// Room for a window of `action` on `screen`, made by sliding the windows that fill
     /// columns there, keeping their order. The arrangement that moves the fewest windows wins,
-    /// then the one that leaves the user's preferred columns for the new window.
+    /// then the one that keeps the user's preferred columns for the windows that were there.
     private static func makeRoom(
         on screen: Screen, for action: ProjectAction, windows: [Window], layout: WindowLayout, viewer: Double
     ) -> Placement? {
@@ -230,7 +231,10 @@ public enum WindowPlacement {
             for (tile, start) in zip(tiles, starts) { taken.formUnion(start..<start + tile.width) }
             guard let run = runs.first(where: { $0.allSatisfy { !taken.contains($0) } }) else { continue }
             let moved = zip(tiles, starts).filter { $0.start != $1 }.reduce(0) { $0 + $1.0.windows.count }
-            let rank = [moved] + score(run, preference)
+            let kept = zip(tiles, starts).flatMap { tile, start in
+                Array(repeating: start..<start + tile.width, count: tile.windows.count).flatMap { $0 }
+            }
+            let rank = [moved] + kept.map { preference[$0] }.sorted() + score(run, preference)
             if best.map({ rank.lexicographicallyPrecedes($0.rank) }) ?? true {
                 best = (rank, run, starts)
             }
