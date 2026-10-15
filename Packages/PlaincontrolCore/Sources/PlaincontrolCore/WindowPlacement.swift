@@ -43,9 +43,12 @@ public struct WindowLayout: Sendable, Equatable {
 ///
 /// It takes the first free columns, from left to right, as many as it spans side by side: on
 /// the screen with the pointer first, then on the other external screens, nearest first, then
-/// on the built-in screen. When none are free, it goes in the first columns of the built-in
-/// screen, in front of what is there. A column is free while other windows cover less than a
-/// quarter of it.
+/// on the built-in screen. A column is free while other windows cover less than a quarter of
+/// it. When a screen has enough free columns but not side by side, the windows that fill
+/// columns there slide over to make room, keeping their order, as few of them as possible;
+/// that is tried on the external screens before the built-in one gets the window. When no
+/// columns can be had, the window goes in the first columns of the built-in screen, in front
+/// of what is there.
 ///
 /// Frames are in global screen coordinates with the origin at the top left of the main screen
 /// and y growing downwards, as window lists and AppleScript give them.
@@ -61,24 +64,68 @@ public enum WindowPlacement {
         }
     }
 
+    /// A window on screen, as the window list gives it.
+    public struct Window: Sendable, Equatable {
+        public var frame: CGRect
+        /// The process the window belongs to.
+        public var processIdentifier: pid_t
+
+        public init(frame: CGRect, processIdentifier: pid_t) {
+            self.frame = frame
+            self.processIdentifier = processIdentifier
+        }
+    }
+
+    /// Where a new window goes, and which windows move first to make room for it.
+    public struct Placement: Sendable, Equatable {
+        public var frame: CGRect
+        public var moves: [Move]
+
+        public init(frame: CGRect, moves: [Move] = []) {
+            self.frame = frame
+            self.moves = moves
+        }
+    }
+
+    public struct Move: Sendable, Equatable {
+        public var window: Window
+        public var frame: CGRect
+
+        public init(window: Window, frame: CGRect) {
+            self.window = window
+            self.frame = frame
+        }
+    }
+
     /// How much of a column other windows may cover before it counts as taken.
     static let takenShare = 0.25
+    /// How far, in points, a window's edges may be off a column's for the window to fill it.
+    /// Terminals round their size to whole characters.
+    static let fitTolerance = 16.0
 
-    /// The frame for a new window of `action`.
+    /// Where a new window of `action` goes.
     ///
     /// - Parameters:
     ///   - current: The index in `screens` of the screen the user works on, if known.
-    ///   - windows: The frames of the windows on the screens now.
-    public static func frame(
-        for action: ProjectAction, screens: [Screen], current: Int?, windows: [CGRect], layout: WindowLayout
-    ) -> CGRect? {
-        for screen in order(screens, current: current) {
-            let columns = columns(of: screen, layout: layout)
-            let span = layout.span(of: action, on: screen)
-            guard columns.count >= span else { continue }
-            for first in 0...(columns.count - span) {
-                let run = columns[first..<first + span]
-                if run.allSatisfy({ isFree($0, windows: windows) }) { return run.reduce(run[first]) { $0.union($1) } }
+    ///   - windows: The windows on the screens now.
+    public static func placement(
+        for action: ProjectAction, screens: [Screen], current: Int?, windows: [Window], layout: WindowLayout
+    ) -> Placement? {
+        let ordered = order(screens, current: current)
+        // The current screen and the external ones come before a built-in screen the user is
+        // not working on, also when making room means moving windows.
+        let preferred = ordered.enumerated().filter { $0.offset == 0 || !$0.element.isBuiltIn }.map(\.element)
+        let others = ordered.enumerated().filter { $0.offset != 0 && $0.element.isBuiltIn }.map(\.element)
+        for screens in [preferred, others] {
+            for screen in screens {
+                if let frame = freeColumns(on: screen, for: action, windows: windows, layout: layout) {
+                    return Placement(frame: frame)
+                }
+            }
+            for screen in screens {
+                if let placement = makeRoom(on: screen, for: action, windows: windows, layout: layout) {
+                    return placement
+                }
             }
         }
         let fallback =
@@ -88,7 +135,117 @@ public enum WindowPlacement {
         let columns = columns(of: fallback, layout: layout)
         let span = layout.span(of: action, on: fallback)
         guard columns.count >= span else { return nil }
-        return columns[0..<span].reduce(columns[0]) { $0.union($1) }
+        return Placement(frame: union(columns[0..<span]))
+    }
+
+    /// The first free columns side by side on `screen` for a window of `action`.
+    private static func freeColumns(
+        on screen: Screen, for action: ProjectAction, windows: [Window], layout: WindowLayout
+    ) -> CGRect? {
+        let columns = columns(of: screen, layout: layout)
+        let span = layout.span(of: action, on: screen)
+        let frames = windows.map(\.frame)
+        guard columns.count >= span else { return nil }
+        for first in 0...(columns.count - span) {
+            let run = columns[first..<first + span]
+            if run.allSatisfy({ isFree($0, windows: frames) }) { return union(run) }
+        }
+        return nil
+    }
+
+    /// Room for a window of `action` on `screen`, made by sliding the windows that fill
+    /// columns there, keeping their order. The arrangement that moves the fewest windows wins,
+    /// then the one that slides them furthest to the left.
+    private static func makeRoom(
+        on screen: Screen, for action: ProjectAction, windows: [Window], layout: WindowLayout
+    ) -> Placement? {
+        let columns = columns(of: screen, layout: layout)
+        let span = layout.span(of: action, on: screen)
+        guard span > 1, columns.count >= span else { return nil }
+        let onScreen = windows.filter { !$0.frame.intersection(screen.visibleFrame).isNull }
+
+        // Windows that fill a run of columns move together with the others on the same run;
+        // any other window blocks the columns it covers.
+        var tiles: [Tile] = []
+        var loose: [CGRect] = []
+        for window in onScreen {
+            guard let run = fittingRun(of: window.frame, in: columns) else {
+                loose.append(window.frame)
+                continue
+            }
+            if let index = tiles.firstIndex(where: { $0.start == run.lowerBound && $0.width == run.count }) {
+                tiles[index].windows.append(window)
+            } else {
+                tiles.append(Tile(start: run.lowerBound, width: run.count, windows: [window]))
+            }
+        }
+        tiles.sort { $0.start < $1.start }
+        for (a, b) in zip(tiles, tiles.dropFirst()) where a.start + a.width > b.start { return nil }
+        let blocked = columns.indices.filter { !isFree(columns[$0], windows: loose) }
+
+        var best: (rank: [Int], run: Range<Int>, starts: [Int])?
+        for starts in arrangements(of: tiles.map(\.width), in: columns.count, avoiding: Set(blocked)) {
+            var taken = Set(blocked)
+            for (tile, start) in zip(tiles, starts) { taken.formUnion(start..<start + tile.width) }
+            guard
+                let first = (0...(columns.count - span)).first(where: { first in
+                    (first..<first + span).allSatisfy { !taken.contains($0) }
+                })
+            else { continue }
+            let moved = zip(tiles, starts).filter { $0.start != $1 }.reduce(0) { $0 + $1.0.windows.count }
+            let rank = [moved, starts.reduce(0, +), first]
+            if best.map({ rank.lexicographicallyPrecedes($0.rank) }) ?? true {
+                best = (rank, first..<first + span, starts)
+            }
+        }
+        guard let best else { return nil }
+        let moves = zip(tiles, best.starts).filter { $0.start != $1 }.flatMap { tile, start in
+            tile.windows.map { Move(window: $0, frame: union(columns[start..<start + tile.width])) }
+        }
+        return Placement(frame: union(columns[best.run]), moves: moves)
+    }
+
+    /// Windows that fill the same run of columns.
+    private struct Tile {
+        var start: Int
+        var width: Int
+        var windows: [Window]
+    }
+
+    /// The run of columns `frame` fills, give or take ``fitTolerance``.
+    private static func fittingRun(of frame: CGRect, in columns: [CGRect]) -> Range<Int>? {
+        for start in columns.indices {
+            for end in start..<columns.count {
+                let run = union(columns[start...end])
+                let edges = [
+                    frame.minX - run.minX, frame.maxX - run.maxX, frame.minY - run.minY, frame.maxY - run.maxY,
+                ]
+                if edges.allSatisfy({ abs($0) <= fitTolerance }) { return start..<end + 1 }
+            }
+        }
+        return nil
+    }
+
+    /// Every way to put runs of `widths` columns in `count` columns, in this order, without
+    /// overlap or a blocked column: the first column of each.
+    private static func arrangements(of widths: [Int], in count: Int, avoiding blocked: Set<Int>) -> [[Int]] {
+        var result: [[Int]] = []
+        func place(from first: Int, _ remaining: ArraySlice<Int>, _ starts: [Int]) {
+            guard let width = remaining.first else {
+                result.append(starts)
+                return
+            }
+            guard first + width <= count else { return }
+            for start in first...(count - width) where (start..<start + width).allSatisfy({ !blocked.contains($0) }) {
+                place(from: start + width, remaining.dropFirst(), starts + [start])
+            }
+        }
+        place(from: 0, widths[...], [])
+        return result
+    }
+
+    private static func union(_ columns: some Collection<CGRect>) -> CGRect {
+        columns.dropFirst().reduce(columns.first ?? .null) { $0.union($1) }
     }
 
     /// The columns of `screen`, from left to right, rounded to whole points.
@@ -133,21 +290,21 @@ public enum WindowPlacement {
         return covered < column.width * column.height * takenShare
     }
 
-    /// The frames of the ordinary windows on screen now, on the current Space of each screen,
-    /// leaving out those of the process `excluded` and small ones such as palettes. Needs no
-    /// permission: window titles are not read.
-    public static func windowsOnScreen(excluding excluded: pid_t) -> [CGRect] {
+    /// The ordinary windows on screen now, on the current Space of each screen, leaving out
+    /// those of the process `excluded` and small ones such as palettes. Needs no permission:
+    /// window titles are not read.
+    public static func windowsOnScreen(excluding excluded: pid_t) -> [Window] {
         let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
         guard let list = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else { return [] }
         return list.compactMap { window in
             guard (window[kCGWindowLayer as String] as? Int) == 0,
-                (window[kCGWindowOwnerPID as String] as? pid_t) != excluded,
+                let owner = window[kCGWindowOwnerPID as String] as? pid_t, owner != excluded,
                 (window[kCGWindowAlpha as String] as? Double ?? 1) > 0,
                 let bounds = window[kCGWindowBounds as String] as? NSDictionary,
                 let frame = CGRect(dictionaryRepresentation: bounds),
                 frame.width >= 100, frame.height >= 100
             else { return nil }
-            return frame
+            return Window(frame: frame, processIdentifier: owner)
         }
     }
 }

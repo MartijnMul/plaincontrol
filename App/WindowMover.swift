@@ -1,7 +1,9 @@
 import AppKit
 import ApplicationServices
+import PlaincontrolCore
 
-/// Moves the window an app is about to open to a frame, through the Accessibility API.
+/// Moves windows through the Accessibility API: one that is on screen, or the one an app is
+/// about to open.
 ///
 /// Apps such as Finder and editors cannot be told where to open a window, so the mover notes
 /// the app's windows before it is asked to open one, then waits for a window that was not
@@ -43,7 +45,25 @@ struct WindowMover {
         }
     }
 
+    /// Moves a window that is on screen now, found by its process and frame.
+    static func move(_ move: PlaincontrolCore.WindowPlacement.Move) {
+        let app = AXUIElementCreateApplication(move.window.processIdentifier)
+        let target = windows(of: app).first { window in
+            guard let frame = frame(of: window) else { return false }
+            let edges = [
+                frame.minX - move.window.frame.minX, frame.minY - move.window.frame.minY,
+                frame.width - move.window.frame.width, frame.height - move.window.frame.height,
+            ]
+            return edges.allSatisfy { abs($0) < 1 }
+        }
+        if let target { place(target, at: move.frame) }
+    }
+
     private func move(_ window: AXUIElement) {
+        Self.place(window, at: frame)
+    }
+
+    private static func place(_ window: AXUIElement, at frame: CGRect) {
         var origin = frame.origin
         var size = frame.size
         guard let position = AXValueCreate(.cgPoint, &origin), let extent = AXValueCreate(.cgSize, &size) else {
@@ -54,6 +74,21 @@ struct WindowMover {
         AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, position)
         AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, extent)
         AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, position)
+    }
+
+    private static func frame(of window: AXUIElement) -> CGRect? {
+        var position: CFTypeRef?
+        var size: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(window, kAXPositionAttribute as CFString, &position) == .success,
+            AXUIElementCopyAttributeValue(window, kAXSizeAttribute as CFString, &size) == .success,
+            let position, let size, CFGetTypeID(position) == AXValueGetTypeID(), CFGetTypeID(size) == AXValueGetTypeID()
+        else { return nil }
+        var origin = CGPoint.zero
+        var extent = CGSize.zero
+        guard AXValueGetValue(position as! AXValue, .cgPoint, &origin),
+            AXValueGetValue(size as! AXValue, .cgSize, &extent)
+        else { return nil }
+        return CGRect(origin: origin, size: extent)
     }
 
     private static func app(_ bundleIdentifier: String) -> AXUIElement? {

@@ -207,7 +207,9 @@ final class LauncherController {
             return
         }
         let folder = URL(filePath: project.path, directoryHint: .isDirectory)
-        let frame = newWindowFrame(for: action)
+        let placement = newWindowPlacement(for: action)
+        placement?.moves.forEach(WindowMover.move)
+        let frame = placement?.frame
         switch action {
         case .claude, .terminal:
             do {
@@ -236,20 +238,22 @@ final class LauncherController {
         hide()
     }
 
-    /// Where the window `action` opens goes, when the settings arrange windows.
-    private func newWindowFrame(for action: ProjectAction) -> CGRect? {
+    /// Where the window `action` opens goes, and which windows move first to make room, when
+    /// the settings arrange windows.
+    private func newWindowPlacement(for action: ProjectAction) -> PlaincontrolCore.WindowPlacement.Placement? {
         guard let layout = config.windows, let main = NSScreen.screens.first else { return nil }
         // AppKit puts the origin at the bottom left of the main screen; window lists and
         // AppleScript at its top left.
         let screens = NSScreen.screens.map { screen in
             var frame = screen.visibleFrame
             frame.origin.y = main.frame.maxY - frame.maxY
-            return WindowPlacement.Screen(visibleFrame: frame, isBuiltIn: screen.isBuiltIn)
+            return PlaincontrolCore.WindowPlacement.Screen(visibleFrame: frame, isBuiltIn: screen.isBuiltIn)
         }
         let mouse = NSEvent.mouseLocation
-        return WindowPlacement.frame(
+        return PlaincontrolCore.WindowPlacement.placement(
             for: action, screens: screens, current: NSScreen.screens.firstIndex { $0.frame.contains(mouse) },
-            windows: WindowPlacement.windowsOnScreen(excluding: ProcessInfo.processInfo.processIdentifier),
+            windows: PlaincontrolCore.WindowPlacement.windowsOnScreen(
+                excluding: ProcessInfo.processInfo.processIdentifier),
             layout: layout)
     }
 
