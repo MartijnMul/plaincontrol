@@ -34,7 +34,7 @@ public enum HoldKey: String, CaseIterable, Sendable {
 ///
 /// ```yaml
 /// holdKey: rightOption  # rightOption, rightCommand, rightControl or rightShift
-/// editor: Cursor        # the app for E, by name or bundle identifier
+/// editor: Cursor        # the app for 4, by name or bundle identifier
 /// claudeCommand: claude # what C runs in the new terminal window
 /// zoxide: true          # also list and rank by zoxide's folders, when it is installed
 /// roots:                # folders whose subfolders are projects
@@ -90,7 +90,7 @@ public enum LauncherConfigFile {
         # rightOption, rightCommand, rightControl or rightShift.
         holdKey: rightOption
 
-        # The editor for E, by app name (such as Cursor or Zed) or bundle identifier.
+        # The editor for 4, by app name (such as Cursor or Zed) or bundle identifier.
         # Without one, it is Visual Studio Code, if installed.
         # editor: Visual Studio Code
 

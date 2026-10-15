@@ -33,20 +33,20 @@ import Testing
         var launcher = makeLauncher([app, site])
         _ = press(.down, .enter, on: &launcher)
         #expect(launcher.screen == .project(site))
-        let outcomes = press(.character("x"), .character("c"), .character("F"), on: &launcher)
+        let outcomes = press(.character("x"), .character("1"), .character("3"), on: &launcher)
         #expect(outcomes == [.stay, .run(.claude, site), .run(.finder, site)])
     }
 
     @Test func searchesInsteadOfRunningAnActionFromTheList() {
         var launcher = makeLauncher([app])
-        #expect(press(.character("c"), on: &launcher) == [.stay])
-        #expect(launcher.query == "c")
+        #expect(press(.character("1"), on: &launcher) == [.stay])
+        #expect(launcher.query == "1")
         #expect(launcher.screen == .projects)
     }
 
     @Test func offersOnlyTheGivenActions() {
         var launcher = makeLauncher([app], actions: [.claude, .finder])
-        #expect(press(.enter, .character("e"), on: &launcher) == [.stay, .stay])
+        #expect(press(.enter, .character("4"), on: &launcher) == [.stay, .stay])
     }
 
     @Test func escapeGoesBackThenCloses() {
@@ -178,6 +178,11 @@ import Testing
         #expect(launcher.query.isEmpty)
         #expect(launcher.screen == .project(site))
         #expect(launcher.selectedProject == site)
+    }
+
+    @Test func keepsEachActionsKeyWhenAnotherIsMissing() {
+        var launcher = makeLauncher([app], actions: [.claude, .finder])
+        #expect(press(.enter, .character("2"), .character("3"), on: &launcher) == [.stay, .stay, .run(.finder, app)])
     }
 
     @Test func actionKeysAreDistinct() {

@@ -11,13 +11,14 @@ public enum ProjectAction: String, CaseIterable, Sendable {
     /// The project's folder in the user's editor.
     case editor
 
-    /// The key that runs the action, once a project is open in the launcher.
+    /// The key that runs the action, once a project is open in the launcher: a digit, the same
+    /// for every project and whichever other actions are on offer, so it can be pressed blind.
     public var key: Character {
         switch self {
-        case .claude: "c"
-        case .terminal: "t"
-        case .finder: "f"
-        case .editor: "e"
+        case .claude: "1"
+        case .terminal: "2"
+        case .finder: "3"
+        case .editor: "4"
         }
     }
 
@@ -41,7 +42,7 @@ public enum ProjectAction: String, CaseIterable, Sendable {
 /// asks to find a folder to add instead (``PathFinder``).
 ///
 /// An open project lists its actions: Up and Down select one, Return or Right runs it, and each
-/// action also runs straight from its own key. Left or Escape goes back to the list; Escape on
+/// action also runs straight from its own digit (``ProjectAction/key``). Left or Escape goes back to the list; Escape on
 /// the list without a search closes the launcher.
 public struct Launcher: Sendable, Equatable {
     public enum Key: Equatable, Sendable {
@@ -147,7 +148,6 @@ public struct Launcher: Sendable, Equatable {
         case (.project, .left), (.project, .escape):
             screen = .projects
         case (.project(let project), .character(let character)):
-            let character = Character(character.lowercased())
             if let action = actions.first(where: { $0.key == character }) {
                 return .run(action, project)
             }
