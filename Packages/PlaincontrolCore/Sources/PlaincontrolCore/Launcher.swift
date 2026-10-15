@@ -1,6 +1,9 @@
 import Foundation
 
-/// Something the launcher can do with a project.
+/// Something the launcher can do with a project, in the order the launcher offers them.
+///
+/// Each action runs under the digit of its place, so the order is what the user learns: Claude
+/// Code stays first, and an action that may be missing, such as the editor, comes last.
 public enum ProjectAction: String, CaseIterable, Sendable {
     /// A new iTerm2 window in the project's folder, running Claude Code.
     case claude
@@ -10,17 +13,6 @@ public enum ProjectAction: String, CaseIterable, Sendable {
     case finder
     /// The project's folder in the user's editor.
     case editor
-
-    /// The key that runs the action, once a project is open in the launcher: a digit, the same
-    /// for every project and whichever other actions are on offer, so it can be pressed blind.
-    public var key: Character {
-        switch self {
-        case .claude: "1"
-        case .terminal: "2"
-        case .finder: "3"
-        case .editor: "4"
-        }
-    }
 
     public var title: String {
         switch self {
@@ -38,12 +30,13 @@ public enum ProjectAction: String, CaseIterable, Sendable {
 /// ones before working ones), then the active projects by how often and how recently they were
 /// used. Typing searches every project by name and folder, inactive ones last; Backspace
 /// edits the search and Escape clears it. Up and Down move the selection, Return or Right opens
-/// the selected project. When the list is empty, or a search finds nothing, Return or Right
-/// asks to find a folder to add instead (``PathFinder``).
+/// the selected project, and a digit opens the project in that row. When the list is empty, or
+/// a search finds nothing, Return or Right asks to find a folder to add instead
+/// (``PathFinder``).
 ///
-/// An open project lists its actions: Up and Down select one, Return or Right runs it, and each
-/// action also runs straight from its own digit (``ProjectAction/key``). Left or Escape goes back to the list; Escape on
-/// the list without a search closes the launcher.
+/// An open project lists its actions: Up and Down select one, Return or Right runs it, and a
+/// digit runs the action in that row. Left or Escape goes back to the list; Escape on the list
+/// without a search closes the launcher.
 public struct Launcher: Sendable, Equatable {
     public enum Key: Equatable, Sendable {
         case up, down, left, right, enter, escape, backspace
@@ -64,8 +57,13 @@ public struct Launcher: Sendable, Equatable {
         case findFolder
     }
 
-    /// How many projects the list shows at most.
+    /// How many projects the list shows at most: one for each digit.
     public static let visibleLimit = 9
+
+    /// The digit that picks row `index` of a list, for the first nine rows.
+    public static func digit(forRow index: Int) -> Character? {
+        (0..<9).contains(index) ? Character(String(index + 1)) : nil
+    }
 
     public private(set) var items: [LauncherItem]
     /// The actions on offer, in the order shown.
@@ -133,6 +131,12 @@ public struct Launcher: Sendable, Equatable {
             search("")
         case (.projects, .backspace):
             if !query.isEmpty { search(String(query.dropLast())) }
+        case (.projects, .character(let character)) where character.isASCII && character.isNumber:
+            if let row = Self.row(for: character), visible.indices.contains(row) {
+                selection = row
+                actionSelection = 0
+                screen = .project(visible[row].project)
+            }
         case (.projects, .character(let character)):
             if character.isLetter || character.isNumber || character.isPunctuation || character.isSymbol
                 || character == " "
@@ -148,13 +152,18 @@ public struct Launcher: Sendable, Equatable {
         case (.project, .left), (.project, .escape):
             screen = .projects
         case (.project(let project), .character(let character)):
-            if let action = actions.first(where: { $0.key == character }) {
-                return .run(action, project)
+            if let row = Self.row(for: character), actions.indices.contains(row) {
+                return .run(actions[row], project)
             }
         case (.projects, .left), (.project, .backspace):
             break
         }
         return .stay
+    }
+
+    /// The row a digit picks.
+    private static func row(for character: Character) -> Int? {
+        character.wholeNumberValue.flatMap { $0 >= 1 ? $0 - 1 : nil }
     }
 
     private mutating func search(_ query: String) {

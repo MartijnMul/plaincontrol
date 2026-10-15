@@ -78,6 +78,7 @@ struct LauncherView: View {
                 ForEach(Array(launcher.visible.enumerated()), id: \.element.id) { index, item in
                     let selected = index == launcher.selection
                     row(selected: selected) {
+                        DigitCap(row: index)
                         SessionMark(sessions: item.sessions, selected: selected)
                         Text(item.project.name)
                             .font(.title3.weight(.medium))
@@ -142,9 +143,9 @@ struct LauncherView: View {
         }
         .padding(.horizontal, 10)
         VStack(spacing: 2) {
-            ForEach(controller.launcher.actions, id: \.self) { action in
+            ForEach(Array(controller.launcher.actions.enumerated()), id: \.element) { index, action in
                 row(selected: action == controller.launcher.selectedAction) {
-                    KeyCap(String(action.key).uppercased())
+                    DigitCap(row: index)
                     Text(controller.title(of: action)).font(.title3)
                     Spacer()
                 }
@@ -226,6 +227,15 @@ private struct SessionMark: View {
         case .running: "Claude Code is running here"
         case .none: ""
         }
+    }
+}
+
+/// The digit that picks a row.
+private struct DigitCap: View {
+    let row: Int
+
+    var body: some View {
+        KeyCap(Launcher.digit(forRow: row).map(String.init) ?? "")
     }
 }
 

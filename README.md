@@ -23,13 +23,14 @@ Hold the right Option key on its own for a moment, or choose Open Launcher in th
 
 | Key | In the list of projects | In a project |
 | --- | --- | --- |
-| Type | Search all projects | Run the action under that key |
+| Type | Search all projects | |
+| 1 to 9 | Open the project in that row | Run the action in that row |
 | Up, Down | Select a project | Select an action |
 | Return, Right | Open the project | Run the action |
 | Left | | Back to the list |
 | Escape | Clear the search, then close | Back to the list |
 
-An open project offers **1** for Claude Code in a new iTerm2 window in its folder, **2** for a plain iTerm2 window there, **3** for Finder and **4** for your editor. Each action keeps its number in every project, so the keys can be pressed without looking.
+Every row shows its digit. An open project offers **1** for Claude Code in a new iTerm2 window in its folder, **2** for a plain iTerm2 window there, **3** for Finder and **4** for your editor, always in that order, so **4** then **1** starts Claude Code in the fourth project without looking. Digits pick rows, so a search can't contain one.
 
 **Which projects it lists.** The folders where you start Claude Code sessions and the projects you open from the launcher, ranked by how often and how recently you used them, with running sessions first. Nothing to set up: the list fills as you work. If you use [zoxide](https://github.com/ajeetdsouza/zoxide), the folders you visit most are listed from day one; Plaincontrol only reads zoxide's data. When the list is empty, or a search finds nothing, Return offers to add a folder: walk to it from your home folder (Return or Right to go into a folder, Left to go up), then choose the Add row at the top.
 

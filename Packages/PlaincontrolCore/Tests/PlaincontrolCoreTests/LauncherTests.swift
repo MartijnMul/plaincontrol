@@ -29,7 +29,7 @@ import Testing
         #expect(launcher.selectedProject == app)
     }
 
-    @Test func opensTheSelectedProjectAndRunsAnActionByItsKey() {
+    @Test func opensTheSelectedProjectAndRunsAnActionByItsDigit() {
         var launcher = makeLauncher([app, site])
         _ = press(.down, .enter, on: &launcher)
         #expect(launcher.screen == .project(site))
@@ -37,16 +37,30 @@ import Testing
         #expect(outcomes == [.stay, .run(.claude, site), .run(.finder, site)])
     }
 
-    @Test func searchesInsteadOfRunningAnActionFromTheList() {
-        var launcher = makeLauncher([app])
-        #expect(press(.character("1"), on: &launcher) == [.stay])
-        #expect(launcher.query == "1")
+    @Test func opensTheProjectInARowByItsDigit() {
+        var launcher = makeLauncher([app, site])
+        #expect(press(.character("3"), .character("0"), on: &launcher) == [.stay, .stay])
         #expect(launcher.screen == .projects)
+        #expect(launcher.query.isEmpty)
+        #expect(press(.character("2"), .character("1"), on: &launcher) == [.stay, .run(.claude, site)])
     }
 
-    @Test func offersOnlyTheGivenActions() {
+    @Test func picksARowOfTheSearchResultsByItsDigit() {
+        var launcher = makeLauncher([app, site])
+        _ = press(.character("s"), .character("1"), on: &launcher)
+        #expect(launcher.screen == .project(site))
+    }
+
+    @Test func numbersTheActionsOnOfferInOrder() {
         var launcher = makeLauncher([app], actions: [.claude, .finder])
-        #expect(press(.enter, .character("4"), on: &launcher) == [.stay, .stay])
+        let outcomes = press(.enter, .character("2"), .character("3"), on: &launcher)
+        #expect(outcomes == [.stay, .run(.finder, app), .stay])
+    }
+
+    @Test func numbersTheFirstNineRows() {
+        #expect(Launcher.digit(forRow: 0) == "1")
+        #expect(Launcher.digit(forRow: 8) == "9")
+        #expect(Launcher.digit(forRow: 9) == nil)
     }
 
     @Test func escapeGoesBackThenCloses() {
@@ -180,13 +194,8 @@ import Testing
         #expect(launcher.selectedProject == site)
     }
 
-    @Test func keepsEachActionsKeyWhenAnotherIsMissing() {
-        var launcher = makeLauncher([app], actions: [.claude, .finder])
-        #expect(press(.enter, .character("2"), .character("3"), on: &launcher) == [.stay, .stay, .run(.finder, app)])
-    }
-
-    @Test func actionKeysAreDistinct() {
-        #expect(Set(ProjectAction.allCases.map(\.key)).count == ProjectAction.allCases.count)
+    @Test func offersClaudeCodeFirst() {
+        #expect(ProjectAction.allCases.first == .claude)
     }
 }
 
