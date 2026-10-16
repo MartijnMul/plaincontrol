@@ -37,9 +37,12 @@ check: lint test build ## Run everything CI runs
 open: generate ## Open the project in Xcode
 	open $(PROJECT)
 
+# Started with an empty environment, as from Finder: `open` passes its own on to the app, and
+# the app to the terminals and editors it launches, so a run from inside a Claude Code session
+# would hand that session's variables to every shell in them.
 run: build ## Build and start the development app
 	-pkill -x "Plaincontrol Dev"
-	open "$(DEV_APP)"
+	env -i open "$(DEV_APP)"
 
 hook: ## Build the hook command into the plugin
 	swift build --package-path $(CORE) -c release --product plaincontrol-hook
