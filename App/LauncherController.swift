@@ -32,6 +32,8 @@ final class LauncherController {
 
     /// The app the editor action opens, if one is set or Visual Studio Code is installed.
     @ObservationIgnored private var editor: URL?
+    /// The app the folder action opens, normally Finder.
+    @ObservationIgnored private var folderApp: URL?
 
     /// - Parameter sessions: The current sessions, which put their projects at the top.
     init(sessions: @escaping () -> [Session]) {
@@ -60,7 +62,8 @@ final class LauncherController {
 
         loadConfig()
         pathFinder = nil
-        editor = EditorApp.url(for: config.editor)
+        editor = Apps.editor(for: config.editor)
+        folderApp = Apps.folders
         if let name = config.editor, editor == nil {
             problem = "Cannot find the editor “\(name)” set in \(Self.settingsFileForDisplay)."
         }
@@ -89,8 +92,9 @@ final class LauncherController {
     /// What the launcher calls an action; the editor action is named after the editor.
     func title(of action: ProjectAction) -> String {
         switch action {
-        case .editor: editor.map(EditorApp.name(of:)) ?? action.title
-        case .claude, .terminal, .finder: action.title
+        case .editor: editor.map(Apps.name(of:)) ?? action.title
+        case .finder: folderApp.map(Apps.name(of:)) ?? action.title
+        case .claude, .terminal: action.title
         }
     }
 
@@ -221,13 +225,14 @@ final class LauncherController {
                 return
             }
         case .finder:
-            let mover = frame.map { WindowMover(bundleIdentifier: "com.apple.finder", frame: $0) }
+            let app = folderApp.flatMap(Apps.bundleIdentifier(of:)) ?? Apps.finder
+            let mover = frame.map { WindowMover(bundleIdentifier: app, frame: $0) }
             NSWorkspace.shared.open(folder)
             mover?.moveNewWindow()
         case .editor:
             guard let editor else { return }
             let mover = frame.flatMap { frame in
-                Bundle(url: editor)?.bundleIdentifier.map { WindowMover(bundleIdentifier: $0, frame: frame) }
+                Apps.bundleIdentifier(of: editor).map { WindowMover(bundleIdentifier: $0, frame: frame) }
             }
             NSWorkspace.shared.open([folder], withApplicationAt: editor, configuration: NSWorkspace.OpenConfiguration())
             mover?.moveNewWindow()

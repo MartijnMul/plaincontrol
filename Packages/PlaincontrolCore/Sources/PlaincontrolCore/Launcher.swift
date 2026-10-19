@@ -9,7 +9,7 @@ public enum ProjectAction: String, CaseIterable, Sendable {
     case claude
     /// A new iTerm2 window in the project's folder, with nothing running.
     case terminal
-    /// The project's folder in Finder.
+    /// The project's folder in the app macOS opens folders with, normally Finder.
     case finder
     /// The project's folder in the user's editor.
     case editor
