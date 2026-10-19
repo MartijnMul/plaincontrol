@@ -5,9 +5,9 @@ import Foundation
 /// Each action runs under the digit of its place, so the order is what the user learns: Claude
 /// Code stays first, and an action that may be missing, such as the editor, comes last.
 public enum ProjectAction: String, CaseIterable, Sendable {
-    /// A new iTerm2 window in the project's folder, running Claude Code.
+    /// A new terminal window in the project's folder, running Claude Code.
     case claude
-    /// A new iTerm2 window in the project's folder, with nothing running.
+    /// A new terminal window in the project's folder, with nothing running.
     case terminal
     /// The project's folder in the app macOS opens folders with, normally Finder.
     case finder
@@ -16,8 +16,8 @@ public enum ProjectAction: String, CaseIterable, Sendable {
 
     public var title: String {
         switch self {
-        case .claude: "Claude Code in iTerm2"
-        case .terminal: "iTerm2"
+        case .claude: "Claude Code"
+        case .terminal: "Terminal"
         case .finder: "Finder"
         case .editor: "Editor"
         }

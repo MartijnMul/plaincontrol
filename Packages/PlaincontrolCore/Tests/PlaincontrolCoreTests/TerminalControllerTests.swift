@@ -102,10 +102,12 @@ import Testing
     struct Fake: TerminalController {
         let program: String
         var bundleIdentifier: String { "example.\(program)" }
+        var name: String { program }
         let focused: @MainActor @Sendable () -> Void
 
         func canFocus(_ location: TerminalLocation) -> Bool { location.program == program }
         func focus(_ location: TerminalLocation) throws(TerminalControlError) { focused() }
+        func openWindow(in directory: String, running command: String?, frame: CGRect?) {}
     }
 
     @Test func picksTheControllerForTheTerminal() throws {
@@ -116,6 +118,12 @@ import Testing
         ])
         try terminals.focus(TerminalLocation(program: "B"))
         #expect(focused == ["B"])
+    }
+
+    @Test func findsTheControllerForAnApp() {
+        let terminals = TerminalControllers([Fake(program: "A") {}, Fake(program: "B") {}])
+        #expect(terminals.controller(forApp: "example.B")?.name == "B")
+        #expect(terminals.controller(forApp: "example.C") == nil)
     }
 
     @Test func cannotFocusAnUnknownOrMissingLocation() {

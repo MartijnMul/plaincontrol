@@ -19,6 +19,8 @@ final class LauncherController {
     private(set) var pathFinder: PathFinder?
     /// Why the projects could not be read or the last action failed, while the panel is open.
     private(set) var problem: String?
+    /// Something to know about the actions, such as a terminal Plaincontrol cannot open yet.
+    private(set) var notice: String?
     @ObservationIgnored private var panel: LauncherPanel?
     @ObservationIgnored private var keyTap: LauncherKeyTap?
     @ObservationIgnored private var config = LauncherConfig()
@@ -32,10 +34,13 @@ final class LauncherController {
     @ObservationIgnored private let sessions: () -> [Session]
     @ObservationIgnored private let log = Logger(subsystem: AppInfo.subsystem, category: "launcher")
 
-    /// The app the editor action opens, if one is set or Visual Studio Code is installed.
+    /// The app the editor action opens, if there is one.
     @ObservationIgnored private var editor: URL?
     /// The app the folder action opens, normally Finder.
     @ObservationIgnored private var folderApp: URL?
+    /// The terminal the Claude Code and terminal actions open.
+    @ObservationIgnored private var terminal = AppChoice.Terminal(app: nil)
+    @ObservationIgnored private let terminals = TerminalControllers.standard
 
     /// - Parameter sessions: The current sessions, which put their projects at the top.
     init(sessions: @escaping () -> [Session]) {
@@ -65,11 +70,7 @@ final class LauncherController {
 
         loadConfig()
         pathFinder = nil
-        editor = Apps.editor(for: config.editor)
-        folderApp = Apps.folders
-        if let name = config.editor, editor == nil {
-            problem = "Cannot find the editor “\(name)” set in \(Self.settingsFileForDisplay)."
-        }
+        chooseApps()
         launcher = Launcher(items: items(), actions: ProjectAction.allCases.filter(isAvailable))
         let panel = panel ?? LauncherPanel(content: LauncherView(controller: self))
         self.panel = panel
@@ -95,13 +96,63 @@ final class LauncherController {
     /// The key that opens the launcher when held, as last read from the settings.
     var holdKey: HoldKey { config.holdKey }
 
-    /// What the launcher calls an action; the editor action is named after the editor.
+    /// What the launcher calls an action: after the app it opens, where it knows one.
     func title(of action: ProjectAction) -> String {
         switch action {
-        case .editor: editor.map(Apps.name(of:)) ?? action.title
+        case .claude: terminalName.map { "\(action.title) in \($0)" } ?? action.title
+        case .terminal: terminalName ?? action.title
         case .finder: folderApp.map(Apps.name(of:)) ?? action.title
-        case .claude, .terminal: action.title
+        case .editor: editor.map(Apps.name(of:)) ?? action.title
         }
+    }
+
+    /// The terminal the actions open, or the one Plaincontrol would open but cannot.
+    private var terminalName: String? {
+        terminal.app.flatMap { terminals.controller(forApp: $0)?.name } ?? terminal.unsupported.map(Apps.name(ofApp:))
+    }
+
+    /// Picks the apps the actions open: the ones set, or else from the apps the user runs
+    /// Claude Code in and the ones macOS opens folders and code files with.
+    private func chooseApps() {
+        folderApp = Apps.folders
+        if let setting = config.editor {
+            editor = Apps.app(for: setting)
+            if editor == nil {
+                problem = "Cannot find the editor “\(setting)” set in \(Self.settingsFileForDisplay)."
+            }
+        } else {
+            editor = AppChoice.editor(
+                ranked: appUsage.ranked(.editor), defaults: Apps.defaults(forTypes: AppChoice.codeFileTypes),
+                isInstalled: Apps.isInstalled
+            ).flatMap(Apps.app(bundleIdentifier:))
+        }
+        var terminalSetting: String?
+        if let setting = config.terminal {
+            terminalSetting = Apps.app(for: setting).flatMap(Apps.bundleIdentifier(of:))
+            if terminalSetting == nil {
+                problem = "Cannot find the terminal “\(setting)” set in \(Self.settingsFileForDisplay)."
+            }
+        }
+        terminal = AppChoice.terminal(
+            setting: terminalSetting, ranked: appUsage.ranked(.terminal),
+            supported: terminals.controllers.map(\.bundleIdentifier), isInstalled: Apps.isInstalled)
+        notice = nil
+        if let app = terminal.app.flatMap(terminals.controller(forApp:)), let other = terminal.unsupported {
+            notice =
+                "\(AppInfo.name) cannot open \(Apps.name(ofApp: other)) windows yet, so new terminal windows open in \(app.name)."
+        }
+    }
+
+    /// The controller for the terminal the actions open, or nil after saying why there is none.
+    private func openableTerminal() -> (any TerminalController)? {
+        if let controller = terminal.app.flatMap(terminals.controller(forApp:)) { return controller }
+        let supported = terminals.controllers.map(\.name).formatted(.list(type: .or))
+        if let other = terminal.unsupported {
+            fail("\(AppInfo.name) cannot open \(Apps.name(ofApp: other)) windows yet, only \(supported).")
+        } else {
+            fail("\(AppInfo.name) opens new terminal windows in \(supported), which is not installed.")
+        }
+        return nil
     }
 
     /// Opens the settings file, creating it from a template first if needed.
@@ -217,17 +268,25 @@ final class LauncherController {
             return
         }
         let folder = URL(filePath: project.path, directoryHint: .isDirectory)
+        var terminalController: (any TerminalController)?
+        if action == .claude || action == .terminal {
+            // Before any window moves to make room.
+            guard let controller = openableTerminal() else { return }
+            terminalController = controller
+        }
         let placement = newWindowPlacement(for: action)
         placement?.moves.forEach(WindowMover.move)
         let frame = placement?.frame
         switch action {
         case .claude, .terminal:
+            guard let terminalController else { return }
             do {
-                NSApp.yieldActivation(toApplicationWithBundleIdentifier: ITerm2Controller().bundleIdentifier)
+                NSApp.yieldActivation(toApplicationWithBundleIdentifier: terminalController.bundleIdentifier)
                 let command = action == .claude ? config.claudeCommand : nil
-                try ITerm2Controller().openWindow(in: project.path, running: command, frame: frame)
+                try terminalController.openWindow(in: project.path, running: command, frame: frame)
             } catch {
-                fail("Could not open iTerm2: \(error.launcherMessage)")
+                fail(
+                    "Could not open \(terminalController.name): \(error.launcherMessage(for: terminalController.name))")
                 return
             }
         case .finder:
@@ -341,12 +400,12 @@ extension NSScreen {
 }
 
 extension TerminalControlError {
-    fileprivate var launcherMessage: String {
+    fileprivate func launcherMessage(for terminal: String) -> String {
         switch self {
         case .notAuthorized:
-            "allow \(AppInfo.name) to control iTerm2 in System Settings › Privacy & Security › Automation."
+            "allow \(AppInfo.name) to control \(terminal) in System Settings › Privacy & Security › Automation."
         case .failed(let reason): reason
-        case .unsupported, .terminalNotRunning, .paneNotFound: "iTerm2 did not respond."
+        case .unsupported, .terminalNotRunning, .paneNotFound: "\(terminal) did not respond."
         }
     }
 }

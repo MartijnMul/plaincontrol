@@ -151,6 +151,12 @@ struct LauncherView: View {
                 }
             }
         }
+        if let notice = controller.notice {
+            Text(notice)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 10)
+        }
     }
 
     private func row(selected: Bool, @ViewBuilder content: () -> some View) -> some View {

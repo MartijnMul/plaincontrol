@@ -34,6 +34,7 @@ public enum HoldKey: String, CaseIterable, Sendable {
 ///
 /// ```yaml
 /// holdKey: rightOption  # rightOption, rightCommand, rightControl or rightShift
+/// terminal: iTerm2      # the app for 1 and 2, by name or bundle identifier
 /// editor: Cursor        # the app for 4, by name or bundle identifier
 /// claudeCommand: claude # what 1 runs in the new terminal window
 /// zoxide: true          # also list and rank by zoxide's folders, when it is installed
@@ -54,8 +55,11 @@ public enum HoldKey: String, CaseIterable, Sendable {
 public struct LauncherConfig: Sendable, Equatable {
     /// The key that opens the launcher when held on its own.
     public var holdKey = HoldKey.rightOption
-    /// The editor for the editor action, by app name or bundle identifier, or nil for
-    /// Visual Studio Code when it is installed.
+    /// The terminal for the Claude Code and terminal actions, by app name or bundle
+    /// identifier, or nil to pick one (``AppChoice``).
+    public var terminal: String?
+    /// The editor for the editor action, by app name or bundle identifier, or nil to pick one
+    /// (``AppChoice``).
     public var editor: String?
     /// The command the Claude Code action runs in the project's folder.
     public var claudeCommand = "claude"
@@ -71,11 +75,12 @@ public struct LauncherConfig: Sendable, Equatable {
     public var windows: WindowLayout?
 
     public init(
-        holdKey: HoldKey = .rightOption, editor: String? = nil, claudeCommand: String = "claude",
-        zoxide: Bool = true, roots: [String] = [], activeDays: Int = 90, projects: [Project] = [],
-        windows: WindowLayout? = nil
+        holdKey: HoldKey = .rightOption, terminal: String? = nil, editor: String? = nil,
+        claudeCommand: String = "claude", zoxide: Bool = true, roots: [String] = [], activeDays: Int = 90,
+        projects: [Project] = [], windows: WindowLayout? = nil
     ) {
         self.holdKey = holdKey
+        self.terminal = terminal
         self.editor = editor
         self.claudeCommand = claudeCommand
         self.zoxide = zoxide
@@ -101,11 +106,16 @@ public enum LauncherConfigFile {
         # rightOption, rightCommand, rightControl or rightShift.
         holdKey: rightOption
 
-        # The editor for 4, by app name (such as Cursor or Zed) or bundle identifier.
-        # Without one, it is Visual Studio Code, if installed.
+        # The terminal for 1 and 2, by app name or bundle identifier. Without one, it is the
+        # terminal you run Claude Code in most. Plaincontrol can open iTerm2 windows so far.
+        # terminal: iTerm2
+
+        # The editor for 4, by app name (such as Cursor or Zed) or bundle identifier. Without
+        # one, it is the editor you run Claude Code in most; if you don't, the app your Mac
+        # opens code files with, or else Visual Studio Code.
         # editor: Visual Studio Code
 
-        # What 1 runs in a new iTerm2 window in the project's folder.
+        # What 1 runs in a new terminal window in the project's folder.
         claudeCommand: claude
 
         # The launcher lists the folders where you start Claude Code or open projects from the
@@ -169,6 +179,7 @@ public enum LauncherConfigFile {
         if claudeCommand.isEmpty {
             throw LauncherConfigError(message: "claudeCommand cannot be empty.")
         }
+        let terminal = file.terminal?.trimmingCharacters(in: .whitespaces)
         let editor = file.editor?.trimmingCharacters(in: .whitespaces)
         var windows: WindowLayout?
         if let section = file.windows {
@@ -193,7 +204,8 @@ public enum LauncherConfigFile {
             .map { Project(path: $0.path, name: $0.name) }
             .filter { seen.insert($0.path).inserted }
         return LauncherConfig(
-            holdKey: holdKey, editor: editor?.isEmpty == false ? editor : nil, claudeCommand: claudeCommand,
+            holdKey: holdKey, terminal: terminal?.isEmpty == false ? terminal : nil,
+            editor: editor?.isEmpty == false ? editor : nil, claudeCommand: claudeCommand,
             zoxide: file.zoxide ?? true, roots: file.roots ?? [], activeDays: file.activeDays ?? 90,
             projects: projects, windows: windows)
     }
@@ -220,6 +232,7 @@ public enum LauncherConfigFile {
 
     private struct File: Decodable {
         var holdKey: String?
+        var terminal: String?
         var editor: String?
         var claudeCommand: String?
         var zoxide: Bool?

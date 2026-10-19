@@ -3,17 +3,12 @@ import UniformTypeIdentifiers
 
 /// Finds the apps the launcher's actions open projects in.
 enum Apps {
-    /// Visual Studio Code, the editor when none is set.
-    static let defaultEditor = "com.microsoft.VSCode"
     /// Finder, which opens folders unless the user chose another app for them.
     static let finder = "com.apple.finder"
 
-    /// The editor for `setting`: a bundle identifier, an app name such as `Cursor`, or a path
-    /// to an app. Without a setting, Visual Studio Code if it is installed.
-    static func editor(for setting: String?) -> URL? {
-        guard let setting else {
-            return NSWorkspace.shared.urlForApplication(withBundleIdentifier: defaultEditor)
-        }
+    /// The app for `setting`: a bundle identifier, an app name such as `Cursor`, or a path to
+    /// an app.
+    static func app(for setting: String) -> URL? {
         let fileManager = FileManager.default
         if setting.hasPrefix("/") || setting.hasPrefix("~") {
             let path = (setting as NSString).expandingTildeInPath
@@ -29,10 +24,33 @@ enum Apps {
             .map { URL(filePath: $0) }
     }
 
+    /// The app with `bundleIdentifier`, if it is installed.
+    static func app(bundleIdentifier: String) -> URL? {
+        NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier)
+    }
+
+    static func isInstalled(_ bundleIdentifier: String) -> Bool {
+        app(bundleIdentifier: bundleIdentifier) != nil
+    }
+
+    /// The bundle identifiers of the apps macOS opens each kind of file with, by type
+    /// identifier, leaving out kinds it has no app for.
+    static func defaults(forTypes identifiers: [String]) -> [String] {
+        identifiers.compactMap { identifier in
+            UTType(identifier).flatMap(NSWorkspace.shared.urlForApplication(toOpen:)).flatMap(bundleIdentifier(of:))
+        }
+    }
+
     /// The app macOS opens folders with: Finder, unless the user chose another, such as Path
     /// Finder or ForkLift.
     static var folders: URL? {
         NSWorkspace.shared.urlForApplication(toOpen: .folder)
+    }
+
+    /// The name the app with `bundleIdentifier` shows, or the identifier when it is not
+    /// installed.
+    static func name(ofApp bundleIdentifier: String) -> String {
+        app(bundleIdentifier: bundleIdentifier).map(name(of:)) ?? bundleIdentifier
     }
 
     /// The name the app shows, such as `Visual Studio Code`.

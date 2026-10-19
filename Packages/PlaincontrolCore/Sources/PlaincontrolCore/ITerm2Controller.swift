@@ -1,7 +1,8 @@
 import CoreGraphics
 import PlaincontrolHooks
 
-/// Brings iTerm2 panes to the front through iTerm2's AppleScript interface.
+/// Brings iTerm2 panes to the front and opens iTerm2 windows through iTerm2's AppleScript
+/// interface.
 ///
 /// iTerm2 gives every pane an `ITERM_SESSION_ID` such as `w0t1p0:6B9F…`. The part after the
 /// colon is the pane's `unique id` in AppleScript, which stays the same when the pane moves
@@ -11,6 +12,7 @@ public struct ITerm2Controller: TerminalController {
 
     static let iTerm2 = "com.googlecode.iterm2"
     public var bundleIdentifier: String { Self.iTerm2 }
+    public var name: String { "iTerm2" }
     private let runScript: ScriptRunner
 
     /// - Parameter runScript: Runs an AppleScript and returns its result as text.
@@ -32,11 +34,6 @@ public struct ITerm2Controller: TerminalController {
         }
     }
 
-    /// Opens a new iTerm2 window in `directory` and runs `command` there, if any, through the
-    /// user's shell, as if they had typed it. Starts iTerm2 when it is not running.
-    ///
-    /// - Parameter frame: Where the window goes, in global coordinates from the top left of the
-    ///   main screen; without one, iTerm2 decides.
     @MainActor
     public func openWindow(
         in directory: String, running command: String? = nil, frame: CGRect? = nil

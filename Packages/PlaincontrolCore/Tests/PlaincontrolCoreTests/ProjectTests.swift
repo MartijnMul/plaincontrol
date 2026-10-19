@@ -60,19 +60,22 @@ import Testing
         let config = try LauncherConfigFile.parse(
             """
             holdKey: rightCommand
+            terminal: iTerm2
             editor: Cursor
             claudeCommand: claude --continue
             zoxide: false
             """)
         #expect(config.holdKey == .rightCommand)
+        #expect(config.terminal == "iTerm2")
         #expect(config.editor == "Cursor")
         #expect(config.claudeCommand == "claude --continue")
         #expect(!config.zoxide)
     }
 
     @Test func usesTheDefaultsForMissingSettings() throws {
-        let config = try LauncherConfigFile.parse("editor: \"  \"\n")
+        let config = try LauncherConfigFile.parse("editor: \"  \"\nterminal: \"\"\n")
         #expect(config.holdKey == .rightOption)
+        #expect(config.terminal == nil)
         #expect(config.editor == nil)
         #expect(config.claudeCommand == "claude")
         #expect(config.zoxide)
