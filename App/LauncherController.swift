@@ -41,6 +41,7 @@ final class LauncherController {
     /// The terminal the Claude Code and terminal actions open.
     @ObservationIgnored private var terminal = AppChoice.Terminal(app: nil)
     @ObservationIgnored private let terminals = TerminalControllers.standard
+    @ObservationIgnored private var activationObserver: (any NSObjectProtocol)?
 
     /// - Parameter sessions: The current sessions, which put their projects at the top.
     init(sessions: @escaping () -> [Session]) {
@@ -50,6 +51,7 @@ final class LauncherController {
         loadConfig()
         scanFolders()
         askZoxide()
+        watchActivations()
     }
 
     var isShown: Bool { panel?.isVisible ?? false }
@@ -111,8 +113,23 @@ final class LauncherController {
         terminal.app.flatMap { terminals.controller(forApp: $0)?.name } ?? terminal.unsupported.map(Apps.name(ofApp:))
     }
 
-    /// Picks the apps the actions open: the ones set, or else from the apps the user runs
-    /// Claude Code in and the ones macOS opens folders and code files with.
+    /// Counts each editor the user brings to the front as a use, so the editor action follows
+    /// the editor they work in, also when they run Claude Code in a terminal.
+    private func watchActivations() {
+        activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
+        ) { [weak self] notification in
+            let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            guard let bundleIdentifier = app?.bundleIdentifier else { return }
+            MainActor.assumeIsolated {
+                guard let self, self.appUsage.recordActivation(of: bundleIdentifier) else { return }
+                self.save(self.appUsage, to: Self.appUsageURL)
+            }
+        }
+    }
+
+    /// Picks the apps the actions open: the ones set, or else from the apps the user works in
+    /// and the ones macOS opens folders and code files with.
     private func chooseApps() {
         folderApp = Apps.folders
         if let setting = config.editor {

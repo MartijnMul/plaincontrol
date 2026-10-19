@@ -1,6 +1,6 @@
 /// Picks the terminal and the editor the launcher opens projects in, so that it works without
-/// settings: from the apps the user runs Claude Code in (``AppUsage``) and, for the editor,
-/// the apps macOS opens code files with.
+/// settings: from the apps the user works in (``AppUsage``) and, for the editor, the apps macOS
+/// opens code files with.
 ///
 /// Apps are named by bundle identifier. A setting in the launcher file comes first; the caller
 /// finds its app before asking.
@@ -40,7 +40,7 @@ public enum AppChoice {
         return Terminal(app: app, unsupported: favourite.flatMap { supported.contains($0) ? nil : $0 })
     }
 
-    /// The editor when none is set and no session ran in one.
+    /// The editor when none is set and the user was not seen using one.
     public static let defaultEditor = "com.microsoft.VSCode"
 
     /// Kinds of files mostly opened in an editor, whose default apps hint at the user's
@@ -59,12 +59,12 @@ public enum AppChoice {
     /// project: macOS sets them so.
     static let notEditors: Set<String> = ["com.apple.TextEdit", "com.apple.dt.Xcode"]
 
-    /// The editor, when none is set: the one the user runs sessions in most that is
-    /// installed; or else the app macOS opens most ``codeFileTypes`` with, other than TextEdit,
+    /// The editor, when none is set: the one the user works in most that is installed, by
+    /// sessions in it and bringing it to the front; or else the app macOS opens most ``codeFileTypes`` with, other than TextEdit,
     /// Xcode and terminals; or else Visual Studio Code, when installed.
     ///
     /// - Parameters:
-    ///   - ranked: The editors the user runs sessions in, most used first.
+    ///   - ranked: The editors the user works in, most used first.
     ///   - defaults: The app macOS opens each of ``codeFileTypes`` with, where it has one.
     ///   - isInstalled: Whether an app is installed.
     public static func editor(ranked: [String], defaults: [String], isInstalled: (String) -> Bool) -> String? {

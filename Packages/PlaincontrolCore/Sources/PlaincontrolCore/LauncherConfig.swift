@@ -111,8 +111,8 @@ public enum LauncherConfigFile {
         # terminal: iTerm2
 
         # The editor for 4, by app name (such as Cursor or Zed) or bundle identifier. Without
-        # one, it is the editor you run Claude Code in most; if you don't, the app your Mac
-        # opens code files with, or else Visual Studio Code.
+        # one, it is the editor you use most lately, such as Xcode or Zed; before you have used
+        # one, the app your Mac opens code files with, or else Visual Studio Code.
         # editor: Visual Studio Code
 
         # What 1 runs in a new terminal window in the project's folder.
