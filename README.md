@@ -44,7 +44,7 @@ Plaincontrol runs entirely on your Mac. It opens no network port and sends nothi
 
 - **Claude Code sessions**: hook events can contain your prompts and file paths. Plaincontrol keeps only what it needs to show a session's status, and never stores or logs prompt text.
 - **The keyboard**: to notice the launcher's key, Plaincontrol watches which modifier keys go down in any app, and whether another key is pressed meanwhile; it does not record what you type. While the launcher is open, it takes every key without Command or Control, so your typing reaches the launcher and not the app behind it. Both need the Accessibility permission, which macOS asks for once; the launcher does not work without it.
-- **Your folders**: the launcher remembers which folders you used it and Claude Code in, and reads when each project folder last changed. With zoxide, it reads zoxide's list of folders, but never changes it. This history stays in `~/Library/Application Support/Plaincontrol`.
+- **Your folders and apps**: the launcher remembers which folders you used it and Claude Code in, and which terminal or editor your sessions ran in, and reads when each project folder last changed. With zoxide, it reads zoxide's list of folders, but never changes it. This history stays in `~/Library/Application Support/Plaincontrol`.
 
 ## Building from source
 

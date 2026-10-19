@@ -2,9 +2,10 @@ import Testing
 
 @testable import PlaincontrolHooks
 
-@Test func keepsOnlyTheTerminalAndPaneVariables() {
+@Test func keepsOnlyTheTerminalAppAndPaneVariables() {
     let location = TerminalLocation(environment: [
         "TERM_PROGRAM": "iTerm.app",
+        "__CFBundleIdentifier": "com.googlecode.iterm2",
         "ITERM_SESSION_ID": "w0t1p0:ABC",
         "TMUX_PANE": "%3",
         "HOME": "/Users/example",
@@ -12,7 +13,14 @@ import Testing
     ])
     #expect(
         location
-            == TerminalLocation(program: "iTerm.app", paneIDs: ["ITERM_SESSION_ID": "w0t1p0:ABC", "TMUX_PANE": "%3"]))
+            == TerminalLocation(
+                program: "iTerm.app", paneIDs: ["ITERM_SESSION_ID": "w0t1p0:ABC", "TMUX_PANE": "%3"],
+                app: "com.googlecode.iterm2"))
+}
+
+@Test func knowsTheAppWithoutATerminalProgram() {
+    let location = TerminalLocation(environment: ["__CFBundleIdentifier": "com.example.Editor"])
+    #expect(location == TerminalLocation(program: nil, app: "com.example.Editor"))
 }
 
 @Test func returnsNilWithoutAnyTerminal() {

@@ -1,4 +1,5 @@
-/// Where a session runs: the terminal program and the identifiers it gives the pane.
+/// Where a session runs: the terminal program, the app it belongs to, and the identifiers it
+/// gives the pane.
 ///
 /// Built from the environment the hook command inherits from the terminal. Only the
 /// variables below are kept; the rest of the environment is never read or stored.
@@ -7,6 +8,10 @@ public struct TerminalLocation: Sendable, Equatable, Codable {
     public var program: String?
     /// Pane identifiers by environment variable name, such as `ITERM_SESSION_ID`.
     public var paneIDs: [String: String]
+    /// The bundle identifier of the app the session runs in, such as `com.googlecode.iterm2`,
+    /// or an editor's for a session in its terminal. macOS sets `__CFBundleIdentifier` for an
+    /// app it starts, and the processes the app starts inherit it.
+    public var app: String?
 
     /// The environment variables that identify a pane, per terminal.
     public static let paneVariables = [
@@ -20,21 +25,24 @@ public struct TerminalLocation: Sendable, Equatable, Codable {
     private enum CodingKeys: String, CodingKey {
         case program
         case paneIDs = "pane_ids"
+        case app
     }
 
-    public init(program: String?, paneIDs: [String: String] = [:]) {
+    public init(program: String?, paneIDs: [String: String] = [:], app: String? = nil) {
         self.program = program
         self.paneIDs = paneIDs
+        self.app = app
     }
 
-    /// Picks the terminal program and pane identifiers out of an environment.
+    /// Picks the terminal program, its app and the pane identifiers out of an environment.
     /// Returns nil when nothing in it identifies a terminal.
     public init?(environment: [String: String]) {
         let program = environment["TERM_PROGRAM"].flatMap { $0.isEmpty ? nil : $0 }
+        let app = environment["__CFBundleIdentifier"].flatMap { $0.isEmpty ? nil : $0 }
         let paneIDs = environment.filter { key, value in
             Self.paneVariables.contains(key) && !value.isEmpty
         }
-        guard program != nil || !paneIDs.isEmpty else { return nil }
-        self.init(program: program, paneIDs: paneIDs)
+        guard program != nil || app != nil || !paneIDs.isEmpty else { return nil }
+        self.init(program: program, paneIDs: paneIDs, app: app)
     }
 }

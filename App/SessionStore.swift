@@ -13,8 +13,8 @@ final class SessionStore {
     private(set) var problem: String?
     /// Why the last jump to a session failed, until the next one succeeds.
     private(set) var jumpProblem: String?
-    /// Called with the folder of each session that starts.
-    @ObservationIgnored var onSessionStart: ((String) -> Void)?
+    /// Called with the folder of each session that starts, and where it runs.
+    @ObservationIgnored var onSessionStart: ((String, TerminalLocation?) -> Void)?
     @ObservationIgnored private var server: HookServer?
     @ObservationIgnored private var processes: ProcessWatcher?
     @ObservationIgnored private let notifier = SessionNotifier()
@@ -83,7 +83,7 @@ final class SessionStore {
         let change = registry.apply(envelope.event, terminal: envelope.terminal, at: envelope.sentAt)
         let sessionID = envelope.event.sessionID
         if envelope.event.kind == .sessionStart, let cwd = envelope.event.cwd {
-            onSessionStart?(cwd)
+            onSessionStart?(cwd, envelope.terminal)
         }
         if registry.sessions[sessionID]?.status == .gone {
             processes?.stopWatching(sessionID)

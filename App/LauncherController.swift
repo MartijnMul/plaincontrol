@@ -1,6 +1,7 @@
 import AppKit
 import Observation
 import PlaincontrolCore
+import PlaincontrolHooks
 import SwiftUI
 import os
 
@@ -27,6 +28,7 @@ final class LauncherController {
     @ObservationIgnored private var zoxide: [Zoxide.Entry] = []
     @ObservationIgnored private var isAskingZoxide = false
     @ObservationIgnored private var usage: ProjectUsage
+    @ObservationIgnored private var appUsage: AppUsage
     @ObservationIgnored private let sessions: () -> [Session]
     @ObservationIgnored private let log = Logger(subsystem: AppInfo.subsystem, category: "launcher")
 
@@ -38,7 +40,8 @@ final class LauncherController {
     /// - Parameter sessions: The current sessions, which put their projects at the top.
     init(sessions: @escaping () -> [Session]) {
         self.sessions = sessions
-        usage = Self.loadUsage()
+        usage = Self.load(ProjectUsage.self, from: Self.usageURL) ?? ProjectUsage()
+        appUsage = Self.load(AppUsage.self, from: Self.appUsageURL) ?? AppUsage()
         loadConfig()
         scanFolders()
         askZoxide()
@@ -80,10 +83,13 @@ final class LauncherController {
         panel?.orderOut(nil)
     }
 
-    /// A Claude Code session started in `folder`, which counts as use of its project.
-    func sessionStarted(in folder: String) {
+    /// A Claude Code session started in `folder`, which counts as use of its project, and at
+    /// `terminal`, which counts as use of the terminal or editor it runs in.
+    func sessionStarted(in folder: String, at terminal: TerminalLocation?) {
         usage.record(ProjectFolders.repositoryRoot(containing: folder) ?? folder)
         saveUsage()
+        appUsage.record(terminal)
+        save(appUsage, to: Self.appUsageURL)
     }
 
     /// The key that opens the launcher when held, as last read from the settings.
@@ -280,19 +286,28 @@ final class LauncherController {
         URL.applicationSupportDirectory.appending(path: "\(AppInfo.name)/project-usage.json")
     }
 
-    private static func loadUsage() -> ProjectUsage {
-        guard let data = try? Data(contentsOf: usageURL) else { return ProjectUsage() }
-        return (try? JSONDecoder().decode(ProjectUsage.self, from: data)) ?? ProjectUsage()
+    private static var appUsageURL: URL {
+        URL.applicationSupportDirectory.appending(path: "\(AppInfo.name)/app-usage.json")
+    }
+
+    private static func load<Value: Decodable>(_ type: Value.Type, from url: URL) -> Value? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode(type, from: data)
     }
 
     private func saveUsage() {
+        save(usage, to: Self.usageURL)
+    }
+
+    private func save(_ value: some Encodable, to url: URL) {
         do {
-            let url = Self.usageURL
             try FileManager.default.createDirectory(
                 at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try JSONEncoder().encode(usage).write(to: url, options: .atomic)
+            try JSONEncoder().encode(value).write(to: url, options: .atomic)
         } catch {
-            log.error("Could not save project usage: \(String(describing: error), privacy: .public)")
+            log.error(
+                "Could not save \(url.lastPathComponent, privacy: .public): \(String(describing: error), privacy: .public)"
+            )
         }
     }
 }
