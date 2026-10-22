@@ -39,9 +39,11 @@ open: generate ## Open the project in Xcode
 
 # Started with an empty environment, as from Finder: `open` passes its own on to the app, and
 # the app to the terminals and editors it launches, so a run from inside a Claude Code session
-# would hand that session's variables to every shell in them.
-run: build ## Build and start the development app
+# would hand that session's variables to every shell in them. The release app is quit too: both
+# react to the same key for the launcher.
+run: build ## Build and start the development app, quitting the release app
 	-pkill -x "Plaincontrol Dev"
+	-pkill -x Plaincontrol
 	env -i open "$(DEV_APP)"
 
 hook: ## Build the hook command into the plugin
