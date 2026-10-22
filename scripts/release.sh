@@ -18,6 +18,7 @@ cd "$(dirname "$0")/.."
 
 DERIVED=.build/Release
 APP="$DERIVED/Build/Products/Release/Plaincontrol.app"
+HOOK="$APP/Contents/MacOS/plaincontrol-hook"
 DMG=.build/Plaincontrol.dmg
 STAGING=.build/dmg
 ENTITLEMENTS=App/Plaincontrol.entitlements
@@ -42,12 +43,15 @@ VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/
 
 # Signed again from scratch with only the app's own entitlements: the build adds
 # get-task-allow, for debugging, which notarisation refuses. The hardened runtime and a secure
-# timestamp are what notarisation asks for.
+# timestamp are what notarisation asks for. The hook command inside goes first, as the app's
+# signature covers it; it needs no entitlements.
 if [ -n "$IDENTITY" ]; then
 	echo "Signing with $IDENTITY"
+	codesign --force --options runtime --timestamp --sign "$IDENTITY" "$HOOK"
 	codesign --force --options runtime --timestamp --entitlements "$ENTITLEMENTS" \
 		--sign "$IDENTITY" "$APP"
 else
+	codesign --force --options runtime --sign - "$HOOK"
 	codesign --force --options runtime --entitlements "$ENTITLEMENTS" --sign - "$APP"
 fi
 codesign --verify --strict --deep "$APP"

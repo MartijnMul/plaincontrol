@@ -36,6 +36,7 @@ final class SessionStore {
         notifier.onOpen = { [weak self] sessionID in self?.jump(to: sessionID) }
         processes = ProcessWatcher { [weak self] sessionID in self?.processExited(of: sessionID) }
         notifier.start()
+        publishHookCommand()
         let path = HookSocket.path(environment: ProcessInfo.processInfo.environment, appName: AppInfo.name)
         let server = HookServer(path: path) { [weak self] envelope in
             // The server calls in order on its own queue; the main queue keeps that order.
@@ -50,6 +51,20 @@ final class SessionStore {
             problem = "Another copy of \(AppInfo.name) is already running."
         } catch {
             problem = "Cannot listen for Claude Code sessions: \(error)"
+        }
+    }
+
+    /// Points the Claude Code plugin at the hook command inside this app, so the hooks run the
+    /// command that belongs to the app that is running.
+    private func publishHookCommand() {
+        guard let folder = Bundle.main.executableURL?.deletingLastPathComponent() else { return }
+        let command = folder.appending(path: HookCommandLink.commandName)
+        guard FileManager.default.isExecutableFile(atPath: command.path(percentEncoded: false)) else { return }
+        do {
+            try HookCommandLink.update(HookCommandLink.defaultURL(appName: AppInfo.name), to: command)
+        } catch {
+            Logger(subsystem: AppInfo.subsystem, category: "hooks")
+                .error("Cannot link the hook command: \(error, privacy: .public)")
         }
     }
 

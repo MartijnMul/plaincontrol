@@ -1,0 +1,13 @@
+{
+  "name": "plaincontrol",
+  "owner": {
+    "name": "Martijn Mullié"
+  },
+  "plugins": [
+    {
+      "name": "plaincontrol",
+      "source": "./plugin",
+      "description": "Reports the status of every Claude Code session to Plaincontrol, a macOS menu bar app."
+    }
+  ]
+}

@@ -26,6 +26,11 @@ targets:
         product: PlaincontrolCore
       - package: PlaincontrolCore
         product: PlaincontrolHooks
+      # The hook command travels inside the app, next to its executable, so it is signed and
+      # notarised with it. The Claude Code plugin finds it through a link the app keeps.
+      - target: plaincontrol-hook
+        copy:
+          destination: executables
     configFiles:
       Debug: Config/Signing.xcconfig
       Release: Config/Signing.xcconfig
@@ -45,3 +50,20 @@ targets:
           PRODUCT_NAME: Plaincontrol Dev
           PRODUCT_BUNDLE_IDENTIFIER: io.github.martijnmul.plaincontrol.dev
           INFOPLIST_KEY_CFBundleDisplayName: Plaincontrol Dev
+
+  # The same command Swift Package Manager builds for `make hook`, built here to go in the app.
+  plaincontrol-hook:
+    type: tool
+    platform: macOS
+    sources: [Packages/PlaincontrolCore/Sources/plaincontrol-hook]
+    dependencies:
+      - package: PlaincontrolCore
+        product: PlaincontrolHooks
+    configFiles:
+      Debug: Config/Signing.xcconfig
+      Release: Config/Signing.xcconfig
+    settings:
+      base:
+        PRODUCT_NAME: plaincontrol-hook
+        ENABLE_HARDENED_RUNTIME: YES
+        SKIP_INSTALL: YES
