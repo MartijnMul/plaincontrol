@@ -70,6 +70,7 @@ Packages/PlaincontrolCore/  The logic, with tests, in two modules:
   Sources/plaincontrol-hook The command Claude Code runs for each hook event
 plugin/                     The Claude Code plugin that installs the hooks
 dev/                        Scenarios for trying the app without Claude Code
+scripts/                    Release packaging
 Config/                     Build settings, such as code signing
 project.yml                 XcodeGen project definition
 ```
@@ -92,6 +93,10 @@ A few tests need folders on your own Mac, such as a cloud folder reached through
 # .env
 PLAINCONTROL_TEST_LINKED_FOLDER=~/Dropbox   # a folder reached through a symbolic link, with folders inside
 ```
+
+### Releases
+
+`make release` builds the release app and packs it in `.build/Plaincontrol.dmg`. With a Developer ID Application certificate in the keychain, it signs the app and the disk image with it and has Apple notarise them, using notary credentials stored once with `xcrun notarytool store-credentials notary`; without one, it signs ad hoc and skips notarising. `scripts/release.sh` explains the steps.
 
 ## License
 
