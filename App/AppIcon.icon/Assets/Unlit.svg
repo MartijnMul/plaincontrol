@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Two idle lamps, unlit. -->
+  <circle cx="661.1" cy="362.9" r="101.9" fill="#2B3B38" stroke="#4F6460" stroke-width="12.4"/>
+  <circle cx="362.9" cy="661.1" r="101.9" fill="#2B3B38" stroke="#4F6460" stroke-width="12.4"/>
+</svg>

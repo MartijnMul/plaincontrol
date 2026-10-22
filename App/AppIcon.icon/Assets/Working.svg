@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- A working session: the lamp half lit. -->
+  <circle cx="362.9" cy="362.9" r="101.9" fill="#2B3B38"/>
+  <path d="M362.9 261.0 A101.9 101.9 0 0 0 362.9 464.8 Z" fill="#7DB3DB"/>
+  <circle cx="362.9" cy="362.9" r="101.9" fill="none" stroke="#7DB3DB" stroke-width="12.4"/>
+</svg>

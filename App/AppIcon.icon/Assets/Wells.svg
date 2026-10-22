@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- The recesses the four lamps sit in. -->
+  <circle cx="362.9" cy="362.9" r="134.2" fill="#1F2B29"/>
+  <circle cx="661.1" cy="362.9" r="134.2" fill="#1F2B29"/>
+  <circle cx="362.9" cy="661.1" r="134.2" fill="#1F2B29"/>
+  <circle cx="661.1" cy="661.1" r="134.2" fill="#1F2B29"/>
+</svg>

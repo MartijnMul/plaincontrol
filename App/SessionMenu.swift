@@ -46,17 +46,22 @@ struct SessionMenu: View {
     }
 }
 
-/// The menu bar icon, with the number of sessions waiting for the user.
+/// The menu bar icon: four lamps, unlit until a session waits for the user, then one lit and
+/// the number of sessions waiting beside them.
 struct MenuBarLabel: View {
     let store: SessionStore
 
     var body: some View {
         let waiting = store.waitingCount
         if waiting > 0 {
-            Label("\(waiting)", systemImage: "rectangle.stack.badge.person.crop")
-                .labelStyle(.titleAndIcon)
+            Label {
+                Text("\(waiting)")
+            } icon: {
+                Image("MenuBarWaiting")
+            }
+            .labelStyle(.titleAndIcon)
         } else {
-            Image(systemName: "rectangle.stack")
+            Image("MenuBarQuiet")
         }
     }
 }

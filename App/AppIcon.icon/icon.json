@@ -1,0 +1,45 @@
+{
+  "fill": {
+    "solid": "srgb:0.16863,0.23137,0.21961,1.00000"
+  },
+  "groups": [
+    {
+      "layers": [
+        {
+          "glass": false,
+          "image-name": "Lit.svg",
+          "name": "Lit"
+        },
+        {
+          "glass": false,
+          "image-name": "Working.svg",
+          "name": "Working"
+        },
+        {
+          "glass": false,
+          "image-name": "Unlit.svg",
+          "name": "Unlit"
+        },
+        {
+          "glass": false,
+          "image-name": "Wells.svg",
+          "name": "Wells"
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0
+      },
+      "specular": false,
+      "translucency": {
+        "enabled": false,
+        "value": 0.5
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": [
+      "macOS"
+    ]
+  }
+}
