@@ -34,16 +34,17 @@ public enum HoldKey: String, CaseIterable, Sendable {
 ///
 /// ```yaml
 /// holdKey: rightOption  # rightOption, rightCommand, rightControl or rightShift
-/// terminal: iTerm2      # the app for 1 and 2, by name or bundle identifier
+/// terminal: iTerm2      # the app for 1, 2 and the dev server, by name or bundle id
 /// editor: Cursor        # the app for 4, by name or bundle identifier
 /// claudeCommand: claude # what 1 runs in the new terminal window
 /// zoxide: true          # also list and rank by zoxide's folders, when it is installed
 /// roots:                # folders whose subfolders are projects
 ///   - ~/Developer
 /// activeDays: 90        # a project is listed this long after its last change or use
-/// projects:             # always listed, with an optional name
+/// projects:             # always listed, with an optional name and dev server command
 ///   - name: My App
 ///     path: ~/Developer/my-app
+///     devCommand: uv run fastapi dev
 /// windows:              # put new windows in free columns, nearest the user first
 ///   builtIn: 2          # columns on the built-in screen
 ///   external: 3         # columns on every other screen
@@ -55,7 +56,7 @@ public enum HoldKey: String, CaseIterable, Sendable {
 public struct LauncherConfig: Sendable, Equatable {
     /// The key that opens the launcher when held on its own.
     public var holdKey = HoldKey.rightOption
-    /// The terminal for the Claude Code and terminal actions, by app name or bundle
+    /// The terminal for the Claude Code, terminal and dev server actions, by app name or bundle
     /// identifier, or nil to pick one (``AppChoice``).
     public var terminal: String?
     /// The editor for the editor action, by app name or bundle identifier, or nil to pick one
@@ -71,13 +72,16 @@ public struct LauncherConfig: Sendable, Equatable {
     public var activeDays = 90
     /// Projects that are always listed, in the order of the file.
     public var projects: [Project] = []
+    /// The commands that start the development servers of projects, by their resolved paths,
+    /// where the user sets one instead of leaving it to ``DevServer``.
+    public var devCommands: [String: String] = [:]
     /// How to arrange the windows the launcher opens, or nil to leave it to each app.
     public var windows: WindowLayout?
 
     public init(
         holdKey: HoldKey = .rightOption, terminal: String? = nil, editor: String? = nil,
         claudeCommand: String = "claude", zoxide: Bool = true, roots: [String] = [], activeDays: Int = 90,
-        projects: [Project] = [], windows: WindowLayout? = nil
+        projects: [Project] = [], devCommands: [String: String] = [:], windows: WindowLayout? = nil
     ) {
         self.holdKey = holdKey
         self.terminal = terminal
@@ -87,7 +91,13 @@ public struct LauncherConfig: Sendable, Equatable {
         self.roots = roots.map { ($0 as NSString).standardizingPath }
         self.activeDays = activeDays
         self.projects = projects
+        self.devCommands = devCommands
         self.windows = windows
+    }
+
+    /// The command set for `project`'s development server, if any.
+    public func devCommand(for project: Project) -> String? {
+        devCommands[project.resolvedPath]
     }
 }
 
@@ -106,8 +116,9 @@ public enum LauncherConfigFile {
         # rightOption, rightCommand, rightControl or rightShift.
         holdKey: rightOption
 
-        # The terminal for 1 and 2, by app name or bundle identifier. Without one, it is the
-        # terminal you run Claude Code in most. Plaincontrol can open iTerm2 windows so far.
+        # The terminal for 1, 2 and the dev server, by app name or bundle identifier. Without
+        # one, it is the terminal you run Claude Code in most. Plaincontrol can open iTerm2
+        # windows so far.
         # terminal: iTerm2
 
         # The editor for 4, by app name (such as Cursor or Zed) or bundle identifier. Without
@@ -132,10 +143,12 @@ public enum LauncherConfigFile {
         activeDays: 90
 
         # Projects that are always listed, with an optional name; without one, a project is
-        # named after its folder.
+        # named after its folder. A dev server command replaces the one the launcher finds:
+        # make dev or the package.json dev script, else make run or Docker Compose.
         projects:
         #  - name: My App
         #    path: ~/Developer/my-app
+        #    devCommand: uv run fastapi dev
 
         # Where the windows the launcher opens go. Without this, each app decides. With it,
         # every screen is split into columns, as a window manager such as Rectangle does, and a
@@ -200,14 +213,19 @@ public enum LauncherConfigFile {
             windows = layout
         }
         var seen = Set<String>()
-        let projects = (file.projects ?? [])
-            .map { Project(path: $0.path, name: $0.name) }
-            .filter { seen.insert($0.path).inserted }
+        var devCommands: [String: String] = [:]
+        let projects = (file.projects ?? []).compactMap { entry -> Project? in
+            let project = Project(path: entry.path, name: entry.name)
+            if let command = entry.devCommand?.trimmingCharacters(in: .whitespaces), !command.isEmpty {
+                devCommands[project.resolvedPath] = command
+            }
+            return seen.insert(project.path).inserted ? project : nil
+        }
         return LauncherConfig(
             holdKey: holdKey, terminal: terminal?.isEmpty == false ? terminal : nil,
             editor: editor?.isEmpty == false ? editor : nil, claudeCommand: claudeCommand,
             zoxide: file.zoxide ?? true, roots: file.roots ?? [], activeDays: file.activeDays ?? 90,
-            projects: projects, windows: windows)
+            projects: projects, devCommands: devCommands, windows: windows)
     }
 
     /// Reads the configuration at `path`, or the defaults when there is no file yet.
@@ -257,6 +275,7 @@ public enum LauncherConfigFile {
     private struct Entry: Decodable {
         var name: String?
         var path: String
+        var devCommand: String?
     }
 }
 

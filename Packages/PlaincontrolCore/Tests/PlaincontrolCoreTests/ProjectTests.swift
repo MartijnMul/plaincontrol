@@ -97,6 +97,19 @@ import Testing
         #expect(config.projects.map(\.name) == ["my-app"])
     }
 
+    @Test func readsDevServerCommands() throws {
+        let config = try LauncherConfigFile.parse(
+            """
+            projects:
+              - path: /work/api
+                devCommand: "  uv run fastapi dev  "
+              - path: /work/site
+                devCommand: ""
+            """)
+        #expect(config.devCommand(for: Project(path: "/work/api")) == "uv run fastapi dev")
+        #expect(config.devCommand(for: Project(path: "/work/site")) == nil)
+    }
+
     @Test func readsTheWindowLayout() throws {
         #expect(try LauncherConfigFile.parse("zoxide: true\n").windows == nil)
         let config = try LauncherConfigFile.parse("windows:\n  external: 4\n  editor:\n    external: 3\n")

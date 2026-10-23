@@ -90,6 +90,19 @@ import Testing
         #expect(launcher.screen == .projects)
     }
 
+    @Test func offersTheActionsOfTheOpenProject() {
+        let items = [app, site].enumerated().map { LauncherItem(project: $1, score: Double(2 - $0)) }
+        var launcher = Launcher(items: items) { project in
+            project == app ? [.claude, .devServer] : [.claude]
+        }
+        _ = press(.enter, on: &launcher)
+        #expect(launcher.actions == [.claude, .devServer])
+        #expect(press(.character("2"), on: &launcher) == [.run(.devServer, app)])
+        _ = press(.escape, .character("2"), on: &launcher)
+        #expect(launcher.actions == [.claude])
+        #expect(press(.character("2"), on: &launcher) == [.stay])
+    }
+
     @Test func runsTheSelectedActionWithReturnOrRight() {
         var launcher = makeLauncher([app], actions: [.claude, .finder, .editor])
         _ = press(.enter, on: &launcher)

@@ -148,6 +148,9 @@ struct LauncherView: View {
                     DigitCap(row: index)
                     Text(controller.title(of: action)).font(.title3)
                     Spacer()
+                    if let command = controller.command(of: action, in: project) {
+                        Text(command).font(.body.monospaced()).opacity(0.7)
+                    }
                 }
             }
         }

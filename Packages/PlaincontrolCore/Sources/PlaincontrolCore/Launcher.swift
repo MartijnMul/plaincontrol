@@ -3,7 +3,7 @@ import Foundation
 /// Something the launcher can do with a project, in the order the launcher offers them.
 ///
 /// Each action runs under the digit of its place, so the order is what the user learns: Claude
-/// Code stays first, and an action that may be missing, such as the editor, comes last.
+/// Code stays first, and the actions that may be missing, such as the editor, come last.
 public enum ProjectAction: String, CaseIterable, Sendable {
     /// A new terminal window in the project's folder, running Claude Code.
     case claude
@@ -13,6 +13,9 @@ public enum ProjectAction: String, CaseIterable, Sendable {
     case finder
     /// The project's folder in the user's editor.
     case editor
+    /// A new terminal window in the project's folder, running its development server
+    /// (``DevServer``).
+    case devServer
 
     public var title: String {
         switch self {
@@ -20,6 +23,7 @@ public enum ProjectAction: String, CaseIterable, Sendable {
         case .terminal: "Terminal"
         case .finder: "Finder"
         case .editor: "Editor"
+        case .devServer: "Dev server"
         }
     }
 }
@@ -37,7 +41,10 @@ public enum ProjectAction: String, CaseIterable, Sendable {
 /// An open project lists its actions: Up and Down select one, Return or Right runs it, and a
 /// digit runs the action in that row. Left or Escape goes back to the list; Escape on the list
 /// without a search closes the launcher.
-public struct Launcher: Sendable, Equatable {
+public struct Launcher: Sendable {
+    /// The actions a project offers, in the order shown.
+    public typealias Actions = @Sendable (Project) -> [ProjectAction]
+
     public enum Key: Equatable, Sendable {
         case up, down, left, right, enter, escape, backspace
         case character(Character)
@@ -66,8 +73,9 @@ public struct Launcher: Sendable, Equatable {
     }
 
     public private(set) var items: [LauncherItem]
-    /// The actions on offer, in the order shown.
-    public let actions: [ProjectAction]
+    private let actionsOf: Actions
+    /// The actions of the open project, in the order shown.
+    public private(set) var actions: [ProjectAction] = []
     /// What the user typed to search.
     public private(set) var query = ""
     /// The selected row of ``visible``.
@@ -78,9 +86,15 @@ public struct Launcher: Sendable, Equatable {
     /// The rows of the list, in order.
     public private(set) var visible: [LauncherItem] = []
 
+    /// - Parameter actions: The actions every project offers.
     public init(items: [LauncherItem], actions: [ProjectAction] = ProjectAction.allCases) {
+        self.init(items: items) { _ in actions }
+    }
+
+    /// - Parameter actions: The actions a project offers, asked each time it opens.
+    public init(items: [LauncherItem], actions: @escaping Actions) {
         self.items = items
-        self.actions = actions
+        actionsOf = actions
         visible = Self.rank(items, query: query)
     }
 
@@ -106,8 +120,7 @@ public struct Launcher: Sendable, Equatable {
     public mutating func open(_ project: Project) {
         if !query.isEmpty { search("") }
         selection = visible.firstIndex { $0.project == project } ?? 0
-        actionSelection = 0
-        screen = .project(project)
+        enter(project)
     }
 
     public var selectedAction: ProjectAction? {
@@ -122,10 +135,7 @@ public struct Launcher: Sendable, Equatable {
             selection = min(selection + 1, max(visible.count - 1, 0))
         case (.projects, .enter), (.projects, .right):
             if visible.isEmpty { return .findFolder }
-            if let selectedProject {
-                actionSelection = 0
-                screen = .project(selectedProject)
-            }
+            if let selectedProject { enter(selectedProject) }
         case (.projects, .escape):
             if query.isEmpty { return .close }
             search("")
@@ -134,8 +144,7 @@ public struct Launcher: Sendable, Equatable {
         case (.projects, .character(let character)) where character.isASCII && character.isNumber:
             if let row = Self.row(for: character), visible.indices.contains(row) {
                 selection = row
-                actionSelection = 0
-                screen = .project(visible[row].project)
+                enter(visible[row].project)
             }
         case (.projects, .character(let character)):
             if character.isLetter || character.isNumber || character.isPunctuation || character.isSymbol
@@ -159,6 +168,12 @@ public struct Launcher: Sendable, Equatable {
             break
         }
         return .stay
+    }
+
+    private mutating func enter(_ project: Project) {
+        actions = actionsOf(project)
+        actionSelection = 0
+        screen = .project(project)
     }
 
     /// The row a digit picks.

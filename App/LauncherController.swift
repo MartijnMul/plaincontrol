@@ -73,7 +73,11 @@ final class LauncherController {
         loadConfig()
         pathFinder = nil
         chooseApps()
-        launcher = Launcher(items: items(), actions: ProjectAction.allCases.filter(isAvailable))
+        let offered = ProjectAction.allCases.filter(isAvailable)
+        let config = config
+        launcher = Launcher(items: items()) { project in
+            offered.filter { $0 != .devServer || Self.devCommand(for: project, config: config) != nil }
+        }
         let panel = panel ?? LauncherPanel(content: LauncherView(controller: self))
         self.panel = panel
         panel.present()
@@ -101,11 +105,22 @@ final class LauncherController {
     /// What the launcher calls an action: after the app it opens, where it knows one.
     func title(of action: ProjectAction) -> String {
         switch action {
-        case .claude: terminalName.map { "\(action.title) in \($0)" } ?? action.title
+        case .claude, .devServer: terminalName.map { "\(action.title) in \($0)" } ?? action.title
         case .terminal: terminalName ?? action.title
         case .finder: folderApp.map(Apps.name(of:)) ?? action.title
         case .editor: editor.map(Apps.name(of:)) ?? action.title
         }
+    }
+
+    /// The command `action` runs in `project`, to show next to it, where it depends on the project.
+    func command(of action: ProjectAction, in project: Project) -> String? {
+        action == .devServer ? Self.devCommand(for: project, config: config) : nil
+    }
+
+    /// The command that starts `project`'s development server: the one set, or else the one
+    /// the project declares.
+    private nonisolated static func devCommand(for project: Project, config: LauncherConfig) -> String? {
+        config.devCommand(for: project) ?? DevServer.command(in: project.path)
     }
 
     /// The terminal the actions open, or the one Plaincontrol would open but cannot.
@@ -285,9 +300,20 @@ final class LauncherController {
             return
         }
         let folder = URL(filePath: project.path, directoryHint: .isDirectory)
+        // What can fail goes before any window moves to make room.
+        var command: String?
+        switch action {
+        case .claude: command = config.claudeCommand
+        case .devServer:
+            command = Self.devCommand(for: project, config: config)
+            if command == nil {
+                fail("\(project.name) no longer has a dev server to start.")
+                return
+            }
+        case .terminal, .finder, .editor: break
+        }
         var terminalController: (any TerminalController)?
-        if action == .claude || action == .terminal {
-            // Before any window moves to make room.
+        if [.claude, .terminal, .devServer].contains(action) {
             guard let controller = openableTerminal() else { return }
             terminalController = controller
         }
@@ -295,11 +321,10 @@ final class LauncherController {
         placement?.moves.forEach(WindowMover.move)
         let frame = placement?.frame
         switch action {
-        case .claude, .terminal:
+        case .claude, .terminal, .devServer:
             guard let terminalController else { return }
             do {
                 NSApp.yieldActivation(toApplicationWithBundleIdentifier: terminalController.bundleIdentifier)
-                let command = action == .claude ? config.claudeCommand : nil
                 try terminalController.openWindow(in: project.path, running: command, frame: frame)
             } catch {
                 fail(
@@ -351,7 +376,7 @@ final class LauncherController {
 
     private func isAvailable(_ action: ProjectAction) -> Bool {
         switch action {
-        case .claude, .terminal, .finder: true
+        case .claude, .terminal, .finder, .devServer: true
         case .editor: editor != nil
         }
     }

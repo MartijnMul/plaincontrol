@@ -33,7 +33,7 @@ public struct WindowLayout: Sendable, Equatable {
         let span =
             switch action {
             case .editor: screen.isBuiltIn ? editorBuiltInColumns : editorExternalColumns
-            case .claude, .terminal, .finder: 1
+            case .claude, .terminal, .finder, .devServer: 1
             }
         return min(max(span, 1), max(columns, 1))
     }
