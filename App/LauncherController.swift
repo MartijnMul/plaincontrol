@@ -109,6 +109,7 @@ final class LauncherController {
         case .terminal: terminalName ?? action.title
         case .finder: folderApp.map(Apps.name(of:)) ?? action.title
         case .editor: editor.map(Apps.name(of:)) ?? action.title
+        case .claudeDesktop: action.title
         }
     }
 
@@ -310,14 +311,15 @@ final class LauncherController {
                 fail("\(project.name) no longer has a dev server to start.")
                 return
             }
-        case .terminal, .finder, .editor: break
+        case .terminal, .finder, .editor, .claudeDesktop: break
         }
         var terminalController: (any TerminalController)?
         if [.claude, .terminal, .devServer].contains(action) {
             guard let controller = openableTerminal() else { return }
             terminalController = controller
         }
-        let placement = newWindowPlacement(for: action)
+        // The desktop app shows a new session in a window it already has, so nothing makes room.
+        let placement = action == .claudeDesktop ? nil : newWindowPlacement(for: action)
         placement?.moves.forEach(WindowMover.move)
         let frame = placement?.frame
         switch action {
@@ -343,6 +345,14 @@ final class LauncherController {
             }
             NSWorkspace.shared.open([folder], withApplicationAt: editor, configuration: NSWorkspace.OpenConfiguration())
             mover?.moveNewWindow()
+        case .claudeDesktop:
+            guard let app = Apps.app(bundleIdentifier: ClaudeDesktop.bundleIdentifier) else {
+                fail("The Claude desktop app is no longer installed.")
+                return
+            }
+            NSWorkspace.shared.open(
+                [ClaudeDesktop.newSessionURL(in: project.path)], withApplicationAt: app,
+                configuration: NSWorkspace.OpenConfiguration())
         }
         log.info("Ran \(action.rawValue, privacy: .public) on a project")
         usage.record(project.path)
@@ -378,6 +388,7 @@ final class LauncherController {
         switch action {
         case .claude, .terminal, .finder, .devServer: true
         case .editor: editor != nil
+        case .claudeDesktop: Apps.isInstalled(ClaudeDesktop.bundleIdentifier)
         }
     }
 
