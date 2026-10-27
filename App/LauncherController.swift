@@ -318,7 +318,7 @@ final class LauncherController {
             guard let controller = openableTerminal() else { return }
             terminalController = controller
         }
-        // The desktop app shows a new session in a window it already has, so nothing makes room.
+        // The desktop app's window comes later (openDesktopWindow), so it makes room then.
         let placement = action == .claudeDesktop ? nil : newWindowPlacement(for: action)
         placement?.moves.forEach(WindowMover.move)
         let frame = placement?.frame
@@ -350,14 +350,60 @@ final class LauncherController {
                 fail("The Claude desktop app is no longer installed.")
                 return
             }
+            let wasRunning = !NSRunningApplication.runningApplications(
+                withBundleIdentifier: ClaudeDesktop.bundleIdentifier
+            ).isEmpty
             NSWorkspace.shared.open(
                 [ClaudeDesktop.newSessionURL(in: project.path)], withApplicationAt: app,
                 configuration: NSWorkspace.OpenConfiguration())
+            openDesktopWindow(wasRunning: wasRunning)
         }
         log.info("Ran \(action.rawValue, privacy: .public) on a project")
         usage.record(project.path)
         saveUsage()
         hide()
+    }
+
+    /// Moves the new session the desktop app shows in its main window to a window of its own,
+    /// through the app's menu, and places that window.
+    ///
+    /// The new window takes the folder the main window has, so the menu item waits until the
+    /// app has taken the link's folder: it asks the user to trust the folder of every link,
+    /// already trusted or not, and takes it only once they answer. The question comes within a
+    /// few seconds, longer when the app starts; the wait for the answer gives up after two
+    /// minutes. Without the menu item, such as in an app in another language, the session stays
+    /// in the main window.
+    private func openDesktopWindow(wasRunning: Bool) {
+        let app = ClaudeDesktop.bundleIdentifier
+        Task {
+            try? await Task.sleep(for: wasRunning ? .milliseconds(700) : .seconds(3))
+            var asked = false
+            for tick in 0... {
+                let shown = AppDialog.isShown(in: app)
+                asked = asked || shown
+                if !shown && (asked || tick >= 15) { break }
+                if tick >= 600 {
+                    log.notice("The desktop app's question was not answered; the session stays in its main window")
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(200))
+            }
+            // The app takes the folder just after the question closes.
+            if asked { try? await Task.sleep(for: .milliseconds(500)) }
+            for _ in 0..<50 {
+                if let item = MenuItem.find(ClaudeDesktop.newWindowMenuItem, in: app) {
+                    let placement = newWindowPlacement(for: .claudeDesktop)
+                    placement?.moves.forEach(WindowMover.move)
+                    let mover = placement.map {
+                        WindowMover(bundleIdentifier: app, frame: $0.frame)
+                    }
+                    if MenuItem.choose(item) { mover?.moveNewWindow() }
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(200))
+            }
+            log.notice("The desktop app has no menu item for a new window; the session stays in its main window")
+        }
     }
 
     /// Where the window `action` opens goes, and which windows move first to make room, when

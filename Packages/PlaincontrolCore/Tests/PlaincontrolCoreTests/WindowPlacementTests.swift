@@ -177,7 +177,7 @@ import Testing
     }
 
     @Test func givesOtherActionsOneColumn() {
-        for action in [ProjectAction.claude, .terminal, .finder] {
+        for action in [ProjectAction.claude, .terminal, .finder, .claudeDesktop] {
             let placed = frame(for: action, screens: screens, current: 2, windows: [])
             #expect(placed == columns(right)[1])
         }
