@@ -156,26 +156,6 @@ import Testing
         try LauncherConfigFile.createIfMissing(at: path)
         #expect(try LauncherConfigFile.load(from: path).projects == [Project(path: "/work/my-app")])
     }
-
-    @Test func movesTheFileByItsOldNameOnce() throws {
-        let folder = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: folder) }
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let old = folder.appending(path: "launcher.yaml").path(percentEncoded: false)
-        let path = folder.appending(path: "settings.yaml").path(percentEncoded: false)
-
-        try LauncherConfigFile.moveOldFile(to: path)
-        #expect(!FileManager.default.fileExists(atPath: path))
-
-        try "zoxide: false\n".write(toFile: old, atomically: true, encoding: .utf8)
-        try LauncherConfigFile.moveOldFile(to: path)
-        #expect(try LauncherConfigFile.load(from: path).zoxide == false)
-        #expect(!FileManager.default.fileExists(atPath: old))
-
-        try "zoxide: true\n".write(toFile: old, atomically: true, encoding: .utf8)
-        try LauncherConfigFile.moveOldFile(to: path)
-        #expect(try LauncherConfigFile.load(from: path).zoxide == false)
-    }
 }
 
 @Suite struct ProjectUsageTests {

@@ -106,19 +106,11 @@ public struct LauncherConfig: Sendable, Equatable {
     }
 }
 
-/// The file in which the user configures the launcher, by hand.
+/// The settings file, which the user edits by hand or through the settings window.
 public enum LauncherConfigFile {
     /// `~/.config/plaincontrol/settings.yaml`, shared by the release and development builds.
     public static var defaultPath: String {
         URL.homeDirectory.appending(path: ".config/plaincontrol/settings.yaml").path(percentEncoded: false)
-    }
-
-    /// Gives a settings file by its old name, `launcher.yaml` next to `path`, the new name,
-    /// unless there is a file by the new name already.
-    public static func moveOldFile(to path: String = defaultPath) throws {
-        let old = ((path as NSString).deletingLastPathComponent as NSString).appendingPathComponent("launcher.yaml")
-        guard FileManager.default.fileExists(atPath: old), !FileManager.default.fileExists(atPath: path) else { return }
-        try FileManager.default.moveItem(atPath: old, toPath: path)
     }
 
     /// The configuration in `text`; a project listed twice counts once.

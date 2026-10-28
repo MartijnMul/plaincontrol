@@ -49,11 +49,6 @@ final class LauncherController {
         usage = Self.load(ProjectUsage.self, from: Self.usageURL) ?? ProjectUsage()
         appUsage = Self.load(AppUsage.self, from: Self.appUsageURL) ?? AppUsage()
         do {
-            try LauncherConfigFile.moveOldFile()
-        } catch {
-            log.error("Could not rename the settings file: \(String(describing: error), privacy: .public)")
-        }
-        do {
             try LauncherConfigFile.writeSchema()
         } catch {
             log.error("Could not write the settings schema: \(String(describing: error), privacy: .public)")
