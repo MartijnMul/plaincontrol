@@ -15,10 +15,11 @@ Of interest above all: anything that lets another process or user read hook even
 
 ## Getting a genuine copy
 
-Only the latest release gets fixes. Get Plaincontrol from this repository's [releases](https://github.com/MartijnMul/plaincontrol/releases), or with [`install.sh`](install.sh), which refuses an app that is not signed with a Developer ID and notarised by Apple. To check a copy yourself:
+Only the latest release gets fixes. Get Plaincontrol from this repository's [releases](https://github.com/MartijnMul/plaincontrol/releases), or with [`install.sh`](install.sh), which refuses an app that is not signed with the Developer ID below and notarised by Apple. To check a copy yourself:
 
 ```sh
 spctl --assess --verbose /Applications/Plaincontrol.app
+codesign -dv /Applications/Plaincontrol.app 2>&1 | grep TeamIdentifier
 ```
 
-It should say `accepted`, `source=Notarized Developer ID`, and name Martijn Mullié as the developer.
+The first should say `accepted` and `source=Notarized Developer ID`; the second should show the team `JSR6PF58J7`.

@@ -3,10 +3,10 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/MartijnMul/plaincontrol/main/install.sh | sh
 #
-# It downloads the disk image, checks that the app in it is signed with a Developer ID and
-# notarised by Apple, copies it to /Applications (replacing an older copy only once the new one
-# is in place), and opens it. Nothing else: the Claude Code plugin is installed from Claude Code
-# itself.
+# It downloads the disk image, checks that the app in it is signed with Plaincontrol's
+# Developer ID and notarised by Apple, copies it to /Applications (replacing an older copy only
+# once the new one is in place), and opens it. Nothing else: the Claude Code plugin is installed
+# from Claude Code itself.
 #
 # A download through curl is not marked as coming from the internet, so macOS would not check
 # the app when it first opens, as it does for a disk image downloaded in a browser. The script
@@ -16,6 +16,8 @@ set -eu
 URL="https://github.com/MartijnMul/plaincontrol/releases/latest/download/Plaincontrol.dmg"
 APP="/Applications/Plaincontrol.app"
 MINIMUM_MACOS=27
+# The Developer ID team releases are signed with (SECURITY.md).
+TEAM=JSR6PF58J7
 
 if [ "$(sw_vers -productVersion | cut -d. -f1)" -lt "$MINIMUM_MACOS" ]; then
 	echo "Plaincontrol needs macOS $MINIMUM_MACOS or later." >&2
@@ -35,7 +37,8 @@ hdiutil attach -quiet -nobrowse -readonly -mountpoint "$TMP/mount" "$TMP/Plainco
 NEW="$TMP/mount/Plaincontrol.app"
 
 if ! codesign --verify --deep --strict "$NEW" 2>/dev/null ||
-	! spctl --assess --type execute "$NEW" 2>/dev/null; then
+	! spctl --assess --type execute "$NEW" 2>/dev/null ||
+	[ "$(codesign -dv "$NEW" 2>&1 | sed -n 's/^TeamIdentifier=//p')" != "$TEAM" ]; then
 	echo "The downloaded app is not signed and notarised as it should be; nothing was installed." >&2
 	exit 1
 fi
