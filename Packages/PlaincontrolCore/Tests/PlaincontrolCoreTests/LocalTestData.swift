@@ -4,7 +4,7 @@ import Foundation
 ///
 /// Each value comes from an environment variable named `PLAINCONTROL_TEST_<name>`. `make test`
 /// reads them from a `.env` file in the repository root, which git ignores; without a value,
-/// the tests that need it are skipped. The README lists the variables.
+/// the tests that need it are skipped. CONTRIBUTING.md lists the variables.
 enum LocalTestData {
     static func value(_ name: String) -> String? {
         let value = ProcessInfo.processInfo.environment["PLAINCONTROL_TEST_\(name)"] ?? ""

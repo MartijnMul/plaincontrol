@@ -20,17 +20,35 @@ Plaincontrol never logs prompts, but the log can hold folder names; leave out wh
 
 ## Building
 
-You need Xcode 27 and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`). The [README](README.md#development) describes the three ways to work on it, from fastest to most real:
+You need macOS 27, Xcode 27 and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
 
 ```sh
-make test         # the core's tests, in seconds
-make run          # builds and starts Plaincontrol Dev, next to (or instead of) the release app
-make simulate     # plays a scenario of hook events into it, without Claude Code
-make dev-claude   # a Claude Code session with this repository's plugin, reporting to Plaincontrol Dev
+git clone https://github.com/MartijnMul/plaincontrol.git
+cd plaincontrol
+make run
+```
+
+The Xcode project is generated from `project.yml`; `make open` opens it, and `make help` lists every command. Development builds are a separate app, **Plaincontrol Dev**, with its own socket and history, so they never get in the way of an installed Plaincontrol (`make run` does quit it, as both would listen for the same key). Nothing is installed in your own Claude Code configuration.
+
+There are three ways to try a change, from fastest to most real:
+
+```sh
+make test         # the core's tests, in seconds; most changes start here
+make run          # builds and starts Plaincontrol Dev
+make simulate     # plays hook events into it, without Claude Code (SCENARIO= a file in dev/scenarios/)
+make dev-claude   # one Claude Code session with this repository's plugin, reporting to Plaincontrol Dev only
 make check        # formatting, tests and the build: run it before every commit
 ```
 
-Nothing is installed in your own Claude Code configuration while you work on it. A few tests need folders on your own Mac; they read their paths from a `.env` file that git ignores, and are skipped without one (see the README).
+Builds are signed ad hoc, so macOS asks for permissions again after every rebuild. To keep them, sign with your own certificate: create `Config/Local.xcconfig` (ignored by git) as `Config/Signing.xcconfig` describes.
+
+A few tests need folders on your own Mac. Their paths are personal, so they go in a `.env` file in the repository root, which git ignores; without one, those tests are skipped:
+
+```sh
+PLAINCONTROL_TEST_LINKED_FOLDER=~/Dropbox   # a folder reached through a symbolic link, with folders inside
+```
+
+`make release` builds the release app into `.build/Plaincontrol.dmg`. With a Developer ID Application certificate in the keychain it also signs and notarises it (with credentials stored once by `xcrun notarytool store-credentials notary`); `scripts/release.sh` explains the steps.
 
 ## How the code is laid out
 

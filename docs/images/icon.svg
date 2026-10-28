@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Plaincontrol: four status lamps on an enamel panel. Working, idle / idle, waiting. -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="#2B3B38"/>
+  <g fill="#1F2B29">
+    <circle cx="392" cy="392" r="108"/>
+    <circle cx="632" cy="392" r="108"/>
+    <circle cx="392" cy="632" r="108"/>
+    <circle cx="632" cy="632" r="108"/>
+  </g>
+  <g fill="#2B3B38" stroke="#4F6460" stroke-width="10">
+    <circle cx="392" cy="392" r="82"/>
+    <circle cx="632" cy="392" r="82"/>
+    <circle cx="392" cy="632" r="82"/>
+  </g>
+  <path d="M392 310 A82 82 0 0 0 392 474 Z" fill="#7DB3DB"/>
+  <circle cx="392" cy="392" r="82" fill="none" stroke="#7DB3DB" stroke-width="10"/>
+  <circle cx="632" cy="632" r="87" fill="#F4B400"/>
+</svg>
