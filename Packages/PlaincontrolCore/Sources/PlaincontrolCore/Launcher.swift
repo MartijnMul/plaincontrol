@@ -13,10 +13,6 @@ public enum ProjectAction: String, CaseIterable, Sendable {
     case finder
     /// The project's folder in the user's editor.
     case editor
-    /// A new Claude Code session in the project's folder, in the Claude desktop app
-    /// (``ClaudeDesktop``). It comes before the dev server, which only some projects have, so
-    /// its digit stays the same for every project.
-    case claudeDesktop
     /// A new terminal window in the project's folder, running its development server
     /// (``DevServer``).
     case devServer
@@ -27,7 +23,6 @@ public enum ProjectAction: String, CaseIterable, Sendable {
         case .terminal: "Terminal"
         case .finder: "Finder"
         case .editor: "Editor"
-        case .claudeDesktop: "Claude Code Desktop"
         case .devServer: "Dev server"
         }
     }
