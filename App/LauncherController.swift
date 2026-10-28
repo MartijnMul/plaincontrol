@@ -48,6 +48,11 @@ final class LauncherController {
         self.sessions = sessions
         usage = Self.load(ProjectUsage.self, from: Self.usageURL) ?? ProjectUsage()
         appUsage = Self.load(AppUsage.self, from: Self.appUsageURL) ?? AppUsage()
+        do {
+            try LauncherConfigFile.moveOldFile()
+        } catch {
+            log.error("Could not rename the settings file: \(String(describing: error), privacy: .public)")
+        }
         loadConfig()
         scanFolders()
         askZoxide()

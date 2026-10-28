@@ -30,7 +30,7 @@ public enum HoldKey: String, CaseIterable, Sendable {
     public static let allDeviceFlags: UInt = 0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x2000
 }
 
-/// What the user configures about the launcher, in `launcher.yaml`:
+/// What the user configures about the launcher, in `settings.yaml`:
 ///
 /// ```yaml
 /// holdKey: rightOption  # rightOption, rightCommand, rightControl or rightShift
@@ -108,9 +108,17 @@ public struct LauncherConfig: Sendable, Equatable {
 
 /// The file in which the user configures the launcher, by hand.
 public enum LauncherConfigFile {
-    /// `~/.config/plaincontrol/launcher.yaml`, shared by the release and development builds.
+    /// `~/.config/plaincontrol/settings.yaml`, shared by the release and development builds.
     public static var defaultPath: String {
-        URL.homeDirectory.appending(path: ".config/plaincontrol/launcher.yaml").path(percentEncoded: false)
+        URL.homeDirectory.appending(path: ".config/plaincontrol/settings.yaml").path(percentEncoded: false)
+    }
+
+    /// Gives a settings file by its old name, `launcher.yaml` next to `path`, the new name,
+    /// unless there is a file by the new name already.
+    public static func moveOldFile(to path: String = defaultPath) throws {
+        let old = ((path as NSString).deletingLastPathComponent as NSString).appendingPathComponent("launcher.yaml")
+        guard FileManager.default.fileExists(atPath: old), !FileManager.default.fileExists(atPath: path) else { return }
+        try FileManager.default.moveItem(atPath: old, toPath: path)
     }
 
     /// What a new settings file starts with: every setting at its default.
