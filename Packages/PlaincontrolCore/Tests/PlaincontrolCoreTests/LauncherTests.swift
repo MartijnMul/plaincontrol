@@ -34,7 +34,7 @@ import Testing
         _ = press(.down, .enter, on: &launcher)
         #expect(launcher.screen == .project(site))
         let outcomes = press(.character("x"), .character("1"), .character("3"), on: &launcher)
-        #expect(outcomes == [.stay, .run(.claude, site), .run(.finder, site)])
+        #expect(outcomes == [.stay, .run(.claudeDesktop, site), .run(.finder, site)])
     }
 
     @Test func opensTheProjectInARowByItsDigit() {
@@ -42,7 +42,7 @@ import Testing
         #expect(press(.character("3"), .character("0"), on: &launcher) == [.stay, .stay])
         #expect(launcher.screen == .projects)
         #expect(launcher.query.isEmpty)
-        #expect(press(.character("2"), .character("1"), on: &launcher) == [.stay, .run(.claude, site)])
+        #expect(press(.character("2"), .character("1"), on: &launcher) == [.stay, .run(.claudeDesktop, site)])
     }
 
     @Test func picksARowOfTheSearchResultsByItsDigit() {
@@ -115,7 +115,7 @@ import Testing
         var launcher = makeLauncher([app, site])
         _ = press(.right, .down, .left, .down, .right, on: &launcher)
         #expect(launcher.screen == .project(site))
-        #expect(launcher.selectedAction == .claude)
+        #expect(launcher.selectedAction == .claudeDesktop)
     }
 
     @Test func ranksSessionsFirstThenActiveProjectsByScore() {
@@ -207,8 +207,8 @@ import Testing
         #expect(launcher.selectedProject == site)
     }
 
-    @Test func offersClaudeCodeFirst() {
-        #expect(ProjectAction.allCases.first == .claude)
+    @Test func offersClaudeCodeInTheDesktopAppFirst() {
+        #expect(ProjectAction.allCases.first == .claudeDesktop)
     }
 }
 

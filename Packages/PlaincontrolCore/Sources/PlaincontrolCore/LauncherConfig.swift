@@ -34,9 +34,9 @@ public enum HoldKey: String, CaseIterable, Sendable {
 ///
 /// ```yaml
 /// holdKey: rightOption  # rightOption, rightCommand, rightControl or rightShift
-/// terminal: iTerm2      # the app for 1, 2 and the dev server, by name or bundle id
-/// editor: Cursor        # the app for 4, by name or bundle identifier
-/// claudeCommand: claude # what 1 runs in the new terminal window
+/// terminal: iTerm2      # the app for Claude Code, Terminal and the dev server, by name or bundle id
+/// editor: Cursor        # the app for Editor, by name or bundle identifier
+/// claudeCommand: claude # what Claude Code runs in the new terminal window
 /// zoxide: true          # also list and rank by zoxide's folders, when it is installed
 /// roots:                # folders whose subfolders are projects
 ///   - ~/Developer
@@ -116,17 +116,17 @@ public enum LauncherConfigFile {
         # rightOption, rightCommand, rightControl or rightShift.
         holdKey: rightOption
 
-        # The terminal for 1, 2 and the dev server, by app name or bundle identifier. Without
-        # one, it is the terminal you run Claude Code in most. Plaincontrol can open iTerm2
+        # The terminal for Claude Code, Terminal and the dev server, by app name or bundle
+        # identifier. Without one, it is the terminal you run Claude Code in most. Plaincontrol can open iTerm2
         # windows so far.
         # terminal: iTerm2
 
-        # The editor for 4, by app name (such as Cursor or Zed) or bundle identifier. Without
+        # The editor, by app name (such as Cursor or Zed) or bundle identifier. Without
         # one, it is the editor you use most lately, such as Xcode or Zed; before you have used
         # one, the app your Mac opens code files with, or else Visual Studio Code.
         # editor: Visual Studio Code
 
-        # What 1 runs in a new terminal window in the project's folder.
+        # What Claude Code runs in a new terminal window in the project's folder.
         claudeCommand: claude
 
         # The launcher lists the folders where you start Claude Code or open projects from the

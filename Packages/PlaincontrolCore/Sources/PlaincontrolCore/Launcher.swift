@@ -2,23 +2,23 @@ import Foundation
 
 /// Something the launcher can do with a project, in the order the launcher offers them.
 ///
-/// Each action runs under the digit of its place, so the order is what the user learns: Claude
-/// Code stays first, and the actions that may be missing, such as the editor, come last.
+/// Each action runs under the digit of its place, so the order is what the user learns. An
+/// action that is missing, such as the desktop app or the editor when neither is installed,
+/// leaves no gap, so the actions after it move up a digit.
 public enum ProjectAction: String, CaseIterable, Sendable {
-    /// A new terminal window in the project's folder, running Claude Code.
-    case claude
+    /// A new Claude Code session in the project's folder, in a window of its own in the Claude
+    /// desktop app (``ClaudeDesktop``).
+    case claudeDesktop
     /// A new terminal window in the project's folder, with nothing running.
     case terminal
     /// The project's folder in the app macOS opens folders with, normally Finder.
     case finder
     /// The project's folder in the user's editor.
     case editor
-    /// A new Claude Code session in the project's folder, in a window of its own in the Claude
-    /// desktop app (``ClaudeDesktop``). It comes before the dev server, which only some projects
-    /// have, so its digit stays the same for every project.
-    case claudeDesktop
+    /// A new terminal window in the project's folder, running Claude Code.
+    case claude
     /// A new terminal window in the project's folder, running its development server
-    /// (``DevServer``).
+    /// (``DevServer``). It comes last, as only some projects have one.
     case devServer
 
     public var title: String {
