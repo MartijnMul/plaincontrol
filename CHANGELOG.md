@@ -2,7 +2,9 @@
 
 What changes in each release of Plaincontrol. Versions follow [Semantic Versioning](https://semver.org); while the version starts with 0, any release may change how Plaincontrol is installed or configured, and says so.
 
-## Unreleased
+## 0.3.0 — 2026-10-28
+
+The first public release.
 
 - **Install with Homebrew**: `brew install --cask martijnmul/tap/plaincontrol`, and `brew upgrade` keeps Plaincontrol up to date, whether or not you let it update itself.
 - **Updates inside the app**: on its second launch, Plaincontrol asks whether to check for updates automatically, once a day; nothing is fetched until you agree. Check for Updates… in the menu checks once, and Settings › General has the same choice. Updates come from the latest GitHub release and are installed only when they carry Plaincontrol's signature. The check sends GitHub nothing but Plaincontrol's version.
