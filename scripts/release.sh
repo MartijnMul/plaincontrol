@@ -5,9 +5,14 @@
 #
 # With a "Developer ID Application" certificate in the keychain, the app and the disk image
 # are signed with it and notarised by Apple, so macOS opens the app after a single
-# confirmation. Notarising needs credentials stored once with:
+# confirmation, and appcast.xml, Sparkle's feed of updates, is written next to the disk image.
+# Notarising needs credentials stored once with:
 #
 #     xcrun notarytool store-credentials notary
+#
+# and the feed the EdDSA key that Sparkle's generate_keys put in the keychain, whose public
+# half is SPARKLE_PUBLIC_KEY in project.yml. Sparkle compares builds by CFBundleVersion, so
+# CURRENT_PROJECT_VERSION goes up with every release.
 #
 # Without the certificate the app is signed ad hoc and not notarised: fine for trying the
 # script, not for publishing. SIGN_IDENTITY picks a certificate when there are several, and
@@ -22,6 +27,10 @@ HOOK="$APP/Contents/MacOS/plaincontrol-hook"
 DMG=.build/Plaincontrol.dmg
 STAGING=.build/dmg
 ENTITLEMENTS=App/Plaincontrol.entitlements
+FEED=.build/appcast.xml
+FEED_DIR=.build/feed
+GENERATE_APPCAST="$DERIVED/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast"
+REPOSITORY=https://github.com/MartijnMul/plaincontrol
 NOTARY_PROFILE="${NOTARY_PROFILE:-notary}"
 # The certificate goes by its SHA-1 hash: codesign fails to match a name with an accent in
 # it, which a personal certificate carries when its owner's name has one.
@@ -90,5 +99,29 @@ else
 	echo "No Developer ID certificate found: the app is signed ad hoc, not notarised"
 fi
 
-echo "Packed $DMG, version $VERSION: attach it to release v$VERSION"
+# Sparkle's feed, for the release's assets: one entry for this version, signed with the EdDSA
+# key in the keychain, as is the feed itself, with the version's CHANGELOG section as its
+# release notes. Apps read it from releases/latest/download/appcast.xml.
+if [ -n "$IDENTITY" ]; then
+	rm -rf "$FEED_DIR" "$FEED"
+	mkdir -p "$FEED_DIR"
+	cp "$DMG" "$FEED_DIR/"
+	awk -v heading="## $VERSION" '
+		index($0, heading) == 1 { found = 1; next }
+		found && /^## / { exit }
+		found { print }
+	' CHANGELOG.md >"$FEED_DIR/Plaincontrol.md"
+	if [ ! -s "$FEED_DIR/Plaincontrol.md" ]; then
+		echo "Warning: CHANGELOG.md has no section for $VERSION, so the update has no release notes"
+		rm "$FEED_DIR/Plaincontrol.md"
+	fi
+	"$GENERATE_APPCAST" --embed-release-notes --link "$REPOSITORY" \
+		--download-url-prefix "$REPOSITORY/releases/download/v$VERSION/" "$FEED_DIR"
+	mv "$FEED_DIR/appcast.xml" "$FEED"
+	rm -rf "$FEED_DIR"
+	echo "Packed $DMG and $FEED, version $VERSION: attach both to release v$VERSION"
+else
+	echo "Packed $DMG, version $VERSION"
+fi
+# For the Homebrew cask.
 shasum -a 256 "$DMG"

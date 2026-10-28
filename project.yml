@@ -53,7 +53,7 @@ targets:
         # Lets the hardened runtime send Apple events, to control the terminal.
         CODE_SIGN_ENTITLEMENTS: App/Plaincontrol.entitlements
         # The key that signs updates; its private half is in the owner's keychain.
-        SPARKLE_PUBLIC_KEY: ""
+        SPARKLE_PUBLIC_KEY: QvPnIblHrrdM0OlZDRlfz1XEsvE5OJrSBVVL4MEMnhs=
       configs:
         # Only the release build updates itself, from the feed on the latest GitHub release.
         Release:
