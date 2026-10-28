@@ -130,8 +130,8 @@ public enum LauncherConfigFile {
         } catch {
             throw LauncherConfigError(message: String(describing: error))
         }
-        if let days = file.activeDays, days < 1 {
-            throw LauncherConfigError(message: "activeDays must be at least 1.")
+        if let days = file.activeDays, days < minimumActiveDays {
+            throw LauncherConfigError(message: "activeDays must be at least \(minimumActiveDays).")
         }
         var holdKey = HoldKey.rightOption
         if let name = file.holdKey {
@@ -165,11 +165,15 @@ public enum LauncherConfigFile {
                 layout.builtInColumns, layout.externalColumns, layout.editorBuiltInColumns,
                 layout.editorExternalColumns,
             ]
-            guard columns.allSatisfy((1...6).contains) else {
-                throw LauncherConfigError(message: "windows: every number of columns must be from 1 to 6.")
+            guard columns.allSatisfy(columnRange.contains) else {
+                throw LauncherConfigError(
+                    message:
+                        "windows: every number of columns must be from \(columnRange.lowerBound) to \(columnRange.upperBound)."
+                )
             }
-            guard (0...100).contains(layout.gap) else {
-                throw LauncherConfigError(message: "windows: gap must be from 0 to 100.")
+            guard gapRange.contains(layout.gap) else {
+                throw LauncherConfigError(
+                    message: "windows: gap must be from \(Int(gapRange.lowerBound)) to \(Int(gapRange.upperBound)).")
             }
             windows = layout
         }
@@ -209,7 +213,15 @@ public enum LauncherConfigFile {
         try template.write(to: url, atomically: true, encoding: .utf8)
     }
 
-    private struct File: Decodable {
+    /// The fewest days `activeDays` can be.
+    static let minimumActiveDays = 1
+    /// The numbers of columns a screen and the editor can have.
+    static let columnRange = 1...6
+    /// The gaps around and between windows there can be, in points.
+    static let gapRange: ClosedRange<Double> = 0...100
+
+    /// What the file holds, as YAML reads it: every setting there is.
+    struct File: Decodable {
         var holdKey: String?
         var terminal: String?
         var editor: String?
@@ -222,19 +234,19 @@ public enum LauncherConfigFile {
         var windows: Windows?
     }
 
-    private struct Windows: Decodable {
+    struct Windows: Decodable {
         var builtIn: Int?
         var external: Int?
         var gap: Double?
         var editor: Columns?
     }
 
-    private struct Columns: Decodable {
+    struct Columns: Decodable {
         var builtIn: Int?
         var external: Int?
     }
 
-    private struct Entry: Decodable {
+    struct Entry: Decodable {
         var name: String?
         var path: String
         var devCommand: String?

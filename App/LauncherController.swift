@@ -53,6 +53,11 @@ final class LauncherController {
         } catch {
             log.error("Could not rename the settings file: \(String(describing: error), privacy: .public)")
         }
+        do {
+            try LauncherConfigFile.writeSchema()
+        } catch {
+            log.error("Could not write the settings schema: \(String(describing: error), privacy: .public)")
+        }
         loadConfig()
         scanFolders()
         askZoxide()

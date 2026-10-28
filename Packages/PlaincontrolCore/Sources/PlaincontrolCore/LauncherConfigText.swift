@@ -30,9 +30,12 @@ extension LauncherConfigFile {
     /// the template's explanation.
     public static func edit(_ text: String, to config: LauncherConfig) -> String? {
         guard let current = try? parse(text), var document = Document(text) else { return nil }
-        for setting in Setting.allCases where !setting.isSame(in: current, and: config) {
+        let changed = Setting.allCases.filter { !$0.isSame(in: current, and: config) }
+        guard !changed.isEmpty else { return text }
+        for setting in changed {
             document.set(setting, to: setting.lines(for: config))
         }
+        document.addSchemaComment()
         let edited = document.text
         guard (try? parse(edited)) == config else { return nil }
         return edited
@@ -92,7 +95,12 @@ extension LauncherConfigFile {
         try text.write(to: url, atomically: true, encoding: .utf8)
     }
 
-    static let header = ["# Settings for Plaincontrol. Changes apply the next time the launcher opens."]
+    static let header = [
+        schemaComment, "# Settings for Plaincontrol. Changes apply the next time the launcher opens.",
+    ]
+
+    /// The line that points editors with the YAML language server at ``schema``.
+    static let schemaComment = "# yaml-language-server: $schema=\(schemaName)"
 
     /// A setting in the file, in the template's order.
     enum Setting: String, CaseIterable {
@@ -245,16 +253,24 @@ extension LauncherConfigFile {
             let gap = layout.gap == layout.gap.rounded() ? String(Int(layout.gap)) : String(layout.gap)
             return [
                 ("windows:", nil),
-                ("  builtIn: \(layout.builtInColumns)", "columns on the built-in screen"),
-                ("  external: \(layout.externalColumns)", "columns on every other screen"),
-                ("  gap: \(gap)", "points around and between windows"),
-                ("  editor:", "columns the editor takes"),
+                ("  builtIn: \(layout.builtInColumns)", WindowNotes.builtIn),
+                ("  external: \(layout.externalColumns)", WindowNotes.external),
+                ("  gap: \(gap)", WindowNotes.gap),
+                ("  editor:", WindowNotes.editor),
                 ("    builtIn: \(layout.editorBuiltInColumns)", nil),
                 ("    external: \(layout.editorExternalColumns)", nil),
             ].map { line, comment in
                 guard let comment else { return line }
                 return line.padding(toLength: max(16, line.count + 1), withPad: " ", startingAt: 0) + "# \(comment)"
             }
+        }
+
+        /// What each part of `windows` is, after it in the file and in the schema.
+        enum WindowNotes {
+            static let builtIn = "columns on the built-in screen"
+            static let external = "columns on every other screen"
+            static let gap = "points around and between windows"
+            static let editor = "columns the editor takes"
         }
 
         /// `path` with the home folder as `~`, as the user would write it.
@@ -322,6 +338,13 @@ private struct Document {
     }
 
     var text: String { lines.joined(separator: "\n") + "\n" }
+
+    /// Puts ``LauncherConfigFile/schemaComment`` at the top, unless the text points at a
+    /// schema already.
+    mutating func addSchemaComment() {
+        guard !lines.contains(where: { $0.hasPrefix("# yaml-language-server:") }) else { return }
+        lines.insert(LauncherConfigFile.schemaComment, at: 0)
+    }
 
     /// Replaces `setting`'s lines with `new`, or comments them out when `new` is nil.
     mutating func set(_ setting: LauncherConfigFile.Setting, to new: [String]?) {
