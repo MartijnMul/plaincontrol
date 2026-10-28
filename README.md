@@ -36,6 +36,8 @@ Then install the Claude Code plugin, which reports your sessions to the app. In 
 /plugin install plaincontrol@plaincontrol
 ```
 
+Without the plugin, the launcher still works, but Plaincontrol sees no sessions: no list, no notifications, and only the projects you open from the launcher, zoxide or your settings.
+
 macOS asks for two permissions the first time they are needed: **Accessibility** for the launcher, and **control of iTerm2** to jump to a session.
 
 **Uninstall**: quit Plaincontrol and run `brew uninstall --cask plaincontrol`, or drag it to the Bin; then run `/plugin uninstall plaincontrol@plaincontrol` in Claude Code. Your settings and history are in `~/.config/plaincontrol` and `~/Library/Application Support/Plaincontrol`; `brew uninstall --cask --zap plaincontrol` removes them too.
