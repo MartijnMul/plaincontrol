@@ -1,10 +1,11 @@
 # Security
 
-Plaincontrol runs entirely on your Mac and makes no network connections. What it touches, and why:
+Plaincontrol runs entirely on your Mac and sends nothing about you anywhere. Its only network request is the update check, if you allow it. What it touches, and why:
 
 - **Claude Code hook events.** The plugin runs a small command for every event in every session. It passes on only what Plaincontrol shows (the session, its folder, its status and its terminal pane) over a Unix socket in `~/Library/Application Support/Plaincontrol/`, which only your user can open. Prompts, tool inputs and Claude's replies never leave the command.
 - **Accessibility.** The launcher watches which modifier keys go down to notice its key, takes the keys while its panel is open, and moves the windows it opens. In the Claude desktop app, it chooses New Session in New Window and the project's folder in that window. It does not record what you type.
 - **Automation.** Plaincontrol controls iTerm2 through AppleScript, to bring a session's pane to the front and to open windows.
+- **Updates.** Plaincontrol updates through [Sparkle](https://sparkle-project.org). On the second launch it asks whether to check automatically; until you agree, it makes no network request at all. A check fetches `appcast.xml` from the latest GitHub release, sending only Plaincontrol's and Sparkle's versions. An update is installed only when its EdDSA signature matches the key built into the app, and the feed is signed with the same key, on top of Apple's notarisation of the disk image.
 - **Files.** It reads `~/.config/plaincontrol/settings.yaml`, the folders you list there, and zoxide's list of folders when zoxide is installed. It writes its settings, a schema for them, and your launcher history, and nothing outside its own folders.
 
 ## Reporting a vulnerability

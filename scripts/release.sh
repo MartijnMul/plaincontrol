@@ -41,19 +41,35 @@ xcodebuild -project Plaincontrol.xcodeproj -scheme Plaincontrol -configuration R
 	CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= -quiet build
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
 
+# A release without Sparkle's public key could never be updated through Sparkle.
+if [ -n "$IDENTITY" ] && [ -z "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$APP/Contents/Info.plist")" ]; then
+	echo "SPARKLE_PUBLIC_KEY in project.yml is empty: run Sparkle's generate_keys and set it first" >&2
+	exit 1
+fi
+
 # Signed again from scratch with only the app's own entitlements: the build adds
 # get-task-allow, for debugging, which notarisation refuses. The hardened runtime and a secure
-# timestamp are what notarisation asks for. The hook command inside goes first, as the app's
-# signature covers it; it needs no entitlements.
-if [ -n "$IDENTITY" ]; then
-	echo "Signing with $IDENTITY"
-	codesign --force --options runtime --timestamp --sign "$IDENTITY" "$HOOK"
-	codesign --force --options runtime --timestamp --entitlements "$ENTITLEMENTS" \
-		--sign "$IDENTITY" "$APP"
-else
-	codesign --force --options runtime --sign - "$HOOK"
-	codesign --force --options runtime --entitlements "$ENTITLEMENTS" --sign - "$APP"
-fi
+# timestamp are what notarisation asks for. Everything inside the app goes first, innermost
+# first, as each signature covers what is inside it: Sparkle's helpers (its downloader keeps
+# its own entitlements), Sparkle, and the hook command, which needs no entitlements. Signed ad
+# hoc, the app goes without the hardened runtime: its library validation would refuse Sparkle,
+# as ad hoc signatures have no team to match.
+sign() {
+	if [ -n "$IDENTITY" ]; then
+		codesign --force --options runtime --timestamp --sign "$IDENTITY" "$@"
+	else
+		codesign --force --sign - "$@"
+	fi
+}
+[ -z "$IDENTITY" ] || echo "Signing with $IDENTITY"
+SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
+sign "$SPARKLE/Versions/B/XPCServices/Installer.xpc"
+sign --preserve-metadata=entitlements "$SPARKLE/Versions/B/XPCServices/Downloader.xpc"
+sign "$SPARKLE/Versions/B/Autoupdate"
+sign "$SPARKLE/Versions/B/Updater.app"
+sign "$SPARKLE"
+sign "$HOOK"
+sign --entitlements "$ENTITLEMENTS" "$APP"
 codesign --verify --strict --deep "$APP"
 
 rm -rf "$STAGING" "$DMG"

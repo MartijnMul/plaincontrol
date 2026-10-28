@@ -7,12 +7,13 @@ import UniformTypeIdentifiers
 /// at once.
 struct SettingsView: View {
     let model: SettingsModel
+    let updater: Updater
 
     var body: some View {
         TabView {
             Tab("General", systemImage: "gearshape") {
-                SettingsPage(model: model, height: 600, restore: GeneralSettings.restore) {
-                    GeneralSettings(model: model)
+                SettingsPage(model: model, height: updater.isAvailable ? 690 : 600, restore: GeneralSettings.restore) {
+                    GeneralSettings(model: model, updater: updater)
                 }
             }
             Tab("Projects", systemImage: "folder") {
@@ -200,6 +201,7 @@ extension SettingsModel {
 
 private struct GeneralSettings: View {
     let model: SettingsModel
+    @Bindable var updater: Updater
     @State private var isTrusted = LauncherHotkey.isAllowed
 
     static let restore = Restore(
@@ -278,6 +280,19 @@ private struct GeneralSettings: View {
                         }
                     }
                     Text("The launcher needs it to notice its key and to take your typing while it is open.")
+                }
+            }
+            if updater.isAvailable {
+                // Kept by Sparkle, not in the settings file, so Restore Defaults leaves it alone.
+                Section {
+                    Toggle(isOn: $updater.checksAutomatically) {
+                        Text("Check for updates automatically")
+                        Text("Once a day, Plaincontrol asks GitHub for a newer version. It sends nothing about you.")
+                    }
+                    LabeledContent("Updates") {
+                        Button("Check Now") { updater.checkForUpdates() }
+                            .disabled(!updater.canCheck)
+                    }
                 }
             }
         }

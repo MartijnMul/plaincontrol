@@ -5,6 +5,7 @@ import SwiftUI
 struct SessionMenu: View {
     let store: SessionStore
     let launcher: LauncherController
+    let updater: Updater
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
@@ -42,6 +43,13 @@ struct SessionMenu: View {
             openSettings()
         }
         .keyboardShortcut(",")
+        if updater.isAvailable {
+            Button("Check for Updates…") {
+                NSApp.activate()
+                updater.checkForUpdates()
+            }
+            .disabled(!updater.canCheck)
+        }
         Divider()
         Button("Quit \(AppInfo.name)") {
             NSApplication.shared.terminate(nil)

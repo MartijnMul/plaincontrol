@@ -5,6 +5,7 @@ struct PlaincontrolApp: App {
     @State private var store: SessionStore
     @State private var launcher: LauncherController
     @State private var settings: SettingsModel
+    @State private var updater = Updater()
     private let hotkey: LauncherHotkey
 
     init() {
@@ -21,12 +22,12 @@ struct PlaincontrolApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            SessionMenu(store: store, launcher: launcher)
+            SessionMenu(store: store, launcher: launcher, updater: updater)
         } label: {
             MenuBarLabel(store: store)
         }
         Settings {
-            SettingsView(model: settings)
+            SettingsView(model: settings, updater: updater)
         }
     }
 }

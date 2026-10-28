@@ -70,11 +70,12 @@ Settings… in the menu (Command-comma). Every setting shows whether it is at it
 
 ## Privacy
 
-Everything stays on your Mac: Plaincontrol makes no network connections.
+Plaincontrol sends nothing about you off your Mac. Its one network request is the update check, and only if you allow it.
 
 - Of each Claude Code event it keeps only the session, its folder, its status and its terminal pane. Prompts are never stored or logged.
 - The Accessibility permission lets it notice the launcher key and take your typing while the launcher is open, and move the windows it opens. It does not record what you type.
 - Your launcher history stays in `~/Library/Application Support/Plaincontrol`. zoxide's data is only read.
+- On its second launch, Plaincontrol asks whether to check for updates automatically. If you agree, it asks GitHub once a day for the latest version, which tells GitHub your IP address and Plaincontrol's version, as any download from GitHub does. Change your mind in Settings.
 
 [SECURITY.md](SECURITY.md) has the details, and how to check that your copy is genuine.
 
