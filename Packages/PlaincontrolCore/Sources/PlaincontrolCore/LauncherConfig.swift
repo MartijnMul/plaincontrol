@@ -37,6 +37,7 @@ public enum HoldKey: String, CaseIterable, Sendable {
 /// terminal: iTerm2      # the app for Claude Code, Terminal and the dev server, by name or bundle id
 /// editor: Cursor        # the app for Editor, by name or bundle identifier
 /// claudeCommand: claude # what Claude Code runs in the new terminal window
+/// actionOrder: fixed    # fixed, selected (the most used selected) or usage (most used first)
 /// zoxide: true          # also list and rank by zoxide's folders, when it is installed
 /// roots:                # folders whose subfolders are projects
 ///   - ~/Developer
@@ -64,6 +65,8 @@ public struct LauncherConfig: Sendable, Equatable {
     public var editor: String?
     /// The command the Claude Code action runs in the project's folder.
     public var claudeCommand = "claude"
+    /// How a project's actions are ordered.
+    public var actionOrder = ActionOrder.fixed
     /// Whether to also list and rank by the folders the user visits with zoxide, when installed.
     public var zoxide = true
     /// Folders whose subfolders are projects, by their absolute paths.
@@ -80,13 +83,15 @@ public struct LauncherConfig: Sendable, Equatable {
 
     public init(
         holdKey: HoldKey = .rightOption, terminal: String? = nil, editor: String? = nil,
-        claudeCommand: String = "claude", zoxide: Bool = true, roots: [String] = [], activeDays: Int = 90,
+        claudeCommand: String = "claude", actionOrder: ActionOrder = .fixed, zoxide: Bool = true, roots: [String] = [],
+        activeDays: Int = 90,
         projects: [Project] = [], devCommands: [String: String] = [:], windows: WindowLayout? = nil
     ) {
         self.holdKey = holdKey
         self.terminal = terminal
         self.editor = editor
         self.claudeCommand = claudeCommand
+        self.actionOrder = actionOrder
         self.zoxide = zoxide
         self.roots = roots.map { ($0 as NSString).standardizingPath }
         self.activeDays = activeDays
@@ -128,6 +133,14 @@ public enum LauncherConfigFile {
 
         # What Claude Code runs in a new terminal window in the project's folder.
         claudeCommand: claude
+
+        # How a project's actions are ordered:
+        #   fixed     always the same order, with the first action selected
+        #   selected  the same order, with the action you use most in that project selected,
+        #             so Return runs it
+        #   usage     the actions you use most in that project first; their digits move with them
+        # A project you haven't used an action in yet follows your use in all projects.
+        actionOrder: fixed
 
         # The launcher lists the folders where you start Claude Code or open projects from the
         # launcher. If you use zoxide (https://github.com/ajeetdsouza/zoxide), it also lists the
@@ -188,6 +201,14 @@ public enum LauncherConfigFile {
             }
             holdKey = key
         }
+        var actionOrder = ActionOrder.fixed
+        if let name = file.actionOrder {
+            guard let order = ActionOrder(rawValue: name) else {
+                let names = ActionOrder.allCases.map(\.rawValue).joined(separator: ", ")
+                throw LauncherConfigError(message: "actionOrder must be one of \(names).")
+            }
+            actionOrder = order
+        }
         let claudeCommand = file.claudeCommand?.trimmingCharacters(in: .whitespaces) ?? "claude"
         if claudeCommand.isEmpty {
             throw LauncherConfigError(message: "claudeCommand cannot be empty.")
@@ -223,7 +244,7 @@ public enum LauncherConfigFile {
         }
         return LauncherConfig(
             holdKey: holdKey, terminal: terminal?.isEmpty == false ? terminal : nil,
-            editor: editor?.isEmpty == false ? editor : nil, claudeCommand: claudeCommand,
+            editor: editor?.isEmpty == false ? editor : nil, claudeCommand: claudeCommand, actionOrder: actionOrder,
             zoxide: file.zoxide ?? true, roots: file.roots ?? [], activeDays: file.activeDays ?? 90,
             projects: projects, devCommands: devCommands, windows: windows)
     }
@@ -253,6 +274,7 @@ public enum LauncherConfigFile {
         var terminal: String?
         var editor: String?
         var claudeCommand: String?
+        var actionOrder: String?
         var zoxide: Bool?
         var roots: [String]?
         var activeDays: Int?

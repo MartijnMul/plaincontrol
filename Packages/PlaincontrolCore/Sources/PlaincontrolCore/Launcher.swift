@@ -5,7 +5,7 @@ import Foundation
 /// Each action runs under the digit of its place, so the order is what the user learns. An
 /// action that is missing, such as the desktop app or the editor when neither is installed,
 /// leaves no gap, so the actions after it move up a digit.
-public enum ProjectAction: String, CaseIterable, Sendable {
+public enum ProjectAction: String, CaseIterable, Codable, Sendable {
     /// A new Claude Code session in the project's folder, in a window of its own in the Claude
     /// desktop app (``ClaudeDesktop``).
     case claudeDesktop
@@ -33,6 +33,26 @@ public enum ProjectAction: String, CaseIterable, Sendable {
     }
 }
 
+/// How the launcher orders a project's actions, set as `actionOrder` in the settings.
+public enum ActionOrder: String, CaseIterable, Sendable {
+    /// Always the order of ``ProjectAction``, with the first action selected.
+    case fixed
+    /// That order, with the action used most in the project selected, so Return runs it.
+    case selected
+    /// The actions used most in the project first, so their digits move with them.
+    case usage
+
+    /// `actions` in the order to show them for `project`.
+    public func order(_ actions: [ProjectAction], for project: Project, usage: ProjectUsage) -> [ProjectAction] {
+        self == .usage ? usage.rank(actions, in: project) : actions
+    }
+
+    /// The action to select when `project` opens with `actions`, or nil for the first one.
+    public func selection(in actions: [ProjectAction], for project: Project, usage: ProjectUsage) -> ProjectAction? {
+        self == .selected ? usage.rank(actions, in: project).first : nil
+    }
+}
+
 /// What the launcher shows and how it answers the keyboard.
 ///
 /// It starts on the list of projects: those with a running Claude Code session first (waiting
@@ -49,6 +69,8 @@ public enum ProjectAction: String, CaseIterable, Sendable {
 public struct Launcher: Sendable {
     /// The actions a project offers, in the order shown.
     public typealias Actions = @Sendable (Project) -> [ProjectAction]
+    /// The action selected when a project opens with these actions, or nil for the first one.
+    public typealias Selection = @Sendable (Project, [ProjectAction]) -> ProjectAction?
 
     public enum Key: Equatable, Sendable {
         case up, down, left, right, enter, escape, backspace
@@ -79,6 +101,7 @@ public struct Launcher: Sendable {
 
     public private(set) var items: [LauncherItem]
     private let actionsOf: Actions
+    private let selectionOf: Selection
     /// The actions of the open project, in the order shown.
     public private(set) var actions: [ProjectAction] = []
     /// What the user typed to search.
@@ -96,10 +119,15 @@ public struct Launcher: Sendable {
         self.init(items: items) { _ in actions }
     }
 
-    /// - Parameter actions: The actions a project offers, asked each time it opens.
-    public init(items: [LauncherItem], actions: @escaping Actions) {
+    /// - Parameters:
+    ///   - actions: The actions a project offers, asked each time it opens.
+    ///   - selection: The action selected when a project opens.
+    public init(
+        items: [LauncherItem], actions: @escaping Actions, selection: @escaping Selection = { _, _ in nil }
+    ) {
         self.items = items
         actionsOf = actions
+        selectionOf = selection
         visible = Self.rank(items, query: query)
     }
 
@@ -177,7 +205,7 @@ public struct Launcher: Sendable {
 
     private mutating func enter(_ project: Project) {
         actions = actionsOf(project)
-        actionSelection = 0
+        actionSelection = selectionOf(project, actions).flatMap(actions.firstIndex) ?? 0
         screen = .project(project)
     }
 

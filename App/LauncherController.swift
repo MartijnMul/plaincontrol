@@ -75,8 +75,13 @@ final class LauncherController {
         chooseApps()
         let offered = ProjectAction.allCases.filter(isAvailable)
         let config = config
+        let usage = usage
         launcher = Launcher(items: items()) { project in
-            offered.filter { $0 != .devServer || Self.devCommand(for: project, config: config) != nil }
+            config.actionOrder.order(
+                offered.filter { $0 != .devServer || Self.devCommand(for: project, config: config) != nil },
+                for: project, usage: usage)
+        } selection: { project, actions in
+            config.actionOrder.selection(in: actions, for: project, usage: usage)
         }
         let panel = panel ?? LauncherPanel(content: LauncherView(controller: self))
         self.panel = panel
@@ -353,7 +358,7 @@ final class LauncherController {
             openDesktopWindow(in: project.path, app: app)
         }
         log.info("Ran \(action.rawValue, privacy: .public) on a project")
-        usage.record(project.path)
+        usage.record(project.path, action: action)
         saveUsage()
         hide()
     }

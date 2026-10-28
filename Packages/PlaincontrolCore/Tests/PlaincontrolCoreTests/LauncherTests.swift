@@ -111,6 +111,19 @@ import Testing
         #expect(press(.up, .right, on: &launcher) == [.stay, .run(.finder, app)])
     }
 
+    @Test func opensAProjectWithTheActionItIsAskedToSelect() {
+        var launcher = Launcher(items: [app, site].map { LauncherItem(project: $0) }) { _ in
+            [.claudeDesktop, .terminal, .finder]
+        } selection: { project, actions in
+            project == site ? actions.last : nil
+        }
+        _ = press(.down, .enter, on: &launcher)
+        #expect(launcher.selectedAction == .finder)
+        #expect(press(.up, .enter, on: &launcher) == [.stay, .run(.terminal, site)])
+        _ = press(.left, .up, .enter, on: &launcher)
+        #expect(launcher.selectedAction == .claudeDesktop)
+    }
+
     @Test func opensAProjectWithTheFirstActionSelected() {
         var launcher = makeLauncher([app, site])
         _ = press(.right, .down, .left, .down, .right, on: &launcher)

@@ -81,6 +81,13 @@ import Testing
         #expect(config.zoxide)
     }
 
+    @Test func readsTheActionOrder() throws {
+        #expect(try LauncherConfigFile.parse("zoxide: true\n").actionOrder == .fixed)
+        #expect(try LauncherConfigFile.parse("actionOrder: selected\n").actionOrder == .selected)
+        #expect(try LauncherConfigFile.parse("actionOrder: usage\n").actionOrder == .usage)
+        #expect(throws: LauncherConfigError.self) { try LauncherConfigFile.parse("actionOrder: random\n") }
+    }
+
     @Test func reportsAnUnknownHoldKeyOrEmptyCommand() {
         #expect(throws: LauncherConfigError.self) { try LauncherConfigFile.parse("holdKey: capsLock\n") }
         #expect(throws: LauncherConfigError.self) { try LauncherConfigFile.parse("claudeCommand: \"\"\n") }
@@ -195,9 +202,57 @@ import Testing
         #expect(usage.uses.first?.date == now + 5)
     }
 
+    @Test func ranksActionsByUseInTheProject() {
+        var usage = ProjectUsage()
+        usage.record("/work/app", action: .finder, at: now - 14 * day)
+        usage.record("/work/app", action: .finder, at: now - 14 * day)
+        usage.record("/work/app", action: .editor, at: now)
+        usage.record("/work/app", at: now)
+        usage.record("/work/site", action: .terminal, at: now)
+        let actions: [ProjectAction] = [.claudeDesktop, .terminal, .finder, .editor]
+        #expect(usage.rank(actions, in: app, at: now) == [.editor, .finder, .claudeDesktop, .terminal])
+    }
+
+    @Test func ranksActionsByUseInAllProjectsBeforeAnyInThisOne() {
+        var usage = ProjectUsage()
+        usage.record("/work/app", action: .editor, at: now)
+        usage.record("/work/site", at: now)
+        let actions: [ProjectAction] = [.claudeDesktop, .terminal, .editor]
+        #expect(usage.rank(actions, in: site, at: now) == [.editor, .claudeDesktop, .terminal])
+        #expect(ProjectUsage().rank(actions, in: site, at: now) == actions)
+    }
+
+    @Test func ranksOnlyTheActionsOffered() {
+        var usage = ProjectUsage()
+        usage.record("/work/app", action: .devServer, at: now)
+        usage.record("/work/site", action: .finder, at: now)
+        #expect(usage.rank([.terminal, .finder], in: app, at: now) == [.finder, .terminal])
+    }
+
+    @Test func ordersOrSelectsActionsAsSet() {
+        var usage = ProjectUsage()
+        usage.record("/work/app", action: .editor, at: now)
+        let actions: [ProjectAction] = [.claudeDesktop, .terminal, .editor]
+        #expect(ActionOrder.fixed.order(actions, for: app, usage: usage) == actions)
+        #expect(ActionOrder.fixed.selection(in: actions, for: app, usage: usage) == nil)
+        #expect(ActionOrder.selected.order(actions, for: app, usage: usage) == actions)
+        #expect(ActionOrder.selected.selection(in: actions, for: app, usage: usage) == .editor)
+        #expect(ActionOrder.usage.order(actions, for: app, usage: usage) == [.editor, .claudeDesktop, .terminal])
+        #expect(ActionOrder.usage.selection(in: actions, for: app, usage: usage) == nil)
+    }
+
+    @Test func readsUsesWithoutAnActionOrWithOneItDoesNotKnow() throws {
+        let json =
+            #"{"uses":[{"path":"/work/app","date":0},{"path":"/work/app","date":1,"action":"gone"},"#
+            + #"{"path":"/work/app","date":2,"action":"finder"}]}"#
+        let usage = try JSONDecoder().decode(ProjectUsage.self, from: Data(json.utf8))
+        #expect(usage.uses.map(\.action) == [nil, nil, .finder])
+    }
+
     @Test func survivesEncoding() throws {
         var usage = ProjectUsage()
         usage.record("/work/app", at: now)
+        usage.record("/work/app", action: .editor, at: now)
         let decoded = try JSONDecoder().decode(ProjectUsage.self, from: JSONEncoder().encode(usage))
         #expect(decoded == usage)
     }

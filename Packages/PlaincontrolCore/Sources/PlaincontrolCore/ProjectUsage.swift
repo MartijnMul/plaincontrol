@@ -4,12 +4,33 @@ import Foundation
 /// used ("frecency").
 ///
 /// A use is an action from the launcher, or the start of a Claude Code session in the folder.
+/// A launcher action also notes which action it was, to rank a project's actions the same way.
 /// Each use counts for less as it gets older, halving every ``halfLife``, so a project used
 /// every day stays ahead of one used once yesterday, while a project used all week rises fast.
 public struct ProjectUsage: Codable, Sendable, Equatable {
     public struct Use: Codable, Sendable, Equatable {
         public var path: String
         public var date: Date
+        /// The launcher action, or nil for another use, such as a session start.
+        public var action: ProjectAction?
+
+        enum CodingKeys: String, CodingKey {
+            case path, date, action
+        }
+
+        init(path: String, date: Date, action: ProjectAction?) {
+            self.path = path
+            self.date = date
+            self.action = action
+        }
+
+        /// Reads a use, leaving out an action this version doesn't know.
+        public init(from decoder: any Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            path = try container.decode(String.self, forKey: .path)
+            date = try container.decode(Date.self, forKey: .date)
+            action = (try? container.decodeIfPresent(ProjectAction.self, forKey: .action)) ?? nil
+        }
     }
 
     /// The uses, oldest first.
@@ -21,8 +42,9 @@ public struct ProjectUsage: Codable, Sendable, Equatable {
 
     public init() {}
 
-    public mutating func record(_ path: String, at date: Date = .now) {
-        uses.append(Use(path: (path as NSString).standardizingPath, date: date))
+    /// Notes a use of `path`, by `action` when it comes from the launcher.
+    public mutating func record(_ path: String, action: ProjectAction? = nil, at date: Date = .now) {
+        uses.append(Use(path: (path as NSString).standardizingPath, date: date, action: action))
         if uses.count > Self.limit { uses.removeFirst(uses.count - Self.limit) }
     }
 
@@ -34,9 +56,30 @@ public struct ProjectUsage: Codable, Sendable, Equatable {
 
     /// How much `project` has been used, weighing recent uses more.
     public func score(of project: Project, at now: Date = .now) -> Double {
-        uses.filter { project.contains($0.path) }
-            .map { pow(0.5, max(now.timeIntervalSince($0.date), 0) / Self.halfLife) }
-            .reduce(0, +)
+        uses.filter { project.contains($0.path) }.map { weight(of: $0, at: now) }.reduce(0, +)
+    }
+
+    /// `actions` by how much each has been used in `project`, weighing recent uses more, or by
+    /// their use in all projects while none of them has been used in this one. Actions used as
+    /// much keep their order in `actions`.
+    public func rank(_ actions: [ProjectAction], in project: Project, at now: Date = .now) -> [ProjectAction] {
+        let all = uses.filter { $0.action.map(actions.contains) == true }
+        let own = all.filter { project.contains($0.path) }
+        var scores: [ProjectAction: Double] = [:]
+        for use in own.isEmpty ? all : own {
+            if let action = use.action { scores[action, default: 0] += weight(of: use, at: now) }
+        }
+        return actions.enumerated()
+            .sorted { first, second in
+                let a = scores[first.element, default: 0]
+                let b = scores[second.element, default: 0]
+                return a != b ? a > b : first.offset < second.offset
+            }
+            .map(\.element)
+    }
+
+    private func weight(of use: Use, at now: Date) -> Double {
+        pow(0.5, max(now.timeIntervalSince(use.date), 0) / Self.halfLife)
     }
 
     /// The last use of `project`, if any.
