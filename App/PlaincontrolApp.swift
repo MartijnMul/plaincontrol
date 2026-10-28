@@ -4,6 +4,7 @@ import SwiftUI
 struct PlaincontrolApp: App {
     @State private var store: SessionStore
     @State private var launcher: LauncherController
+    @State private var settings: SettingsModel
     private let hotkey: LauncherHotkey
 
     init() {
@@ -15,6 +16,7 @@ struct PlaincontrolApp: App {
         hotkey.start()
         _store = State(initialValue: store)
         _launcher = State(initialValue: launcher)
+        _settings = State(initialValue: SettingsModel(launcher: launcher))
     }
 
     var body: some Scene {
@@ -22,6 +24,9 @@ struct PlaincontrolApp: App {
             SessionMenu(store: store, launcher: launcher)
         } label: {
             MenuBarLabel(store: store)
+        }
+        Settings {
+            SettingsView(model: settings)
         }
     }
 }

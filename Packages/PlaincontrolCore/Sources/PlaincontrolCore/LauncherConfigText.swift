@@ -96,7 +96,8 @@ extension LauncherConfigFile {
     }
 
     static let header = [
-        schemaComment, "# Settings for Plaincontrol. Changes apply the next time the launcher opens.",
+        schemaComment,
+        "# Settings for Plaincontrol, also in Settings… in its menu. Changes here apply when the launcher opens next.",
     ]
 
     /// The line that points editors with the YAML language server at ``schema``.

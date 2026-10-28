@@ -43,6 +43,15 @@ public enum AppRole: String, Codable, Sendable {
         "com.google.android.studio",
     ]
 
+    /// The apps known to be of this kind, by bundle identifier; JetBrains IDEs are not
+    /// among them, as they are known by their prefix.
+    public var knownApps: Set<String> {
+        switch self {
+        case .terminal: Self.terminals
+        case .editor: Self.editors
+        }
+    }
+
     /// What the app at `location` is, or nil when it is neither a known terminal nor an
     /// editor.
     public init?(of location: TerminalLocation) {

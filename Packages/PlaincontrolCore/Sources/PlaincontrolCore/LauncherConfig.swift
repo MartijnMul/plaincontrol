@@ -214,11 +214,11 @@ public enum LauncherConfigFile {
     }
 
     /// The fewest days `activeDays` can be.
-    static let minimumActiveDays = 1
+    public static let minimumActiveDays = 1
     /// The numbers of columns a screen and the editor can have.
-    static let columnRange = 1...6
+    public static let columnRange = 1...6
     /// The gaps around and between windows there can be, in points.
-    static let gapRange: ClosedRange<Double> = 0...100
+    public static let gapRange: ClosedRange<Double> = 0...100
 
     /// What the file holds, as YAML reads it: every setting there is.
     struct File: Decodable {

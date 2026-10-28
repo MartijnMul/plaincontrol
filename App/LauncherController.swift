@@ -117,6 +117,41 @@ final class LauncherController {
     /// The key that opens the launcher when held, as last read from the settings.
     var holdKey: HoldKey { config.holdKey }
 
+    /// Reads the settings again, so a change in them applies at once, the hold key included.
+    func reloadSettings() {
+        loadConfig()
+    }
+
+    /// The app the launcher picks for `role` without a setting, by bundle identifier: for the
+    /// terminal, one it can open windows in.
+    func automaticApp(_ role: AppRole) -> String? {
+        switch role {
+        case .terminal:
+            AppChoice.terminal(
+                setting: nil, ranked: appUsage.ranked(.terminal),
+                supported: terminals.controllers.map(\.bundleIdentifier), isInstalled: Apps.isInstalled
+            ).app
+        case .editor:
+            AppChoice.editor(
+                ranked: appUsage.ranked(.editor), defaults: Apps.defaults(forTypes: AppChoice.codeFileTypes),
+                isInstalled: Apps.isInstalled)
+        }
+    }
+
+    /// The installed apps that could be the terminal or the editor, by bundle identifier: the
+    /// ones the user works in first, then the known ones.
+    func installedApps(_ role: AppRole) -> [String] {
+        var seen = Set<String>()
+        return (appUsage.ranked(role) + role.knownApps.sorted()).filter {
+            seen.insert($0).inserted && Apps.isInstalled($0)
+        }
+    }
+
+    /// Whether Plaincontrol can open windows in the terminal with `bundleIdentifier`.
+    func canOpenWindows(in bundleIdentifier: String) -> Bool {
+        terminals.controller(forApp: bundleIdentifier) != nil
+    }
+
     /// What the launcher calls an action: after the app it opens, where it knows one.
     func title(of action: ProjectAction) -> String {
         switch action {
@@ -169,10 +204,7 @@ final class LauncherController {
                 problem = "Cannot find the editor “\(setting)” set in \(Self.settingsFileForDisplay)."
             }
         } else {
-            editor = AppChoice.editor(
-                ranked: appUsage.ranked(.editor), defaults: Apps.defaults(forTypes: AppChoice.codeFileTypes),
-                isInstalled: Apps.isInstalled
-            ).flatMap(Apps.app(bundleIdentifier:))
+            editor = automaticApp(.editor).flatMap(Apps.app(bundleIdentifier:))
         }
         var terminalSetting: String?
         if let setting = config.terminal {
@@ -203,17 +235,6 @@ final class LauncherController {
         return nil
     }
 
-    /// Opens the settings file, creating it from a template first if needed.
-    func editSettings() {
-        do {
-            try LauncherConfigFile.createIfMissing()
-            NSWorkspace.shared.open(URL(filePath: LauncherConfigFile.defaultPath))
-        } catch {
-            log.error("Could not create the settings file: \(String(describing: error), privacy: .public)")
-            NSSound.beep()
-        }
-    }
-
     static var settingsFileForDisplay: String {
         (LauncherConfigFile.defaultPath as NSString).abbreviatingWithTildeInPath
     }
@@ -223,7 +244,8 @@ final class LauncherController {
             config = try LauncherConfigFile.load()
             problem = nil
         } catch {
-            problem = "Cannot read \(Self.settingsFileForDisplay): \(error.message)"
+            problem =
+                "Cannot read \(Self.settingsFileForDisplay): \(error.message) Choose Settings… in the menu bar to fix it."
         }
     }
 

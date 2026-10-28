@@ -5,6 +5,7 @@ import SwiftUI
 struct SessionMenu: View {
     let store: SessionStore
     let launcher: LauncherController
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         if let problem = store.problem {
@@ -35,9 +36,12 @@ struct SessionMenu: View {
                 NSWorkspace.shared.open(LauncherHotkey.accessibilitySettings)
             }
         }
-        Button("Launcher Settings…") {
-            launcher.editSettings()
+        Button("Settings…") {
+            // A menu bar app is not in front, and its window would open behind the app that is.
+            NSApp.activate()
+            openSettings()
         }
+        .keyboardShortcut(",")
         Divider()
         Button("Quit \(AppInfo.name)") {
             NSApplication.shared.terminate(nil)
