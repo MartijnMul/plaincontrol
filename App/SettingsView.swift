@@ -11,13 +11,19 @@ struct SettingsView: View {
     var body: some View {
         TabView {
             Tab("General", systemImage: "gearshape") {
-                SettingsPage(model: model) { GeneralSettings(model: model) }
+                SettingsPage(model: model, height: 600, restore: GeneralSettings.restore) {
+                    GeneralSettings(model: model)
+                }
             }
             Tab("Projects", systemImage: "folder") {
-                SettingsPage(model: model) { ProjectSettings(model: model) }
+                SettingsPage(model: model, height: 660, restore: ProjectSettings.restore) {
+                    ProjectSettings(model: model)
+                }
             }
             Tab("Windows", systemImage: "rectangle.split.3x1") {
-                SettingsPage(model: model) { WindowSettings(model: model) }
+                SettingsPage(model: model, height: 500, restore: WindowSettings.restore) {
+                    WindowSettings(model: model)
+                }
             }
         }
         .frame(width: 600)
@@ -38,11 +44,24 @@ struct SettingsView: View {
     }
 }
 
+/// What Restore Defaults puts back on a tab.
+private struct Restore {
+    /// What stays as it is, to say before restoring, if anything.
+    var keeps: String?
+    /// Whether the tab's settings are all at their defaults in a configuration.
+    let isDone: (LauncherConfig) -> Bool
+    let apply: (inout LauncherConfig) -> Void
+}
+
 /// A tab's settings, greyed out while the file cannot be read, with the way to edit the file
-/// as text below them.
+/// as text and to restore the tab's defaults below them.
 private struct SettingsPage<Content: View>: View {
     let model: SettingsModel
+    /// The tab's height, so every setting shows without scrolling.
+    let height: CGFloat
+    let restore: Restore
     @ViewBuilder let content: Content
+    @State private var isConfirmingRestore = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -61,14 +80,112 @@ private struct SettingsPage<Content: View>: View {
                 Text("Saved in \(LauncherController.settingsFileForDisplay)")
                     .foregroundStyle(.secondary)
                 Spacer()
+                Button("Restore Defaults…") { isConfirmingRestore = true }
+                    .disabled(model.problem != nil || restore.isDone(model.config))
                 Button("Edit as Text…") { model.openFile() }
             }
             .padding([.horizontal, .bottom], 20)
         }
+        .frame(height: height)
+        .background(NoInitialFocus())
+        .confirmationDialog("Restore the defaults on this tab?", isPresented: $isConfirmingRestore) {
+            Button("Restore Defaults") { model.change(restore.apply) }
+        } message: {
+            if let keeps = restore.keeps { Text(keeps) }
+        }
+    }
+}
+
+/// Keeps the window from putting the keyboard focus in its first text field when it opens or
+/// shows another tab, as macOS does by itself; a click or Tab still puts it there.
+private struct NoInitialFocus: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { FocusClearingView() }
+    func updateNSView(_ view: NSView, context: Context) {}
+
+    final class FocusClearingView: NSView {
+        private var observer: (any NSObjectProtocol)?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            observer.map(NotificationCenter.default.removeObserver)
+            observer = nil
+            guard let window else { return }
+            DispatchQueue.main.async { [weak window] in window?.makeFirstResponder(nil) }
+            // A window that opens now takes its first responder once it becomes key.
+            observer = NotificationCenter.default.addObserver(
+                forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self, let observer = self.observer else { return }
+                    NotificationCenter.default.removeObserver(observer)
+                    self.observer = nil
+                    self.window?.makeFirstResponder(nil)
+                }
+            }
+        }
+    }
+}
+
+/// A setting: its title and note, its control, and whether it is at its default, with a
+/// button that puts it back when it is not.
+private struct SettingRow<Control: View>: View {
+    let title: String
+    var note: String?
+    let isDefault: Bool
+    /// The default, as the control shows it.
+    let defaultValue: String
+    let reset: () -> Void
+    @ViewBuilder let control: Control
+
+    var body: some View {
+        LabeledContent {
+            HStack(spacing: 10) {
+                control.labelsHidden()
+                DefaultMark(isDefault: isDefault, defaultValue: defaultValue, reset: reset)
+            }
+        } label: {
+            Text(title)
+            if let note { Text(note) }
+        }
+    }
+}
+
+/// "Default" for a setting at its default, or else a button that puts it back.
+private struct DefaultMark: View {
+    let isDefault: Bool
+    let defaultValue: String
+    let reset: () -> Void
+
+    var body: some View {
+        Group {
+            if isDefault {
+                Text("Default").foregroundStyle(.tertiary)
+            } else {
+                Button("Reset", systemImage: "arrow.uturn.backward", action: reset)
+                    .labelStyle(.titleAndIcon)
+                    .buttonStyle(.borderless)
+                    .help("Back to the default: \(defaultValue)")
+            }
+        }
+        .font(.caption)
+        .frame(width: 56, alignment: .leading)
     }
 }
 
 extension SettingsModel {
+    /// Every setting at its default.
+    static let defaults = LauncherConfig()
+
+    /// Whether `setting` is at its default.
+    func isDefault<Value: Equatable>(_ setting: KeyPath<LauncherConfig, Value>) -> Bool {
+        config[keyPath: setting] == Self.defaults[keyPath: setting]
+    }
+
+    /// Puts `setting` back to its default.
+    func reset<Value>(_ setting: WritableKeyPath<LauncherConfig, Value>) {
+        change { $0[keyPath: setting] = Self.defaults[keyPath: setting] }
+    }
+
     /// A binding to one setting, which writes each change to the file.
     func binding<Value>(_ setting: WritableKeyPath<LauncherConfig, Value>) -> Binding<Value> {
         Binding {
@@ -85,38 +202,83 @@ private struct GeneralSettings: View {
     let model: SettingsModel
     @State private var isTrusted = LauncherHotkey.isAllowed
 
+    static let restore = Restore(
+        isDone: { config in
+            let defaults = SettingsModel.defaults
+            return config.holdKey == defaults.holdKey && config.terminal == defaults.terminal
+                && config.editor == defaults.editor && config.claudeCommand == defaults.claudeCommand
+                && config.actionOrder == defaults.actionOrder
+        },
+        apply: { config in
+            let defaults = SettingsModel.defaults
+            config.holdKey = defaults.holdKey
+            config.terminal = defaults.terminal
+            config.editor = defaults.editor
+            config.claudeCommand = defaults.claudeCommand
+            config.actionOrder = defaults.actionOrder
+        })
+
     var body: some View {
+        let defaults = SettingsModel.defaults
         Form {
-            Picker("Hold to open the launcher", selection: model.binding(\.holdKey)) {
-                ForEach(HoldKey.allCases, id: \.self) { key in
-                    Text(key.title).tag(key)
+            SettingRow(
+                title: "Hold to open the launcher", isDefault: model.isDefault(\.holdKey),
+                defaultValue: defaults.holdKey.title, reset: { model.reset(\.holdKey) }
+            ) {
+                Picker("Hold to open the launcher", selection: model.binding(\.holdKey)) {
+                    ForEach(HoldKey.allCases, id: \.self) { key in
+                        Text(key.title).tag(key)
+                    }
                 }
+                .fixedSize()
             }
             AppPicker(title: "Terminal", role: .terminal, setting: \.terminal, model: model)
             AppPicker(title: "Editor", role: .editor, setting: \.editor, model: model)
-            CommittingField(
-                "Claude Code command", value: model.config.claudeCommand, prompt: "claude",
-                note: "What Claude Code in a terminal runs in the project's folder."
-            ) { command in
-                model.change { $0.claudeCommand = command.isEmpty ? "claude" : command }
+            SettingRow(
+                title: "Claude Code command", note: "What Claude Code in a terminal runs in the project's folder.",
+                isDefault: model.isDefault(\.claudeCommand), defaultValue: defaults.claudeCommand,
+                reset: { model.reset(\.claudeCommand) }
+            ) {
+                CommittingField("Claude Code command", value: model.config.claudeCommand, prompt: "claude") { command in
+                    model.change { $0.claudeCommand = command.isEmpty ? "claude" : command }
+                }
+                .textFieldStyle(.roundedBorder)
+                .monospaced()
+                .multilineTextAlignment(.leading)
+                .frame(width: 200)
             }
-            Picker("Order of a project's actions", selection: model.binding(\.actionOrder)) {
-                ForEach(ActionOrder.allCases, id: \.self) { order in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(order.title)
-                        Text(order.note).font(.callout).foregroundStyle(.secondary)
+            Section {
+                Picker("Order of a project's actions", selection: model.binding(\.actionOrder)) {
+                    ForEach(ActionOrder.allCases, id: \.self) { order in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(order.title)
+                            Text(order.note).font(.callout).foregroundStyle(.secondary)
+                        }
+                        .tag(order)
                     }
-                    .tag(order)
+                }
+                .pickerStyle(.radioGroup)
+                .labelsHidden()
+            } header: {
+                HStack {
+                    Text("Order of a project's actions")
+                    Spacer()
+                    DefaultMark(
+                        isDefault: model.isDefault(\.actionOrder), defaultValue: defaults.actionOrder.title,
+                        reset: { model.reset(\.actionOrder) })
                 }
             }
-            .pickerStyle(.radioGroup)
-            LabeledContent("Accessibility") {
-                if isTrusted {
-                    Text("Allowed")
-                } else {
-                    Button("Open System Settings…") { NSWorkspace.shared.open(LauncherHotkey.accessibilitySettings) }
+            Section {
+                LabeledContent("Accessibility") {
+                    if isTrusted {
+                        Text("Allowed")
+                    } else {
+                        Button("Open System Settings…") {
+                            NSWorkspace.shared.open(LauncherHotkey.accessibilitySettings)
+                        }
+                    }
+                    Text("The launcher needs it to notice its key and to take your typing while it is open.")
                 }
-                Text("The launcher needs it to notice its key and to take your typing while it is open.")
             }
         }
         .formStyle(.grouped)
@@ -148,19 +310,21 @@ private struct AppPicker: View {
         if current != Self.automatic, !apps.contains(current) { apps.insert(current, at: 0) }
         let automatic = launcher.automaticApp(role).map { "Automatic (\(Apps.name(ofApp: $0)))" } ?? "Automatic"
 
-        return Picker(selection: Binding(get: { current }, set: choose)) {
-            Text(automatic).tag(Self.automatic)
-            Divider()
-            ForEach(apps, id: \.self) { app in
-                Text(label(of: app)).tag(app)
+        let reset = { model.change { $0[keyPath: setting] = nil } }
+        return SettingRow(
+            title: title, note: role == .terminal ? terminalNote(for: current == Self.automatic ? nil : current) : nil,
+            isDefault: value == nil, defaultValue: automatic, reset: reset
+        ) {
+            Picker(title, selection: Binding(get: { current }, set: choose)) {
+                Text(automatic).tag(Self.automatic)
+                Divider()
+                ForEach(apps, id: \.self) { app in
+                    Text(label(of: app)).tag(app)
+                }
+                Divider()
+                Text("Other…").tag(Self.other)
             }
-            Divider()
-            Text("Other…").tag(Self.other)
-        } label: {
-            Text(title)
-            if role == .terminal, let note = terminalNote(for: current == Self.automatic ? nil : current) {
-                Text(note)
-            }
+            .fixedSize()
         }
     }
 
@@ -285,6 +449,16 @@ private struct ProjectSettings: View {
     @State private var selectedProjects = Set<Project.ID>()
     @State private var selectedRoots = Set<String>()
 
+    static let restore = Restore(
+        keeps: "Your projects and folders with projects stay.",
+        isDone: { config in
+            config.activeDays == SettingsModel.defaults.activeDays && config.zoxide == SettingsModel.defaults.zoxide
+        },
+        apply: { config in
+            config.activeDays = SettingsModel.defaults.activeDays
+            config.zoxide = SettingsModel.defaults.zoxide
+        })
+
     var body: some View {
         let config = model.config
         Form {
@@ -349,21 +523,29 @@ private struct ProjectSettings: View {
                     selectedRoots = []
                     model.change { $0.roots.removeAll(where: removed.contains) }
                 }
-                Stepper(value: model.binding(\.activeDays), in: LauncherConfigFile.minimumActiveDays...3650) {
-                    Text("Keep a project listed for \(config.activeDays) days")
-                    Text("After its last commit, changed file or use.")
+                SettingRow(
+                    title: "Keep a project listed for", note: "After its last commit, changed file or use.",
+                    isDefault: model.isDefault(\.activeDays), defaultValue: "\(SettingsModel.defaults.activeDays) days",
+                    reset: { model.reset(\.activeDays) }
+                ) {
+                    Text("\(config.activeDays) days").monospacedDigit()
+                    Stepper(
+                        "Days", value: model.binding(\.activeDays), in: LauncherConfigFile.minimumActiveDays...3650)
                 }
             } header: {
                 Text("Folders with projects")
                 Text("Their subfolders are listed while you work in them, and found by a search after that.")
             }
             Section {
-                Toggle(isOn: model.binding(\.zoxide)) {
-                    Text("Use zoxide's folders")
-                    Text(
-                        Zoxide.executable() == nil
-                            ? "zoxide is not installed, so this has no effect."
-                            : "Also list the folders you visit most with zoxide. Its data is only read.")
+                SettingRow(
+                    title: "Use zoxide's folders",
+                    note: Zoxide.executable() == nil
+                        ? "zoxide is not installed, so this has no effect."
+                        : "Also list the folders you visit most with zoxide. Its data is only read.",
+                    isDefault: model.isDefault(\.zoxide), defaultValue: SettingsModel.defaults.zoxide ? "On" : "Off",
+                    reset: { model.reset(\.zoxide) }
+                ) {
+                    Toggle("Use zoxide's folders", isOn: model.binding(\.zoxide)).toggleStyle(.switch)
                 }
             }
         }
@@ -413,21 +595,28 @@ private struct AddRemoveButtons: View {
 private struct WindowSettings: View {
     let model: SettingsModel
 
+    static let restore = Restore(
+        isDone: { $0.windows == SettingsModel.defaults.windows },
+        apply: { $0.windows = SettingsModel.defaults.windows })
+
     var body: some View {
         let layout = model.config.windows
         Form {
             Section {
-                Toggle(
-                    isOn: Binding(
-                        get: { layout != nil },
-                        set: { isOn in
-                            model.change { $0.windows = isOn ? $0.windows ?? WindowLayout() : nil }
-                        })
+                SettingRow(
+                    title: "Place new windows in columns",
+                    note:
+                        "Every screen is split into columns, and a window the launcher opens takes a free one, nearest you first. Off, each app places its windows.",
+                    isDefault: (layout != nil) == (SettingsModel.defaults.windows != nil), defaultValue: "On",
+                    reset: { model.change { $0.windows = $0.windows ?? WindowLayout() } }
                 ) {
-                    Text("Place new windows in columns")
-                    Text(
-                        "Every screen is split into columns, and a window the launcher opens takes a free one, nearest you first. Off, each app places its windows."
+                    Toggle(
+                        "Place new windows in columns",
+                        isOn: Binding(
+                            get: { layout != nil },
+                            set: { isOn in model.change { $0.windows = isOn ? $0.windows ?? WindowLayout() : nil } })
                     )
+                    .toggleStyle(.switch)
                 }
             }
             if let layout {
@@ -440,9 +629,12 @@ private struct WindowSettings: View {
                     columns("On other screens", \.editorExternalColumns, layout)
                 }
                 Section {
-                    let gap = LauncherConfigFile.gapRange
-                    Stepper(value: binding(\.gap), in: gap, step: 1) {
-                        Text("Gap around and between windows: \(layout.gap.formatted()) points")
+                    SettingRow(
+                        title: "Gap around and between windows", isDefault: layout.gap == WindowLayout().gap,
+                        defaultValue: "\(WindowLayout().gap.formatted()) points", reset: { reset(\.gap) }
+                    ) {
+                        Text("\(layout.gap.formatted()) points").monospacedDigit()
+                        Stepper("Gap", value: binding(\.gap), in: LauncherConfigFile.gapRange, step: 1)
                     }
                 }
             }
@@ -453,10 +645,22 @@ private struct WindowSettings: View {
     private func columns(_ title: String, _ setting: WritableKeyPath<WindowLayout, Int>, _ layout: WindowLayout)
         -> some View
     {
-        let count = layout[keyPath: setting]
-        return Stepper(value: binding(setting), in: LauncherConfigFile.columnRange) {
-            Text("\(title): \(count) \(count == 1 ? "column" : "columns")")
+        let reset = { self.reset(setting) }
+        return SettingRow(
+            title: title, isDefault: layout[keyPath: setting] == WindowLayout()[keyPath: setting],
+            defaultValue: Self.columns(WindowLayout()[keyPath: setting]), reset: reset
+        ) {
+            Text(Self.columns(layout[keyPath: setting])).monospacedDigit()
+            Stepper(title, value: binding(setting), in: LauncherConfigFile.columnRange)
         }
+    }
+
+    private static func columns(_ count: Int) -> String {
+        "\(count) \(count == 1 ? "column" : "columns")"
+    }
+
+    private func reset<Value>(_ setting: WritableKeyPath<WindowLayout, Value>) {
+        binding(setting).wrappedValue = WindowLayout()[keyPath: setting]
     }
 
     private func binding<Value>(_ setting: WritableKeyPath<WindowLayout, Value>) -> Binding<Value> {
