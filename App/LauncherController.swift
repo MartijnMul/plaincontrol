@@ -109,6 +109,7 @@ final class LauncherController {
         case .terminal: terminalName ?? action.title
         case .finder: folderApp.map(Apps.name(of:)) ?? action.title
         case .editor: editor.map(Apps.name(of:)) ?? action.title
+        case .claudeDesktop: action.title
         }
     }
 
@@ -310,14 +311,15 @@ final class LauncherController {
                 fail("\(project.name) no longer has a dev server to start.")
                 return
             }
-        case .terminal, .finder, .editor: break
+        case .terminal, .finder, .editor, .claudeDesktop: break
         }
         var terminalController: (any TerminalController)?
         if [.claude, .terminal, .devServer].contains(action) {
             guard let controller = openableTerminal() else { return }
             terminalController = controller
         }
-        let placement = newWindowPlacement(for: action)
+        // The desktop app's window opens after a few steps, so it makes room then.
+        let placement = action == .claudeDesktop ? nil : newWindowPlacement(for: action)
         placement?.moves.forEach(WindowMover.move)
         let frame = placement?.frame
         switch action {
@@ -343,11 +345,32 @@ final class LauncherController {
             }
             NSWorkspace.shared.open([folder], withApplicationAt: editor, configuration: NSWorkspace.OpenConfiguration())
             mover?.moveNewWindow()
+        case .claudeDesktop:
+            guard let app = Apps.app(bundleIdentifier: ClaudeDesktop.bundleIdentifier) else {
+                fail("The Claude desktop app is no longer installed.")
+                return
+            }
+            openDesktopWindow(in: project.path, app: app)
         }
         log.info("Ran \(action.rawValue, privacy: .public) on a project")
         usage.record(project.path)
         saveUsage()
         hide()
+    }
+
+    /// Opens a new session in the desktop app in a window of its own, placed as a terminal
+    /// window would be. The launcher is closed by then, so a step that fails beeps and leaves
+    /// the window as far as it got, for the user to go on by hand.
+    private func openDesktopWindow(in folder: String, app: URL) {
+        Task {
+            do {
+                try await ClaudeDesktopWindow.open(in: folder, app: app) { newWindowPlacement(for: .claudeDesktop) }
+            } catch {
+                log.notice(
+                    "Could not open a desktop app window in the folder: \(String(describing: error), privacy: .public)")
+                NSSound.beep()
+            }
+        }
     }
 
     /// Where the window `action` opens goes, and which windows move first to make room, when
@@ -378,6 +401,7 @@ final class LauncherController {
         switch action {
         case .claude, .terminal, .finder, .devServer: true
         case .editor: editor != nil
+        case .claudeDesktop: Apps.isInstalled(ClaudeDesktop.bundleIdentifier)
         }
     }
 

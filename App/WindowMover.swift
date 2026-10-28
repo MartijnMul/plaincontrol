@@ -63,7 +63,8 @@ struct WindowMover {
         Self.place(window, at: frame)
     }
 
-    private static func place(_ window: AXUIElement, at frame: CGRect) {
+    /// Moves `window` to `frame`, in global coordinates from the top left of the main screen.
+    static func place(_ window: AXUIElement, at frame: CGRect) {
         var origin = frame.origin
         var size = frame.size
         guard let position = AXValueCreate(.cgPoint, &origin), let extent = AXValueCreate(.cgSize, &size) else {
