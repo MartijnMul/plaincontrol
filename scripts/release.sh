@@ -119,7 +119,8 @@ if [ -n "$IDENTITY" ]; then
 		--download-url-prefix "$REPOSITORY/releases/download/v$VERSION/" "$FEED_DIR"
 	mv "$FEED_DIR/appcast.xml" "$FEED"
 	rm -rf "$FEED_DIR"
-	echo "Packed $DMG and $FEED, version $VERSION: attach both to release v$VERSION"
+	echo "Packed $DMG and $FEED, version $VERSION: attach both to release v$VERSION, then"
+	echo "point the Homebrew cask at it with scripts/bump-cask.sh <homebrew-tap clone>"
 else
 	echo "Packed $DMG, version $VERSION"
 fi

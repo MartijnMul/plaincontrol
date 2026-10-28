@@ -21,13 +21,13 @@
 
 ## Install
 
-Needs macOS 27 or later and [Claude Code](https://code.claude.com). Paste this into Terminal:
+Needs macOS 27 or later and [Claude Code](https://code.claude.com). With [Homebrew](https://brew.sh):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/MartijnMul/plaincontrol/main/install.sh | sh
+brew install --cask martijnmul/tap/plaincontrol
 ```
 
-It installs the latest release in Applications, after checking that Apple notarised it ([the script](install.sh)). Run it again to update. Or download [`Plaincontrol.dmg`](https://github.com/MartijnMul/plaincontrol/releases/latest/download/Plaincontrol.dmg) and drag the app to Applications.
+`brew upgrade` keeps it up to date. Or download [`Plaincontrol.dmg`](https://github.com/MartijnMul/plaincontrol/releases/latest/download/Plaincontrol.dmg) and drag the app to Applications; it asks on its second launch whether to update itself.
 
 Then install the Claude Code plugin, which reports your sessions to the app. In Claude Code:
 
@@ -38,7 +38,7 @@ Then install the Claude Code plugin, which reports your sessions to the app. In 
 
 macOS asks for two permissions the first time they are needed: **Accessibility** for the launcher, and **control of iTerm2** to jump to a session.
 
-**Uninstall**: quit Plaincontrol, drag it to the Bin, and run `/plugin uninstall plaincontrol@plaincontrol` in Claude Code. Your settings and history are in `~/.config/plaincontrol` and `~/Library/Application Support/Plaincontrol`.
+**Uninstall**: quit Plaincontrol and run `brew uninstall --cask plaincontrol`, or drag it to the Bin; then run `/plugin uninstall plaincontrol@plaincontrol` in Claude Code. Your settings and history are in `~/.config/plaincontrol` and `~/Library/Application Support/Plaincontrol`; `brew uninstall --cask --zap plaincontrol` removes them too.
 
 ## The launcher
 

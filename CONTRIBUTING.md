@@ -48,7 +48,7 @@ A few tests need folders on your own Mac. Their paths are personal, so they go i
 PLAINCONTROL_TEST_LINKED_FOLDER=~/Dropbox   # a folder reached through a symbolic link, with folders inside
 ```
 
-`make release` builds the release app into `.build/Plaincontrol.dmg`. With a Developer ID Application certificate in the keychain it also signs and notarises it (with credentials stored once by `xcrun notarytool store-credentials notary`); `scripts/release.sh` explains the steps.
+`make release` builds the release app into `.build/Plaincontrol.dmg`. With a Developer ID Application certificate in the keychain it also signs and notarises it (with credentials stored once by `xcrun notarytool store-credentials notary`), and writes Sparkle's update feed, `.build/appcast.xml`, signed with the EdDSA key in the keychain; `scripts/release.sh` explains the steps. Once the release is published with both files, `scripts/bump-cask.sh` points the Homebrew cask at it.
 
 ## How the code is laid out
 

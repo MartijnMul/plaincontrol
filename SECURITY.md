@@ -16,7 +16,7 @@ Of interest above all: anything that lets another process or user read hook even
 
 ## Getting a genuine copy
 
-Only the latest release gets fixes. Get Plaincontrol from this repository's [releases](https://github.com/MartijnMul/plaincontrol/releases), or with [`install.sh`](install.sh), which refuses an app that is not signed with the Developer ID below and notarised by Apple. To check a copy yourself:
+Only the latest release gets fixes. Get Plaincontrol from this repository's [releases](https://github.com/MartijnMul/plaincontrol/releases), or with Homebrew from [MartijnMul/homebrew-tap](https://github.com/MartijnMul/homebrew-tap), which checks the disk image's SHA-256. To check a copy yourself:
 
 ```sh
 spctl --assess --verbose /Applications/Plaincontrol.app
