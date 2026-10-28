@@ -163,14 +163,14 @@ extension LauncherConfigFile {
                 ]
             case .windows:
                 [
-                    "# Where the windows the launcher opens go. Without this, each app decides. With it,",
-                    "# every screen is split into columns, as a window manager such as Rectangle does, and a",
-                    "# new window takes a free column: on the screen with the pointer first, then on the",
-                    "# other external screens, then on the built-in one. Each screen fills from the columns",
-                    "# nearest you, taking you to sit in front of the built-in screen: a screen in front of",
-                    "# you from its middle, then from left to right; one to your left from right to left.",
-                    "# The editor takes several columns side by side. Finder and the editor are moved once",
-                    "# their window appears.",
+                    "# Where the windows the launcher opens go: every screen is split into columns, as a",
+                    "# window manager such as Rectangle does, and a new window takes a free column: on the",
+                    "# screen with the pointer first, then on the other external screens, then on the",
+                    "# built-in one. Each screen fills from the columns nearest you, taking you to sit in",
+                    "# front of the built-in screen: a screen in front of you from its middle, then from left",
+                    "# to right; one to your left from right to left. The editor takes several columns side",
+                    "# by side. Finder and the editor are moved once their window appears. With",
+                    "# windows: false, each app places its windows.",
                 ]
             }
         }
@@ -203,7 +203,7 @@ extension LauncherConfigFile {
                         }
                         return entry.enumerated().map { $0.offset == 0 ? "  - \($0.element)" : "    \($0.element)" }
                     }
-            case .windows: config.windows.map(Self.lines(for:))
+            case .windows: config.windows.map(Self.lines(for:)) ?? ["windows: false"]
             }
         }
 
@@ -215,8 +215,7 @@ extension LauncherConfigFile {
             case .editor: config.editor == nil
             case .roots: config.roots.isEmpty
             case .projects: config.projects.isEmpty
-            case .windows: config.windows == nil
-            case .holdKey, .claudeCommand, .actionOrder, .zoxide, .activeDays: false
+            case .holdKey, .claudeCommand, .actionOrder, .zoxide, .activeDays, .windows: false
             }
         }
 
@@ -228,8 +227,7 @@ extension LauncherConfigFile {
             case .roots: ["#  - ~/Developer"]
             case .projects:
                 ["#  - name: My App", "#    path: ~/Developer/my-app", "#    devCommand: uv run fastapi dev"]
-            case .windows: Self.lines(for: WindowLayout()).map { "# \($0)" }
-            case .holdKey, .claudeCommand, .actionOrder, .zoxide, .activeDays: []
+            case .holdKey, .claudeCommand, .actionOrder, .zoxide, .activeDays, .windows: []
             }
         }
 

@@ -118,7 +118,10 @@ import Testing
     }
 
     @Test func readsTheWindowLayout() throws {
-        #expect(try LauncherConfigFile.parse("zoxide: true\n").windows == nil)
+        #expect(try LauncherConfigFile.parse("zoxide: true\n").windows == WindowLayout())
+        #expect(try LauncherConfigFile.parse("windows: true\n").windows == WindowLayout())
+        #expect(try LauncherConfigFile.parse("windows:\n").windows == WindowLayout())
+        #expect(try LauncherConfigFile.parse("windows: false\n").windows == nil)
         let config = try LauncherConfigFile.parse("windows:\n  external: 4\n  editor:\n    external: 3\n")
         #expect(
             config.windows

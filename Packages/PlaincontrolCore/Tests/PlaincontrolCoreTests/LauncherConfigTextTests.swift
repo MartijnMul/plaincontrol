@@ -21,8 +21,7 @@ import Testing
         #expect(try LauncherConfigFile.parse(LauncherConfigFile.template) == LauncherConfig())
         #expect(LauncherConfigFile.template.contains("\n# terminal: iTerm2\n"))
         #expect(LauncherConfigFile.template.contains("\nroots:\n#  - ~/Developer\nactiveDays: 90\n"))
-        #expect(
-            LauncherConfigFile.template.contains("\n# windows:\n#   builtIn: 2    # columns on the built-in screen\n"))
+        #expect(LauncherConfigFile.template.contains("\nwindows:\n  builtIn: 2    # columns on the built-in screen\n"))
     }
 
     @Test func readsBackWhatItWrites() throws {
@@ -156,7 +155,7 @@ import Testing
         config.terminal = nil
         config.windows = nil
         let removed = try #require(LauncherConfigFile.edit(text, to: config))
-        #expect(removed == "\(schema)# terminal: Ghostty  # for now\n# windows:\n#   external: 4\nzoxide: false\n")
+        #expect(removed == "\(schema)# terminal: Ghostty  # for now\nwindows: false\nzoxide: false\n")
 
         config.terminal = "iTerm2"
         config.windows = WindowLayout()

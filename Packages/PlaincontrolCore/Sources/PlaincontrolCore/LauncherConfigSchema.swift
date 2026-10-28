@@ -101,7 +101,8 @@ extension LauncherConfigFile.Setting {
                     ["builtIn": count(WindowNotes.builtIn), "external": count(WindowNotes.external)],
                     description: Self.sentence(WindowNotes.editor)),
             ])
-            schema["type"] = ["object", "null"]
+            // false leaves the windows to each app; true is the default layout.
+            schema["type"] = ["object", "boolean", "null"]
         }
         schema["description"] = summary
         return schema

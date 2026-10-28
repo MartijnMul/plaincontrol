@@ -46,7 +46,7 @@ public enum HoldKey: String, CaseIterable, Sendable {
 ///   - name: My App
 ///     path: ~/Developer/my-app
 ///     devCommand: uv run fastapi dev
-/// windows:              # put new windows in free columns, nearest the user first
+/// windows:              # new windows in free columns, nearest the user first; false: each app places them
 ///   builtIn: 2          # columns on the built-in screen
 ///   external: 3         # columns on every other screen
 ///   gap: 10             # points around and between windows
@@ -78,14 +78,15 @@ public struct LauncherConfig: Sendable, Equatable {
     /// The commands that start the development servers of projects, by their resolved paths,
     /// where the user sets one instead of leaving it to ``DevServer``.
     public var devCommands: [String: String] = [:]
-    /// How to arrange the windows the launcher opens, or nil to leave it to each app.
-    public var windows: WindowLayout?
+    /// How to arrange the windows the launcher opens, or nil to leave it to each app. Without
+    /// the setting, they go in columns of the default layout.
+    public var windows: WindowLayout? = WindowLayout()
 
     public init(
         holdKey: HoldKey = .rightOption, terminal: String? = nil, editor: String? = nil,
         claudeCommand: String = "claude", actionOrder: ActionOrder = .fixed, zoxide: Bool = true, roots: [String] = [],
         activeDays: Int = 90,
-        projects: [Project] = [], devCommands: [String: String] = [:], windows: WindowLayout? = nil
+        projects: [Project] = [], devCommands: [String: String] = [:], windows: WindowLayout? = WindowLayout()
     ) {
         self.holdKey = holdKey
         self.terminal = terminal
@@ -147,8 +148,10 @@ public enum LauncherConfigFile {
         }
         let terminal = file.terminal?.trimmingCharacters(in: .whitespaces)
         let editor = file.editor?.trimmingCharacters(in: .whitespaces)
-        var windows: WindowLayout?
-        if let section = file.windows {
+        var windows: WindowLayout? = WindowLayout()
+        if case .on(false) = file.windows {
+            windows = nil
+        } else if case .layout(let section) = file.windows {
             let layout = WindowLayout(
                 builtInColumns: section.builtIn ?? 2, externalColumns: section.external ?? 3, gap: section.gap ?? 10,
                 editorBuiltInColumns: section.editor?.builtIn ?? 2, editorExternalColumns: section.editor?.external ?? 2
@@ -223,7 +226,22 @@ public enum LauncherConfigFile {
         var roots: [String]?
         var activeDays: Int?
         var projects: [Entry]?
-        var windows: Windows?
+        var windows: WindowsSetting?
+    }
+
+    /// The `windows` setting: `false` to leave the windows to each app, or the section; `true`
+    /// and an empty section mean the default layout.
+    enum WindowsSetting: Decodable {
+        case on(Bool)
+        case layout(Windows)
+
+        init(from decoder: any Decoder) throws {
+            if let isOn = try? decoder.singleValueContainer().decode(Bool.self) {
+                self = .on(isOn)
+            } else {
+                self = .layout(try Windows(from: decoder))
+            }
+        }
     }
 
     struct Windows: Decodable {
