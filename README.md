@@ -1,17 +1,58 @@
 # Plaincontrol
 
-A native macOS menu bar app for people who run several Claude Code sessions at once. It shows every session at a glance, tells you when one is done or waiting for you, and takes you to the right terminal pane in one click or keystroke, on any Space.
+[![Latest release](https://img.shields.io/github/v/release/MartijnMul/plaincontrol)](https://github.com/MartijnMul/plaincontrol/releases/latest)
+[![License: Apache-2.0](https://img.shields.io/github/license/MartijnMul/plaincontrol)](LICENSE)
+![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey)
+![Swift 6](https://img.shields.io/badge/Swift-6-lightgrey?logo=swift&logoColor=white)
 
-> **Status: early development.** The session list, notifications, jumping to iTerm2 panes and the project launcher work; there are no releases yet. Watch the repository to follow along.
+A native macOS menu bar app for people who run several Claude Code sessions at once. It shows every session at a glance, tells you when one is done or waiting for you, and takes you to the right terminal pane in one click, on any Space. A keyboard launcher opens any project in Claude Code, your terminal, editor or Finder, with new windows placed in columns across your screens.
+
+> **Status: early.** The session list, notifications, jumping to iTerm2 panes, the project launcher and its settings work. Expect rough edges, and settings that may still change between releases; the [changelog](CHANGELOG.md) says when they do.
 
 ## What it does
 
 - **Sessions at a glance**: a menu bar icon with a badge for the sessions waiting on you, and a list of every session with its status, waiting ones first.
 - **Never miss a question**: a native notification when a session finishes or asks for input or permission, unless you respond within a few seconds.
 - **Jump to it**: click a session, or its notification, and its iTerm2 window, tab and pane come to the front, on any Space.
-- **Projects from the keyboard**: hold the right Option key for a launcher with the projects you work on, and open one in Claude Code (in a terminal or the Claude desktop app), Finder or your editor, or start its dev server, with a single key.
+- **Projects from the keyboard**: hold the right Option key for a launcher with the projects you work on, and open one in Claude Code (in the Claude desktop app or a terminal), Finder or your editor, or start its dev server, with a single key.
+- **Windows in their place**: every window the launcher opens takes a free column on your screens, nearest you first, as a window manager would place it.
 
 Planned: a hotkey for the next waiting session, terminals other than iTerm2, and starting a project with its worktree and window layout in one go.
+
+## Requirements
+
+macOS 27 or later, and [Claude Code](https://code.claude.com). Jumping to a session works in iTerm2; sessions in other terminals are listed, but cannot be opened from Plaincontrol yet.
+
+## Install
+
+Paste this into Terminal:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/MartijnMul/plaincontrol/main/install.sh | sh
+```
+
+It downloads the latest release, puts Plaincontrol in your Applications folder and opens it. Run it again to update. The [script](install.sh) is short; read it first if you like.
+
+Or download [`Plaincontrol.dmg`](https://github.com/MartijnMul/plaincontrol/releases/latest/download/Plaincontrol.dmg) yourself, open it and drag Plaincontrol onto the Applications shortcut. The app is signed and notarised by Apple; the first time, macOS asks whether you are sure you want to open an app downloaded from the internet: choose **Open**.
+
+Then:
+
+1. **Install the Claude Code plugin**, which tells Plaincontrol what each session is doing. In Claude Code, run:
+
+   ```
+   /plugin marketplace add MartijnMul/plaincontrol
+   /plugin install plaincontrol@plaincontrol
+   ```
+
+   Sessions you start from then on show up in the menu bar.
+2. **Hold the right Option key** on its own to open the launcher. The first time, macOS asks for the Accessibility permission, which the launcher needs to notice the key and take your typing: turn Plaincontrol on in System Settings › Privacy & Security › Accessibility.
+3. **Click a session** in the menu to jump to it. The first time, macOS asks whether Plaincontrol may control iTerm2.
+
+The plugin only needs an update when the [changelog](CHANGELOG.md) says so; the command it runs comes with the app.
+
+### Uninstall
+
+Quit Plaincontrol from its menu and drag it from Applications to the Bin. In Claude Code, run `/plugin uninstall plaincontrol@plaincontrol`. To remove your settings and history too, delete `~/.config/plaincontrol` and `~/Library/Application Support/Plaincontrol`.
 
 ## How it works
 
@@ -30,15 +71,52 @@ Hold the right Option key on its own for a moment, or choose Open Launcher in th
 | Left | | Back to the list |
 | Escape | Clear the search, then close | Back to the list |
 
-Every row shows its digit. An open project offers **1** for Claude Code in the Claude desktop app, **2** for a plain terminal window in its folder, **3** for Finder (or the app you open folders with, such as Path Finder), **4** for your editor and **5** for Claude Code in a new terminal window there, always in that order, so **4** then **1** starts Claude Code in the fourth project without looking. Without the desktop app or an editor, the actions after it move up a digit. With `actionOrder` in the settings, the launcher can instead select the action you use most in a project, so Return runs it, or put the actions you use most first. Claude Code in the desktop app starts a new session in the project's folder in a window of its own, as you would by hand: File › New Session in New Window, then the folder in that window's folder picker. That works for any folder Claude Code has worked in, without the app's question whether to trust it. A folder it has never worked in opens in the app's main window instead, after that question. When the app's main window shows a chat, it first goes to a new Claude Code session, as the menu has the item only there. If a step fails, for instance after a change to the app, Plaincontrol beeps and leaves the window for you to choose the folder. A project with a dev server also offers the next digit, which starts it in a new terminal window, showing the command it runs: `make dev` when the makefile has a `dev` target; or else the `dev` script in `package.json`, run with the project's package manager (the one its `packageManager` field names, or else the one its lockfile belongs to, or else npm); or else `make run`; or else `docker compose up --build` when the project has a Compose file. A `start` script doesn't count, as it often runs a built server or an MCP server. For anything else, such as a Python server, set `devCommand` on the project in the settings. Digits pick rows, so a search can't contain one.
+Every row shows its digit, and digits pick rows, so a search can't contain one. An open project offers, in this order:
+
+| Key | Action |
+| --- | --- |
+| 1 | Claude Code in the Claude desktop app, in a window of its own (when the app is installed) |
+| 2 | A terminal window in the project's folder |
+| 3 | The folder in Finder, or the app you open folders with, such as Path Finder |
+| 4 | The folder in your editor |
+| 5 | Claude Code in a new terminal window in the folder |
+| 6 | The project's dev server in a new terminal window, when it has one |
+
+So **4** then **1** starts Claude Code in the fourth project without looking. Without the desktop app or an editor, the actions after it move up a digit. With `actionOrder` in the settings, an open project can instead select the action you use most there, so Return runs it, or list the actions you use most first.
+
+**Claude Code in the desktop app** opens a new session as you would by hand: File › New Session in New Window, then the project's folder in that window's folder picker. That works for any folder Claude Code has worked in, without the app asking whether to trust it; a folder it has never worked in opens in the app's main window instead, after that question. When the app's main window shows a chat, it first goes to a new Claude Code session, as only there does the menu have the item. If a step fails, for instance after a change to the app, Plaincontrol beeps and leaves the window for you to choose the folder.
+
+**The dev server** is the first of these the project has: `make dev` (a `dev` target in its makefile); its `package.json` `dev` script, run with its package manager (the one `packageManager` names, else the one its lockfile belongs to, else npm); `make run`; or `docker compose up --build` (a Compose file). A `start` script doesn't count, as it often runs a built server or an MCP server. For anything else, such as a Python server, set `devCommand` on the project in the settings. The action shows the command it runs.
 
 **Which projects it lists.** The folders where you start Claude Code sessions and the projects you open from the launcher, ranked by how often and how recently you used them, with running sessions first. Nothing to set up: the list fills as you work. If you use [zoxide](https://github.com/ajeetdsouza/zoxide), the folders you visit most are listed from day one; Plaincontrol only reads zoxide's data. When the list is empty, or a search finds nothing, Return offers to add a folder: walk to it from your home folder (Return or Right to go into a folder, Left to go up), then choose the Add row at the top.
 
 **Which apps it opens.** Without settings, the launcher opens the terminal you run Claude Code in most; Plaincontrol can open iTerm2 windows so far, and says so when you mostly use another terminal. The editor is the one you use most lately, such as Xcode, Cursor or Zed, so when you switch editors the launcher follows within days. Before you have used one, it is the app your Mac opens code files with (TextEdit and Xcode don't count there, as macOS often sets them by itself), or else Visual Studio Code. Folders open in Finder, or in the app you chose for folders.
 
-**Settings** are in Settings… in the menu (Command-comma), and live in `~/.config/plaincontrol/settings.yaml`, which you can also edit as text. Each setting in the window says whether it is at its default, with a Reset button where it is not, and Restore Defaults… puts a whole tab back. The window changes only the setting you change, and keeps the rest of the file as you wrote it, comments included. If it cannot change the text in place, such as YAML with anchors, it keeps the old file as `settings.yaml.backup` and writes the file anew, with every setting explained. You can choose the key to hold (right Option, Command, Control or Shift), the terminal and the editor (any app, such as Cursor or Zed), the command that starts Claude Code, how a project's actions are ordered (`fixed`, `selected` for the one you use most selected, or `usage` for the ones you use most first), projects that are always listed (with the command that starts their dev server, if the launcher doesn't find it), and folders whose subfolders are always projects, such as a folder of git repositories. Next to it, Plaincontrol keeps `settings.schema.json` up to date, which the file's first line points at: editors with the YAML language server, such as Zed, or Visual Studio Code with Red Hat's YAML extension, complete the settings and flag mistakes as you type.
+## Settings
 
-**Where new windows go.** The launcher splits every screen into columns, as a window manager such as Rectangle does: two on the built-in screen and three on others by default, with a 10-point gap. A new iTerm2, Finder or Claude desktop app window takes a free column on the screen with the pointer, then on the other external screens, then on the built-in one; the editor takes two columns side by side, so two thirds of an external screen or all of the built-in one. Each screen fills from the columns nearest you, taking you to sit in front of the built-in screen: a screen in front of you from its middle, then from left to right; a screen to your left from right to left, and one to your right from left to right. When an external screen has enough free columns but not side by side, such as one window in the middle of three, the windows that fill columns there slide aside to make room, as few as possible, keeping the columns nearest you, before the built-in screen is used. Windows that do not fill columns are never moved. When no columns are free, a window goes on the built-in screen, on the left. Finder and the editor are moved once their new window appears; when they show a window they had open already, it stays where it is. To let each app place its windows instead, turn off Place new windows in columns in the settings, or set `windows: false`.
+Choose Settings… in the menu, or press Command-comma while Plaincontrol is in front. You can set:
+
+- the key to hold: right Option, Command, Control or Shift;
+- the terminal and the editor, any app such as Cursor or Zed, instead of the ones the launcher picks;
+- the command that starts Claude Code in a terminal;
+- how a project's actions are ordered: always the same, the one you use most selected, or the ones you use most first;
+- projects that are always listed, with the command that starts their dev server if the launcher doesn't find it, and folders whose subfolders are projects, such as a folder of git repositories;
+- how new windows are placed, or that each app places its own.
+
+Each setting says whether it is at its default, with a Reset button where it is not, and Restore Defaults… puts a whole tab back.
+
+The settings live in `~/.config/plaincontrol/settings.yaml`, which you can also edit as text, keep in your dotfiles, or copy to another Mac; Edit as Text… opens it. The window changes only the setting you change and keeps the rest of the file as you wrote it, comments included. (A file it cannot change in place, such as YAML with anchors, is kept as `settings.yaml.backup` and written anew.) Next to it, Plaincontrol keeps `settings.schema.json` up to date: editors with the YAML language server, such as Zed, or Visual Studio Code with Red Hat's YAML extension, complete the settings and flag mistakes as you type.
+
+## Where new windows go
+
+The launcher splits every screen into columns, as a window manager such as Rectangle does: two on the built-in screen and three on others, with a 10-point gap; the settings change both. A new terminal, Finder or Claude desktop app window takes one free column, the editor two side by side.
+
+- **Which screen**: the one with the pointer, then the other external screens, then the built-in one.
+- **Which column**: nearest you first, taking you to sit in front of the built-in screen. A screen in front of you fills from its middle out, one to your left from right to left, one to your right from left to right.
+- **Making room**: when an external screen has enough free columns but not side by side, the windows that fill columns there slide aside, as few as possible, before the built-in screen is used. Windows that do not fill a column are never moved.
+- **No room**: the window goes on the built-in screen, on the left.
+
+Finder and the editor are moved once their new window appears; a window they had open already stays where it is. To let each app place its windows instead, turn off Place new windows in columns in the settings.
 
 ## Privacy
 
@@ -73,6 +151,7 @@ plugin/                     The Claude Code plugin that installs the hooks
 dev/                        Scenarios for trying the app without Claude Code
 scripts/                    Release packaging
 Config/                     Build settings, such as code signing
+install.sh                  Installs the latest release, checking its signature
 project.yml                 XcodeGen project definition
 ```
 
@@ -98,6 +177,10 @@ PLAINCONTROL_TEST_LINKED_FOLDER=~/Dropbox   # a folder reached through a symboli
 ### Releases
 
 `make release` builds the release app and packs it in `.build/Plaincontrol.dmg`. With a Developer ID Application certificate in the keychain, it signs the app and the disk image with it and has Apple notarise them, using notary credentials stored once with `xcrun notarytool store-credentials notary`; without one, it signs ad hoc and skips notarising. `scripts/release.sh` explains the steps.
+
+## Contributing
+
+Bug reports, ideas and pull requests are welcome: [CONTRIBUTING.md](CONTRIBUTING.md) says how, and what keeps Plaincontrol small and trustworthy. Report a security problem privately, as [SECURITY.md](SECURITY.md) describes.
 
 ## License
 
