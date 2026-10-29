@@ -15,7 +15,8 @@ struct PlaincontrolApp: App {
         let launcher = LauncherController { store.registry.sessions.values.map(\.self) }
         store.onSessionStart = { folder, terminal in launcher.sessionStarted(in: folder, at: terminal) }
         hotkey = LauncherHotkey(holdKey: { launcher.holdKey }, onHold: { launcher.show() })
-        let welcome = WelcomeWindow(store: store, launcher: launcher)
+        let settings = SettingsModel(launcher: launcher)
+        let welcome = WelcomeWindow(store: store, launcher: launcher, settings: settings)
         self.welcome = welcome
         // On a first start the welcome window asks for Accessibility, after saying what it is for.
         let isFirstStart = WelcomeWindow.opensByItself(launcher: launcher)
@@ -25,7 +26,7 @@ struct PlaincontrolApp: App {
         }
         _store = State(initialValue: store)
         _launcher = State(initialValue: launcher)
-        _settings = State(initialValue: SettingsModel(launcher: launcher))
+        _settings = State(initialValue: settings)
     }
 
     var body: some Scene {

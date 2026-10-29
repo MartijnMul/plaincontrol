@@ -11,6 +11,7 @@ import SwiftUI
 final class WelcomeWindow {
     private let store: SessionStore
     private let launcher: LauncherController
+    private let settings: SettingsModel
     private var window: NSWindow?
 
     private static let shownKey = "hasShownWelcome"
@@ -21,9 +22,10 @@ final class WelcomeWindow {
         !UserDefaults.standard.bool(forKey: shownKey) && launcher.isNew
     }
 
-    init(store: SessionStore, launcher: LauncherController) {
+    init(store: SessionStore, launcher: LauncherController, settings: SettingsModel) {
         self.store = store
         self.launcher = launcher
+        self.settings = settings
     }
 
     func show() {
@@ -37,7 +39,9 @@ final class WelcomeWindow {
                 window.title = "Welcome to \(AppInfo.name)"
                 window.isReleasedWhenClosed = false
                 window.contentViewController = NSHostingController(
-                    rootView: WelcomeView(store: store, launcher: launcher) { [weak window] in window?.close() })
+                    rootView: WelcomeView(store: store, launcher: launcher, settings: settings) { [weak window] in
+                        window?.close()
+                    })
                 window.center()
                 return window
             }()
@@ -51,6 +55,7 @@ final class WelcomeWindow {
 private struct WelcomeView: View {
     let store: SessionStore
     let launcher: LauncherController
+    let settings: SettingsModel
     let close: () -> Void
     @State private var isTrusted = LauncherHotkey.isAllowed
     @State private var projects = Projects.notAdded
@@ -100,18 +105,35 @@ private struct WelcomeView: View {
                         NSPasteboard.general.setString(Self.pluginCommands, forType: .string)
                     }
                 } detail: {
-                    Text(Self.pluginCommands).font(.callout.monospaced()).textSelection(.enabled)
+                    // A command broken over two lines is easy to copy wrong by hand.
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(Self.pluginCommands.split(separator: "\n"), id: \.self) { command in
+                            Text(command).lineLimit(1).minimumScaleFactor(0.7)
+                        }
+                    }
+                    .font(.callout.monospaced())
+                    .textSelection(.enabled)
                 }
                 Step(
                     number: 3, title: "Bring in your projects", isDone: projects != .notAdded && projects != .adding,
                     doneLabel: projectsLabel,
-                    note:
-                        "Add the projects you worked on with Claude Code to the launcher, from Claude Code's own history. Only the names of their folders and the dates of your sessions are read. macOS may ask for access to the folders they are in."
+                    note: projects == .added(0)
+                        ? "Claude Code has no history on this Mac yet, so there was nothing to add. Your projects show up in the launcher as you start sessions in them."
+                        : "Add the projects you worked on with Claude Code to the launcher, from Claude Code's own history. Only the names of their folders and the dates of your sessions are read. macOS may ask for access to the folders they are in."
                 ) {
                     if projects == .adding {
                         ProgressView().controlSize(.small)
                     } else {
                         Button("Add Projects") { addProjects() }
+                    }
+                } detail: {
+                    if Zoxide.executable() != nil {
+                        Toggle(
+                            "Also list the folders you visit most with zoxide",
+                            isOn: settings.binding(\.zoxide)
+                        )
+                        .toggleStyle(.checkbox)
+                        .padding(.top, 4)
                     }
                 }
                 Step(

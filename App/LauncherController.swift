@@ -71,7 +71,10 @@ final class LauncherController {
             keyTap
             ?? LauncherKeyTap(
                 onKey: { [weak self] key in self?.handle(key) },
-                onClick: { [weak self] in self?.hide() })
+                onClick: { [weak self] in
+                    self?.log.info("Closed the launcher on a click")
+                    self?.hide()
+                })
         self.keyTap = keyTap
         guard keyTap.start() else {
             log.notice("The launcher may not take the keyboard; asking for Accessibility")
@@ -382,7 +385,9 @@ final class LauncherController {
         }
         switch launcher.press(key) {
         case .stay: break
-        case .close: hide()
+        case .close:
+            log.info("Closed the launcher on a key")
+            hide()
         case .run(let action, let project): run(action, on: project)
         case .runDevServerWithPage(let project): run(.devServer, on: project, openingPage: true)
         case .openApp(let app): open(app)
