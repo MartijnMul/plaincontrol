@@ -7,14 +7,15 @@ import Foundation
 /// quits, so it needs no permission. Other browsers have no such flag.
 public enum BrowserWindow {
     /// The arguments that open `url` in a new window of the browser with `bundleIdentifier`, or
-    /// nil when it takes none.
-    public static func arguments(opening url: URL, in bundleIdentifier: String) -> [String]? {
+    /// an empty window without one; nil when the browser takes none.
+    public static func arguments(opening url: URL? = nil, in bundleIdentifier: String) -> [String]? {
         let id = bundleIdentifier.lowercased()
+        let page = url.map { [$0.absoluteString] } ?? []
         if chromium.contains(where: { id == $0 || id.hasPrefix("\($0).") }) {
-            return ["--new-window", url.absoluteString]
+            return ["--new-window"] + page
         }
         if id.hasPrefix("org.mozilla.") {
-            return ["-new-window", url.absoluteString]
+            return ["-new-window"] + page
         }
         return nil
     }

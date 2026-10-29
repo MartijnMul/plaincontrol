@@ -33,6 +33,16 @@ public enum ProjectAction: String, CaseIterable, Codable, Sendable {
     }
 }
 
+/// An app the launcher opens an empty window of, without a project.
+public enum AppWindow: String, CaseIterable, Sendable {
+    /// A terminal window in the home folder.
+    case terminal
+    /// A browser window.
+    case browser
+    /// A Finder window on the home folder, or one of the app the user opens folders with.
+    case finder
+}
+
 /// What the dev server action asks next: whether to open the server's page too.
 public enum DevServerChoice: CaseIterable, Sendable {
     /// Only the dev server, in a new terminal window.
@@ -73,7 +83,9 @@ public enum ActionOrder: String, CaseIterable, Sendable {
 ///
 /// An open project lists its actions: Up and Down select one, Return or Right runs it, and a
 /// digit runs the action in that row. Left or Escape goes back to the list; Escape on the list
-/// without a search closes the launcher. The dev server asks next whether to open its page too,
+/// without a search closes the launcher. Left on the list shows the apps it opens an empty
+/// window of: Up and Down select one, Return or Left runs it, a digit runs the one in that row,
+/// and Right or Escape goes back to the list. The dev server asks next whether to open its page too,
 /// in the same way, when the project offers that; Left or Escape goes back to the actions.
 public struct Launcher: Sendable {
     /// The actions a project offers, in the order shown.
@@ -93,6 +105,8 @@ public struct Launcher: Sendable {
         case project(Project)
         /// What the dev server of the project should open.
         case devServer(Project)
+        /// The apps to open an empty window of.
+        case apps
     }
 
     /// What should happen after a key press.
@@ -102,6 +116,8 @@ public struct Launcher: Sendable {
         case run(ProjectAction, Project)
         /// Start the project's dev server and open its page.
         case runDevServerWithPage(Project)
+        /// Open an empty window of the app.
+        case openApp(AppWindow)
         /// Find a folder to add as a project.
         case findFolder
     }
@@ -124,6 +140,10 @@ public struct Launcher: Sendable {
     public private(set) var devServerChoices: [DevServerChoice] = []
     /// The selected one of ``devServerChoices``.
     public private(set) var choiceSelection = 0
+    /// The apps the launcher opens an empty window of, in the order shown.
+    public let apps: [AppWindow]
+    /// The selected one of ``apps``.
+    public private(set) var appSelection = 0
     /// What the user typed to search.
     public private(set) var query = ""
     /// The selected row of ``visible``.
@@ -140,14 +160,16 @@ public struct Launcher: Sendable {
     }
 
     /// - Parameters:
+    ///   - apps: The apps to open an empty window of; without any, Left on the list does nothing.
     ///   - actions: The actions a project offers, asked each time it opens.
     ///   - selection: The action selected when a project opens.
     ///   - devServerChoices: What the dev server action asks next, asked each time it runs.
     public init(
-        items: [LauncherItem], actions: @escaping Actions, selection: @escaping Selection = { _, _ in nil },
-        devServerChoices: @escaping DevServerChoices = { _ in [] }
+        items: [LauncherItem], apps: [AppWindow] = [], actions: @escaping Actions,
+        selection: @escaping Selection = { _, _ in nil }, devServerChoices: @escaping DevServerChoices = { _ in [] }
     ) {
         self.items = items
+        self.apps = apps
         actionsOf = actions
         selectionOf = selection
         devServerChoicesOf = devServerChoices
@@ -183,6 +205,10 @@ public struct Launcher: Sendable {
         actions.indices.contains(actionSelection) ? actions[actionSelection] : nil
     }
 
+    public var selectedApp: AppWindow? {
+        apps.indices.contains(appSelection) ? apps[appSelection] : nil
+    }
+
     public var selectedChoice: DevServerChoice? {
         devServerChoices.indices.contains(choiceSelection) ? devServerChoices[choiceSelection] : nil
     }
@@ -199,6 +225,11 @@ public struct Launcher: Sendable {
         case (.projects, .escape):
             if query.isEmpty { return .close }
             search("")
+        case (.projects, .left):
+            if !apps.isEmpty {
+                appSelection = 0
+                screen = .apps
+            }
         case (.projects, .backspace):
             if !query.isEmpty { search(String(query.dropLast())) }
         case (.projects, .character(let character)) where character.isASCII && character.isNumber:
@@ -236,7 +267,17 @@ public struct Launcher: Sendable {
             if let row = Self.row(for: character), devServerChoices.indices.contains(row) {
                 return Self.outcome(of: devServerChoices[row], on: project)
             }
-        case (.projects, .left), (.project, .backspace), (.devServer, .backspace):
+        case (.apps, .up):
+            appSelection = max(appSelection - 1, 0)
+        case (.apps, .down):
+            appSelection = min(appSelection + 1, max(apps.count - 1, 0))
+        case (.apps, .enter), (.apps, .left):
+            if let selectedApp { return .openApp(selectedApp) }
+        case (.apps, .right), (.apps, .escape):
+            screen = .projects
+        case (.apps, .character(let character)):
+            if let row = Self.row(for: character), apps.indices.contains(row) { return .openApp(apps[row]) }
+        case (.project, .backspace), (.devServer, .backspace), (.apps, .backspace):
             break
         }
         return .stay

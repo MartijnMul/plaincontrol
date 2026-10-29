@@ -103,6 +103,29 @@ import Testing
         #expect(press(.character("2"), on: &launcher) == [.stay])
     }
 
+    @Test func opensAnEmptyWindowOfAnAppFromTheLeft() {
+        var launcher = Launcher(items: [LauncherItem(project: app)], apps: AppWindow.allCases) { _ in [.claude] }
+        #expect(press(.left, on: &launcher) == [.stay])
+        #expect(launcher.screen == .apps)
+        #expect(press(.enter, on: &launcher) == [.openApp(.terminal)])
+        #expect(press(.down, .down, .down, .enter, on: &launcher) == [.stay, .stay, .stay, .openApp(.finder)])
+        #expect(press(.character("2"), on: &launcher) == [.openApp(.browser)])
+        #expect(press(.up, .left, on: &launcher) == [.stay, .openApp(.browser)])
+        #expect(press(.character("4"), on: &launcher) == [.stay])
+        #expect(launcher.screen == .apps)
+        #expect(press(.right, on: &launcher) == [.stay])
+        #expect(launcher.screen == .projects)
+        _ = press(.left, .escape, on: &launcher)
+        #expect(launcher.screen == .projects)
+        #expect(launcher.selectedProject == app)
+    }
+
+    @Test func leftDoesNothingWithoutApps() {
+        var launcher = makeLauncher([app], actions: [.claude])
+        #expect(press(.left, on: &launcher) == [.stay])
+        #expect(launcher.screen == .projects)
+    }
+
     @Test func asksWhatTheDevServerOpens() {
         var launcher = Launcher(items: [LauncherItem(project: app)]) { _ in
             [.claude, .devServer]

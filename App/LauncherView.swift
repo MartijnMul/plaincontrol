@@ -22,6 +22,7 @@ struct LauncherView: View {
                 case .projects: projectList
                 case .project(let project): actionList(for: project)
                 case .devServer(let project): choiceList(for: project)
+                case .apps: appList
                 }
             }
             if let problem = controller.problem {
@@ -145,6 +146,24 @@ struct LauncherView: View {
     }
 
     @ViewBuilder
+    private var appList: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Apps").font(.title3.weight(.semibold))
+            Text("A new window, without a project").foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 10)
+        VStack(spacing: 2) {
+            ForEach(Array(controller.launcher.apps.enumerated()), id: \.element) { index, app in
+                row(selected: app == controller.launcher.selectedApp) {
+                    DigitCap(row: index)
+                    Text(controller.title(of: app)).font(.title3)
+                    Spacer()
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
     private func choiceList(for project: Project) -> some View {
         header(for: project)
         VStack(spacing: 2) {
@@ -215,7 +234,12 @@ struct LauncherView: View {
             case .projects:
                 hint("↑↓", "Select")
                 hint("↩ →", "Open")
+                if !controller.launcher.apps.isEmpty { hint("←", "Apps") }
                 hint("esc", controller.launcher.query.isEmpty ? "Close" : "Clear")
+            case .apps:
+                hint("↑↓", "Select")
+                hint("↩ ←", "Open")
+                hint("→ esc", "Back")
             case .project, .devServer:
                 hint("↑↓", "Select")
                 hint("↩ →", "Run")

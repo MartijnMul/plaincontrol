@@ -117,6 +117,7 @@ import Testing
         #expect(BrowserWindow.arguments(opening: url, in: "com.google.Chrome.canary") != nil)
         #expect(
             BrowserWindow.arguments(opening: url, in: "org.mozilla.firefox") == ["-new-window", url.absoluteString])
+        #expect(BrowserWindow.arguments(in: "com.google.Chrome") == ["--new-window"])
         #expect(BrowserWindow.arguments(opening: url, in: "com.apple.Safari") == nil)
         #expect(BrowserWindow.arguments(opening: url, in: "com.google.chromecast") == nil)
     }
