@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "PlaincontrolCore",
-    platforms: [.macOS("27.0")],
+    platforms: [.macOS("26.0")],
     products: [
         .library(name: "PlaincontrolCore", targets: ["PlaincontrolCore"]),
         .library(name: "PlaincontrolHooks", targets: ["PlaincontrolHooks"]),

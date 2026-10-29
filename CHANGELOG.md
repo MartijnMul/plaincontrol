@@ -4,6 +4,7 @@ What changes in each release of Plaincontrol. Versions follow [Semantic Versioni
 
 ## Unreleased
 
+- **Runs on macOS 26**: Plaincontrol needed macOS 27 and now runs on macOS 26 Tahoe too, the version most Macs have.
 - **Editing the settings as text moved to Advanced**: the settings file's location and Edit as Text… are no longer at the bottom of every settings tab, but on a tab of their own, Advanced. Restore Defaults… stays on each tab.
 - **zoxide's switch greys out without zoxide**: in Settings › Projects, Use zoxide's folders can no longer be switched while zoxide is not installed, as it has no effect then.
 - **See the projects the launcher found**: Settings › Projects lists, below your own projects, the ones the launcher lists because you work in them, from your sessions, the launcher, zoxide and your folders with projects, in the launcher's order. Always List moves one into your projects, so it stays listed.

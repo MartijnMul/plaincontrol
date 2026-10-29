@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/MartijnMul/plaincontrol/releases/latest"><img src="https://img.shields.io/github/v/release/MartijnMul/plaincontrol" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/MartijnMul/plaincontrol" alt="License: Apache-2.0"></a>
-  <img src="https://img.shields.io/badge/platform-macOS%2027-lightgrey" alt="Platform: macOS 27">
+  <img src="https://img.shields.io/badge/platform-macOS%2026-lightgrey" alt="Platform: macOS 26">
 </p>
 
 <p align="center"><img src="docs/images/menu.png" width="437" alt="The Plaincontrol menu, listing four Claude Code sessions: one needs permission, one has a question, one is working and one is idle."></p>
@@ -21,7 +21,7 @@
 
 ## Install
 
-Needs macOS 27 or later and [Claude Code](https://code.claude.com). Three steps, in this order.
+Needs macOS 26 or later and [Claude Code](https://code.claude.com). Three steps, in this order.
 
 ### 1. Install the app
 
