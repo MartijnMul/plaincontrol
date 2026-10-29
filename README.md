@@ -33,6 +33,8 @@ brew install --cask martijnmul/tap/plaincontrol
 
 Or download [`Plaincontrol.dmg`](https://github.com/MartijnMul/plaincontrol/releases/latest/download/Plaincontrol.dmg), open it and drag Plaincontrol to Applications.
 
+<p align="center"><img src="docs/images/disk-image.png" width="321" alt="The opened disk image: the Plaincontrol app next to a shortcut to the Applications folder, to drag it onto."></p>
+
 ### 2. Open it
 
 Open **Plaincontrol** from Applications or Spotlight. A welcome window walks you through the rest: allowing **Accessibility**, which the launcher needs, connecting Claude Code (step 3 below), adding the projects you already worked on with Claude Code, and opening Plaincontrol when you log in. After that it has no window and no Dock icon: it lives in the menu bar, at the top right of your screen, where Getting Started… opens the welcome window again.
