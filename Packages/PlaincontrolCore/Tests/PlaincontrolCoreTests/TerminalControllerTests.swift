@@ -74,6 +74,20 @@ import Testing
         #expect(!scripts[0].contains("&&"))
     }
 
+    @Test func opensAWindowAsTheTerminalDoesWithoutAFolder() throws {
+        var scripts: [String] = []
+        let controller = ITerm2Controller { script in
+            scripts.append(script)
+            return ""
+        }
+        try controller.openWindow(in: nil)
+        #expect(scripts[0].contains("create window with default profile"))
+        #expect(!scripts[0].contains("write text"))
+        try controller.openWindow(in: nil, running: "claude")
+        #expect(scripts[1].contains(#"write text "claude""#))
+        #expect(!scripts[1].contains("cd "))
+    }
+
     @Test func opensAWindowAtAFrame() throws {
         var scripts: [String] = []
         let controller = ITerm2Controller { script in
@@ -107,7 +121,7 @@ import Testing
 
         func canFocus(_ location: TerminalLocation) -> Bool { location.program == program }
         func focus(_ location: TerminalLocation) throws(TerminalControlError) { focused() }
-        func openWindow(in directory: String, running command: String?, frame: CGRect?) {}
+        func openWindow(in directory: String?, running command: String?, frame: CGRect?) {}
     }
 
     @Test func picksTheControllerForTheTerminal() throws {

@@ -429,8 +429,8 @@ final class LauncherController {
         hide()
     }
 
-    /// Opens an empty window of `app`, in a free column as a project's windows; the terminal
-    /// window and Finder's start in the home folder.
+    /// Opens an empty window of `app`, in a free column as a project's windows: the terminal's as
+    /// it opens new windows, with nothing typed in it, and Finder's on the home folder.
     private func open(_ app: AppWindow) {
         let home = URL.homeDirectory
         // The browser's window takes a column, as a terminal window does.
@@ -442,8 +442,7 @@ final class LauncherController {
             placement?.moves.forEach(WindowMover.move)
             do {
                 NSApp.yieldActivation(toApplicationWithBundleIdentifier: controller.bundleIdentifier)
-                try controller.openWindow(
-                    in: home.path(percentEncoded: false), running: nil, frame: placement?.frame)
+                try controller.openWindow(in: nil, running: nil, frame: placement?.frame)
             } catch {
                 fail("Could not open \(controller.name): \(error.launcherMessage(for: controller.name))")
                 return

@@ -18,12 +18,13 @@ public protocol TerminalController: Sendable {
     /// Brings the pane at `location` to the front, with its window, tab and Space.
     @MainActor func focus(_ location: TerminalLocation) throws(TerminalControlError)
 
-    /// Opens a new window in `directory` and runs `command` there, if any, through the user's
-    /// shell, as if they had typed it. Starts the terminal when it is not running.
+    /// Opens a new window in `directory`, or where the terminal starts new windows without one,
+    /// and runs `command` there, if any, through the user's shell, as if they had typed it.
+    /// Starts the terminal when it is not running.
     ///
     /// - Parameter frame: Where the window goes, in global coordinates from the top left of the
     ///   main screen; without one, the terminal decides.
-    @MainActor func openWindow(in directory: String, running command: String?, frame: CGRect?)
+    @MainActor func openWindow(in directory: String?, running command: String?, frame: CGRect?)
         throws(TerminalControlError)
 }
 

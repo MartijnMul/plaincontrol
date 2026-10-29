@@ -36,7 +36,7 @@ public struct ITerm2Controller: TerminalController {
 
     @MainActor
     public func openWindow(
-        in directory: String, running command: String? = nil, frame: CGRect? = nil
+        in directory: String?, running command: String? = nil, frame: CGRect? = nil
     ) throws(TerminalControlError) {
         _ = try runScript(Self.openWindowScript(directory: directory, command: command, frame: frame))
     }
@@ -55,9 +55,20 @@ public struct ITerm2Controller: TerminalController {
         return String(paneID)
     }
 
-    static func openWindowScript(directory: String, command: String?, frame: CGRect? = nil) -> String {
+    static func openWindowScript(directory: String?, command: String?, frame: CGRect? = nil) -> String {
         // `quoted form of` quotes the folder for the shell; the literals are quoted for AppleScript.
-        let run = command.map { " & \" && \" & " + AppleScript.literal($0) } ?? ""
+        let cd = directory.map { "\"cd \" & quoted form of " + AppleScript.literal($0) }
+        let line = [cd, command.map(AppleScript.literal)].compactMap { $0 }.joined(separator: " & \" && \" & ")
+        // Without anything to type, the window stays as the terminal opened it.
+        let write =
+            line.isEmpty
+            ? ""
+            : """
+
+                    tell current session of newWindow
+                        write text \(line)
+                    end tell
+            """
         // AppleScript bounds are {left, top, right, bottom}.
         let bounds = frame.map { frame in
             let edges = [frame.minX, frame.minY, frame.maxX, frame.maxY].map { String(Int($0.rounded())) }
@@ -66,10 +77,7 @@ public struct ITerm2Controller: TerminalController {
         return """
             tell application id "\(Self.iTerm2)"
                 activate
-                set newWindow to (create window with default profile)\(bounds ?? "")
-                tell current session of newWindow
-                    write text "cd " & quoted form of \(AppleScript.literal(directory))\(run)
-                end tell
+                set newWindow to (create window with default profile)\(bounds ?? "")\(write)
             end tell
             """
     }
