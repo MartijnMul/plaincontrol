@@ -21,24 +21,42 @@
 
 ## Install
 
-Needs macOS 27 or later and [Claude Code](https://code.claude.com). With [Homebrew](https://brew.sh):
+Needs macOS 27 or later and [Claude Code](https://code.claude.com). Three steps, in this order.
+
+### 1. Install the app
+
+Either with [Homebrew](https://brew.sh):
 
 ```sh
 brew install --cask martijnmul/tap/plaincontrol
 ```
 
-`brew upgrade` keeps it up to date. Or download [`Plaincontrol.dmg`](https://github.com/MartijnMul/plaincontrol/releases/latest/download/Plaincontrol.dmg) and drag the app to Applications; it asks on its second launch whether to update itself.
+Or download [`Plaincontrol.dmg`](https://github.com/MartijnMul/plaincontrol/releases/latest/download/Plaincontrol.dmg), open it and drag Plaincontrol to Applications.
 
-Then install the Claude Code plugin, which reports your sessions to the app. In Claude Code:
+### 2. Open it
+
+Open **Plaincontrol** from Applications or Spotlight. It has no window and no Dock icon: look for its icon in the menu bar, at the top right of your screen.
+
+macOS asks right away for **Accessibility**, which the launcher needs. Allow it in System Settings, then come back. Later, the first time you jump to a session, macOS asks whether Plaincontrol may control your terminal (iTerm2 or Terminal): allow that too.
+
+Plaincontrol does not start by itself after a restart yet. To have it always running, add it in System Settings › General › Login Items.
+
+### 3. Connect Claude Code
+
+In Claude Code, run:
 
 ```
 /plugin marketplace add MartijnMul/plaincontrol
 /plugin install plaincontrol@plaincontrol
 ```
 
-Without the plugin, the launcher still works, but Plaincontrol sees no sessions: no list, no notifications, and only the projects you open from the launcher, zoxide or your settings.
+The sessions you start from then on show up in Plaincontrol's menu. Without the plugin, the launcher still works, but Plaincontrol sees no sessions: no list and no notifications.
 
-macOS asks for two permissions the first time they are needed: **Accessibility** for the launcher, and **control of your terminal**, iTerm2 or Terminal, to jump to a session and open its windows.
+### Try it
+
+Hold the **right Option key** on its own for a moment: the launcher opens. [The launcher](#the-launcher) below explains the rest.
+
+**Updates**: with Homebrew, `brew upgrade`. Either way, Plaincontrol asks on its second launch whether to update itself.
 
 **Uninstall**: quit Plaincontrol and run `brew uninstall --cask plaincontrol`, or drag it to the Bin; then run `/plugin uninstall plaincontrol@plaincontrol` in Claude Code. Your settings and history are in `~/.config/plaincontrol` and `~/Library/Application Support/Plaincontrol`; `brew uninstall --cask --zap plaincontrol` removes them too.
 
