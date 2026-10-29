@@ -9,9 +9,10 @@ import PlaincontrolCore
 /// open a window of their own and ask to trust the folder each time (``ClaudeDesktop``).
 ///
 /// Every step is found by what it is, not by English text: the menu item by its title in each
-/// language the app comes in, the folder button as the only pop-up button whose help text is a
-/// path, and the folder in the picker by that path. A folder the picker doesn't know, one Claude
-/// Code has never worked in, opens through the link instead, which asks whether to trust it.
+/// language the app comes in, the folder button by its label in each language or, once it has
+/// a folder, by its help text, a path, and the folder in the picker by that path. A folder the
+/// picker doesn't know, one Claude Code has never worked in, opens through the link instead,
+/// which asks whether to trust it.
 /// Needs the Accessibility permission, which the launcher has.
 @MainActor
 enum ClaudeDesktopWindow {
@@ -36,6 +37,8 @@ enum ClaudeDesktopWindow {
         in folder: String, app: URL, makeRoom: () -> PlaincontrolCore.WindowPlacement.Placement?
     ) async throws(Failure) {
         let titles = ClaudeDesktop.newWindowMenuTitles(inAppAt: app)
+        // The labels take a moment to read, so they are read while the window opens.
+        let labels = Task.detached { ClaudeDesktop.folderButtonLabels(inAppAt: app) }
 
         // The item is in the File menu only while the main window shows the Code tab, which a
         // link without a folder goes to without asking anything. It also starts the app.
@@ -61,8 +64,17 @@ enum ClaudeDesktopWindow {
         func shown(_ button: AXUIElement) -> String? {
             string(button, kAXHelpAttribute).flatMap { ClaudeDesktop.folder(shownAs: $0, home: home) }
         }
+        // Before version 4.29 a new window had the last folder, and so a path as help text; now
+        // it starts without one, and only the label tells the button apart.
+        let folderLabels = await labels.value
         func folderButton() -> AXUIElement? {
-            first(in: window) { string($0, kAXRoleAttribute) == kAXPopUpButtonRole && shown($0) != nil }
+            first(in: window) {
+                string($0, kAXRoleAttribute) == kAXPopUpButtonRole
+                    && (shown($0) != nil
+                        || string($0, kAXDescriptionAttribute).map {
+                            ClaudeDesktop.isFolderButton(described: $0, labels: folderLabels)
+                        } == true)
+            }
         }
         guard let button = await poll(seconds: 5, folderButton) else { throw .noFolderButton }
         if shown(button).map(wanted.contains) == true { return }
