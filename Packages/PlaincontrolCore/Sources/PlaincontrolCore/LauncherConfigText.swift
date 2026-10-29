@@ -56,7 +56,7 @@ extension LauncherConfigFile {
     /// cannot be read is left alone.
     @discardableResult
     public static func update(
-        at path: String = defaultPath, _ change: (inout LauncherConfig) -> Void
+        at path: String = defaultPath(), _ change: (inout LauncherConfig) -> Void
     ) throws(LauncherConfigError) -> Update {
         let exists = FileManager.default.fileExists(atPath: path)
         let text: String

@@ -28,7 +28,7 @@ cd plaincontrol
 make run
 ```
 
-The Xcode project is generated from `project.yml`; `make open` opens it, and `make help` lists every command. Development builds are a separate app, **Plaincontrol Dev**, with its own socket and history, so they never get in the way of an installed Plaincontrol (`make run` does quit it, as both would listen for the same key). Nothing is installed in your own Claude Code configuration.
+The Xcode project is generated from `project.yml`; `make open` opens it, and `make help` lists every command. Development builds are a separate app, **Plaincontrol Dev**, with its own socket, history and settings (`~/.config/plaincontrol-dev/settings.yaml`, starting at the defaults), so they never get in the way of an installed Plaincontrol (`make run` does quit it, as both would listen for the same key). Nothing is installed in your own Claude Code configuration.
 
 There are three ways to try a change, from fastest to most real:
 

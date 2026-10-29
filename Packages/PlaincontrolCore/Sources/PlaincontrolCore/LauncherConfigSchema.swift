@@ -7,13 +7,13 @@ extension LauncherConfigFile {
     static let schemaName = "settings.schema.json"
 
     /// Where the schema goes for the settings file at `path`.
-    public static func schemaPath(nextTo path: String = defaultPath) -> String {
+    public static func schemaPath(nextTo path: String = defaultPath()) -> String {
         ((path as NSString).deletingLastPathComponent as NSString).appendingPathComponent(schemaName)
     }
 
     /// Writes ``schema`` next to the settings file at `path`, so it matches the app that reads
     /// the file; a file that matches already is left alone.
-    public static func writeSchema(nextTo path: String = defaultPath) throws {
+    public static func writeSchema(nextTo path: String = defaultPath()) throws {
         let url = URL(filePath: schemaPath(nextTo: path))
         guard (try? String(contentsOf: url, encoding: .utf8)) != schema else { return }
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)

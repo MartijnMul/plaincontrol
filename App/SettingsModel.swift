@@ -29,7 +29,7 @@ final class SettingsModel {
     /// Reads the file again.
     func reload() {
         do {
-            let config = try LauncherConfigFile.load()
+            let config = try LauncherConfigFile.load(from: AppInfo.settingsPath)
             if config != self.config { self.config = config }
             problem = nil
         } catch {
@@ -40,7 +40,7 @@ final class SettingsModel {
     /// Applies `change` to the settings in the file as it is now, and lets the launcher know.
     func change(_ change: (inout LauncherConfig) -> Void) {
         do {
-            let update = try LauncherConfigFile.update(change)
+            let update = try LauncherConfigFile.update(at: AppInfo.settingsPath, change)
             config = update.config
             problem = nil
             if let backup = update.backup {
@@ -57,8 +57,8 @@ final class SettingsModel {
     /// Opens the file in the app that opens YAML files, creating it from the template first.
     func openFile() {
         do {
-            try LauncherConfigFile.createIfMissing()
-            NSWorkspace.shared.open(URL(filePath: LauncherConfigFile.defaultPath))
+            try LauncherConfigFile.createIfMissing(at: AppInfo.settingsPath)
+            NSWorkspace.shared.open(URL(filePath: AppInfo.settingsPath))
         } catch {
             log.error("Could not create the settings file: \(String(describing: error), privacy: .public)")
             NSSound.beep()
@@ -70,8 +70,8 @@ final class SettingsModel {
     func startWatching() {
         guard folderWatcher == nil else { return }
         reload()
-        folderWatcher = watch((LauncherConfigFile.defaultPath as NSString).deletingLastPathComponent)
-        fileWatcher = watch(LauncherConfigFile.defaultPath)
+        folderWatcher = watch((AppInfo.settingsPath as NSString).deletingLastPathComponent)
+        fileWatcher = watch(AppInfo.settingsPath)
     }
 
     func stopWatching() {
@@ -93,7 +93,7 @@ final class SettingsModel {
                 self.launcher.reloadSettings()
                 // A file that was replaced is a new file: watch that one from now on.
                 self.fileWatcher?.cancel()
-                self.fileWatcher = self.watch(LauncherConfigFile.defaultPath)
+                self.fileWatcher = self.watch(AppInfo.settingsPath)
             }
         }
         watcher.setCancelHandler { close(descriptor) }

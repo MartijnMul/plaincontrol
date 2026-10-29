@@ -1,4 +1,5 @@
 import Foundation
+import PlaincontrolHooks
 import Yams
 
 /// A modifier key that opens the launcher when held on its own.
@@ -114,9 +115,11 @@ public struct LauncherConfig: Sendable, Equatable {
 
 /// The settings file, which the user edits by hand or through the settings window.
 public enum LauncherConfigFile {
-    /// `~/.config/plaincontrol/settings.yaml`, shared by the release and development builds.
-    public static var defaultPath: String {
-        URL.homeDirectory.appending(path: ".config/plaincontrol/settings.yaml").path(percentEncoded: false)
+    /// `~/.config/plaincontrol/settings.yaml` for the release build. The development build keeps
+    /// its own in `~/.config/plaincontrol-dev`, so trying it out never changes the user's settings.
+    public static func defaultPath(appName: String = HookSocket.releaseAppName) -> String {
+        let folder = appName == HookSocket.developmentAppName ? "plaincontrol-dev" : "plaincontrol"
+        return URL.homeDirectory.appending(path: ".config/\(folder)/settings.yaml").path(percentEncoded: false)
     }
 
     /// The configuration in `text`; a project listed twice counts once.
@@ -196,7 +199,7 @@ public enum LauncherConfigFile {
     }
 
     /// Reads the configuration at `path`, or the defaults when there is no file yet.
-    public static func load(from path: String = defaultPath) throws(LauncherConfigError) -> LauncherConfig {
+    public static func load(from path: String = defaultPath()) throws(LauncherConfigError) -> LauncherConfig {
         guard FileManager.default.fileExists(atPath: path) else { return LauncherConfig() }
         let text: String
         do {
@@ -208,7 +211,7 @@ public enum LauncherConfigFile {
     }
 
     /// Creates the file at `path` from ``template``, unless it exists already.
-    public static func createIfMissing(at path: String = defaultPath) throws {
+    public static func createIfMissing(at path: String = defaultPath()) throws {
         guard !FileManager.default.fileExists(atPath: path) else { return }
         let url = URL(filePath: path)
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)

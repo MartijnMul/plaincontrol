@@ -53,7 +53,7 @@ final class LauncherController {
         usage = Self.load(ProjectUsage.self, from: Self.usageURL) ?? ProjectUsage()
         appUsage = Self.load(AppUsage.self, from: Self.appUsageURL) ?? AppUsage()
         do {
-            try LauncherConfigFile.writeSchema()
+            try LauncherConfigFile.writeSchema(nextTo: AppInfo.settingsPath)
         } catch {
             log.error("Could not write the settings schema: \(String(describing: error), privacy: .public)")
         }
@@ -306,12 +306,12 @@ final class LauncherController {
     }
 
     static var settingsFileForDisplay: String {
-        (LauncherConfigFile.defaultPath as NSString).abbreviatingWithTildeInPath
+        (AppInfo.settingsPath as NSString).abbreviatingWithTildeInPath
     }
 
     private func loadConfig() {
         do {
-            config = try LauncherConfigFile.load()
+            config = try LauncherConfigFile.load(from: AppInfo.settingsPath)
             problem = nil
         } catch {
             problem =

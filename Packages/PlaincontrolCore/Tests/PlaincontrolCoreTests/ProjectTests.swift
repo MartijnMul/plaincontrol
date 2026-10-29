@@ -1,4 +1,5 @@
 import Foundation
+import PlaincontrolHooks
 import Testing
 
 @testable import PlaincontrolCore
@@ -54,6 +55,13 @@ import Testing
         #expect(config.activeDays == 30)
         #expect(
             config.projects == [Project(path: "/work/my-app", name: "My App"), Project(path: "/elsewhere/website")])
+    }
+
+    @Test func keepsTheDevelopmentBuildsSettingsApart() {
+        #expect(LauncherConfigFile.defaultPath().hasSuffix("/.config/plaincontrol/settings.yaml"))
+        #expect(
+            LauncherConfigFile.defaultPath(appName: HookSocket.developmentAppName)
+                .hasSuffix("/.config/plaincontrol-dev/settings.yaml"))
     }
 
     @Test func readsTheLauncherSettings() throws {
