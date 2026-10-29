@@ -111,7 +111,8 @@ private struct WelcomeView: View {
                             Text(command).lineLimit(1).minimumScaleFactor(0.7)
                         }
                     }
-                    .font(.callout.monospaced())
+                    // Small enough for both to fit, so neither shrinks on its own.
+                    .font(.footnote.monospaced())
                     .textSelection(.enabled)
                 }
                 Step(
