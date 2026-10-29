@@ -2,7 +2,7 @@
 
 What changes in each release of Plaincontrol. Versions follow [Semantic Versioning](https://semver.org); while the version starts with 0, any release may change how Plaincontrol is installed or configured, and says so.
 
-## Unreleased
+## 0.4.0 — 2026-10-29
 
 - **Runs on macOS 26**: Plaincontrol needed macOS 27 and now runs on macOS 26 Tahoe too, the version most Macs have.
 - **Editing the settings as text moved to Advanced**: the settings file's location and Edit as Text… are no longer at the bottom of every settings tab, but on a tab of their own, Advanced. Restore Defaults… stays on each tab.
