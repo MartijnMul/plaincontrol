@@ -2,12 +2,12 @@
 
 What changes in each release of Plaincontrol. Versions follow [Semantic Versioning](https://semver.org); while the version starts with 0, any release may change how Plaincontrol is installed or configured, and says so.
 
-## Unreleased
+## 0.5.0 — 2026-10-29
 
-- **The General settings fit again**: since the Browser setting, the bottom of Settings › General ran into Restore Defaults… while the launcher had no Accessibility permission yet.
 - **A welcome window**: on its first start, Plaincontrol opens a window that walks you through setting it up, with each step checked off as it is done: allowing Accessibility, which it now asks for only from this window, after saying what it is for; installing the Claude Code plugin, with a button that copies the two commands; adding your projects, with zoxide's folders too when you have zoxide; and a first try of the launcher. Getting Started… in the menu opens it again.
 - **Your projects from the start**: the welcome window adds the projects you already worked on with Claude Code to the launcher, from Claude Code's own history, ranked by how often and how recently you had sessions in them. So the launcher lists your projects the first time you open it, also without zoxide. Only folder names and session dates are read, never what is in the sessions.
 - **Open at login**: the welcome window has a switch to open Plaincontrol when you log in.
+- **The General settings fit again**: since the Browser setting, the bottom of Settings › General ran into Restore Defaults… while the launcher had no Accessibility permission yet.
 
 ## 0.4.0 — 2026-10-29
 
