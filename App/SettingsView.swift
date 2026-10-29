@@ -12,7 +12,7 @@ struct SettingsView: View {
     var body: some View {
         TabView {
             Tab("General", systemImage: "gearshape") {
-                SettingsPage(model: model, height: updater.isAvailable ? 690 : 600, restore: GeneralSettings.restore) {
+                SettingsPage(model: model, height: updater.isAvailable ? 750 : 660, restore: GeneralSettings.restore) {
                     GeneralSettings(model: model, updater: updater)
                 }
             }
