@@ -61,7 +61,7 @@ So **4** then **5** starts Claude Code in the fourth project. Actions for apps y
 
 - **Projects** come from where you use Claude Code and the launcher, most used first, and from [zoxide](https://github.com/ajeetdsouza/zoxide) if you use it. Nothing to set up.
 - **The dev server** is `make dev`, the `dev` script in `package.json`, `make run` or `docker compose up`, whichever the project has first. Set your own per project in the settings. When the launcher knows the port, it asks whether to open the page in your browser too.
-- **Apps**: the terminal and editor you use most, until you choose others in the settings.
+- **Apps**: the terminal and editor you use most, and your default browser, until you choose others in the settings.
 - **New windows** go in columns across your screens, like a window manager, starting with the screen under the pointer. The settings set the columns, or turn it off.
 
 ## Settings

@@ -36,6 +36,7 @@ public enum HoldKey: String, CaseIterable, Sendable {
 /// holdKey: rightOption  # rightOption, rightCommand, rightControl or rightShift
 /// terminal: iTerm2      # the app for Claude Code, Terminal and the dev server, by name or bundle id
 /// editor: Cursor        # the app for Editor, by name or bundle identifier
+/// browser: Firefox      # the app for a dev server's page and an empty browser window
 /// claudeCommand: claude # what Claude Code runs in the new terminal window
 /// actionOrder: fixed    # fixed, selected (the most used selected) or usage (most used first)
 /// zoxide: true          # also list and rank by zoxide's folders, when it is installed
@@ -63,6 +64,9 @@ public struct LauncherConfig: Sendable, Equatable {
     /// The editor for the editor action, by app name or bundle identifier, or nil to pick one
     /// (``AppChoice``).
     public var editor: String?
+    /// The browser for a dev server's page and an empty browser window, by app name or bundle
+    /// identifier, or nil for the one macOS opens web pages with.
+    public var browser: String?
     /// The command the Claude Code action runs in the project's folder.
     public var claudeCommand = "claude"
     /// How a project's actions are ordered.
@@ -83,7 +87,7 @@ public struct LauncherConfig: Sendable, Equatable {
     public var windows: WindowLayout? = WindowLayout()
 
     public init(
-        holdKey: HoldKey = .rightOption, terminal: String? = nil, editor: String? = nil,
+        holdKey: HoldKey = .rightOption, terminal: String? = nil, editor: String? = nil, browser: String? = nil,
         claudeCommand: String = "claude", actionOrder: ActionOrder = .fixed, zoxide: Bool = true, roots: [String] = [],
         activeDays: Int = 90,
         projects: [Project] = [], devCommands: [String: String] = [:], windows: WindowLayout? = WindowLayout()
@@ -91,6 +95,7 @@ public struct LauncherConfig: Sendable, Equatable {
         self.holdKey = holdKey
         self.terminal = terminal
         self.editor = editor
+        self.browser = browser
         self.claudeCommand = claudeCommand
         self.actionOrder = actionOrder
         self.zoxide = zoxide
@@ -148,6 +153,7 @@ public enum LauncherConfigFile {
         }
         let terminal = file.terminal?.trimmingCharacters(in: .whitespaces)
         let editor = file.editor?.trimmingCharacters(in: .whitespaces)
+        let browser = file.browser?.trimmingCharacters(in: .whitespaces)
         var windows: WindowLayout? = WindowLayout()
         if case .on(false) = file.windows {
             windows = nil
@@ -183,7 +189,8 @@ public enum LauncherConfigFile {
         }
         return LauncherConfig(
             holdKey: holdKey, terminal: terminal?.isEmpty == false ? terminal : nil,
-            editor: editor?.isEmpty == false ? editor : nil, claudeCommand: claudeCommand, actionOrder: actionOrder,
+            editor: editor?.isEmpty == false ? editor : nil, browser: browser?.isEmpty == false ? browser : nil,
+            claudeCommand: claudeCommand, actionOrder: actionOrder,
             zoxide: file.zoxide ?? true, roots: file.roots ?? [], activeDays: file.activeDays ?? 90,
             projects: projects, devCommands: devCommands, windows: windows)
     }
@@ -220,6 +227,7 @@ public enum LauncherConfigFile {
         var holdKey: String?
         var terminal: String?
         var editor: String?
+        var browser: String?
         var claudeCommand: String?
         var actionOrder: String?
         var zoxide: Bool?

@@ -59,7 +59,7 @@ extension LauncherConfigFile.Setting {
         var schema: [String: Any]
         switch self {
         case .holdKey: schema = ["enum": HoldKey.allCases.map(\.rawValue)]
-        case .terminal, .editor: schema = ["type": ["string", "null"]]
+        case .terminal, .editor, .browser: schema = ["type": ["string", "null"]]
         case .claudeCommand: schema = ["type": "string", "pattern": "\\S"]
         case .actionOrder: schema = ["enum": ActionOrder.allCases.map(\.rawValue)]
         case .zoxide: schema = ["type": "boolean"]

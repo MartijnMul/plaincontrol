@@ -38,6 +38,8 @@ final class LauncherController {
     @ObservationIgnored private var editor: URL?
     /// The app the folder action opens, normally Finder.
     @ObservationIgnored private var folderApp: URL?
+    /// The browser for a dev server's page and an empty browser window.
+    @ObservationIgnored private var browser: URL?
     /// The terminal the Claude Code and terminal actions open.
     @ObservationIgnored private var terminal = AppChoice.Terminal(app: nil)
     @ObservationIgnored private let terminals = TerminalControllers.standard
@@ -132,16 +134,24 @@ final class LauncherController {
             AppChoice.editor(
                 ranked: appUsage.ranked(.editor), defaults: Apps.defaults(forTypes: AppChoice.codeFileTypes),
                 isInstalled: Apps.isInstalled)
+        case .browser: Apps.browser.flatMap(Apps.bundleIdentifier(of:))
         }
     }
 
-    /// The installed apps that could be the terminal or the editor, by bundle identifier: the
-    /// ones the user works in first, then the known ones.
+    /// The installed apps that could be the terminal, the editor or the browser, by bundle
+    /// identifier: the ones the user works in first, then the known ones; for the browser, the
+    /// apps that open web pages.
     func installedApps(_ role: AppRole) -> [String] {
         var seen = Set<String>()
-        return (appUsage.ranked(role) + role.knownApps.sorted()).filter {
+        let known = role == .browser ? Apps.browsers : role.knownApps.sorted()
+        return (appUsage.ranked(role) + known).filter {
             seen.insert($0).inserted && Apps.isInstalled($0)
         }
+    }
+
+    /// Whether the launcher can ask the browser with `bundleIdentifier` for a window of its own.
+    func canOpenWindows(inBrowser bundleIdentifier: String) -> Bool {
+        BrowserWindow.arguments(in: bundleIdentifier) != nil
     }
 
     /// Whether Plaincontrol can open windows in the terminal with `bundleIdentifier`.
@@ -169,7 +179,7 @@ final class LauncherController {
     func title(of app: AppWindow) -> String {
         switch app {
         case .terminal: terminalName ?? "Terminal"
-        case .browser: Apps.browser.map(Apps.name(of:)) ?? "Browser"
+        case .browser: browser.map(Apps.name(of:)) ?? "Browser"
         case .finder: folderApp.map(Apps.name(of:)) ?? "Finder"
         }
     }
@@ -187,7 +197,7 @@ final class LauncherController {
     func title(of choice: DevServerChoice) -> String {
         switch choice {
         case .server: title(of: .devServer)
-        case .serverAndPage: "\(title(of: .devServer)), page in \(Apps.browser.map(Apps.name(of:)) ?? "the browser")"
+        case .serverAndPage: "\(title(of: .devServer)), page in \(browser.map(Apps.name(of:)) ?? "the browser")"
         }
     }
 
@@ -231,6 +241,14 @@ final class LauncherController {
     /// and the ones macOS opens folders and code files with.
     private func chooseApps() {
         folderApp = Apps.folders
+        if let setting = config.browser {
+            browser = Apps.app(for: setting)
+            if browser == nil {
+                problem = "Cannot find the browser “\(setting)” set in \(Self.settingsFileForDisplay)."
+            }
+        } else {
+            browser = Apps.browser
+        }
         if let setting = config.editor {
             editor = Apps.app(for: setting)
             if editor == nil {
@@ -459,24 +477,6 @@ final class LauncherController {
         hide()
     }
 
-    /// Opens `folder` in the app the user opens folders with, moving its new window to `frame`.
-    private func openFolderWindow(_ folder: URL, frame: CGRect?) {
-        let app = folderApp.flatMap(Apps.bundleIdentifier(of:)) ?? Apps.finder
-        let mover = frame.map { WindowMover(bundleIdentifier: app, frame: $0) }
-        NSWorkspace.shared.open(folder)
-        mover?.moveNewWindow()
-    }
-
-    /// Opens the page at `port` on this Mac in the default browser, once a server listens there.
-    private func openPage(at port: Int) {
-        guard let url = URL(string: "http://localhost:\(port)") else { return }
-        Task {
-            guard await Task.detached(operation: { await DevServer.waitUntilListening(on: port) }).value else {
-                log.notice("Nothing listened on the dev server's port in time")
-                return
-            }
-            if !openBrowserWindow(url) { NSWorkspace.shared.open(url) }
-            log.info("Opened the dev server's page")
     /// Opens a window of the terminal at `frame`, moving it there once it shows when the terminal
     /// cannot place it itself.
     private func openTerminalWindow(
@@ -490,19 +490,44 @@ final class LauncherController {
         mover?.moveNewWindow()
     }
 
+    /// Opens `folder` in the app the user opens folders with, moving its new window to `frame`.
+    private func openFolderWindow(_ folder: URL, frame: CGRect?) {
+        let app = folderApp.flatMap(Apps.bundleIdentifier(of:)) ?? Apps.finder
+        let mover = frame.map { WindowMover(bundleIdentifier: app, frame: $0) }
+        NSWorkspace.shared.open(folder)
+        mover?.moveNewWindow()
+    }
+
+    /// Opens the page at `port` on this Mac in the browser, once a server listens there.
+    private func openPage(at port: Int) {
+        guard let url = URL(string: "http://localhost:\(port)") else { return }
+        Task {
+            guard await Task.detached(operation: { await DevServer.waitUntilListening(on: port) }).value else {
+                log.notice("Nothing listened on the dev server's port in time")
+                return
+            }
+            if !openBrowserWindow(url) {
+                if let browser {
+                    NSWorkspace.shared.open(
+                        [url], withApplicationAt: browser, configuration: .init(), completionHandler: nil)
+                } else {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+            log.info("Opened the dev server's page")
         }
     }
 
-    /// The default browser, and the arguments that open `url` in a new window of it, or an
+    /// The browser, and the arguments that open `url` in a new window of it, or an
     /// empty one; nil when it cannot be asked for a window.
     private func browserWindowArguments(for url: URL?) -> (browser: URL, id: String, arguments: [String])? {
-        guard let browser = Apps.browser, let id = Apps.bundleIdentifier(of: browser),
+        guard let browser, let id = Apps.bundleIdentifier(of: browser),
             let arguments = BrowserWindow.arguments(opening: url, in: id)
         else { return nil }
         return (browser, id, arguments)
     }
 
-    /// Opens `url`, or nothing, in a new window of the default browser, in a free column as a
+    /// Opens `url`, or nothing, in a new window of the browser, in a free column as a
     /// terminal window; false when the browser cannot be asked for a window.
     private func openBrowserWindow(_ url: URL?) -> Bool {
         guard let (browser, id, arguments) = browserWindowArguments(for: url) else { return false }

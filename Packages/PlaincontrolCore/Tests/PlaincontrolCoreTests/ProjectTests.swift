@@ -62,21 +62,24 @@ import Testing
             holdKey: rightCommand
             terminal: iTerm2
             editor: Cursor
+            browser: Firefox
             claudeCommand: claude --continue
             zoxide: false
             """)
         #expect(config.holdKey == .rightCommand)
         #expect(config.terminal == "iTerm2")
         #expect(config.editor == "Cursor")
+        #expect(config.browser == "Firefox")
         #expect(config.claudeCommand == "claude --continue")
         #expect(!config.zoxide)
     }
 
     @Test func usesTheDefaultsForMissingSettings() throws {
-        let config = try LauncherConfigFile.parse("editor: \"  \"\nterminal: \"\"\n")
+        let config = try LauncherConfigFile.parse("editor: \"  \"\nterminal: \"\"\nbrowser: \" \"\n")
         #expect(config.holdKey == .rightOption)
         #expect(config.terminal == nil)
         #expect(config.editor == nil)
+        #expect(config.browser == nil)
         #expect(config.claudeCommand == "claude")
         #expect(config.zoxide)
     }

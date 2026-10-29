@@ -7,6 +7,9 @@ public enum AppRole: String, Codable, Sendable {
     case terminal
     /// An editor, such as Visual Studio Code, Xcode or Zed.
     case editor
+    /// A web browser. The launcher does not count its use: it opens the one macOS opens web
+    /// pages with, unless the settings name another.
+    case browser
 
     /// Terminal apps, by bundle identifier.
     static let terminals: Set<String> = [
@@ -44,11 +47,12 @@ public enum AppRole: String, Codable, Sendable {
     ]
 
     /// The apps known to be of this kind, by bundle identifier; JetBrains IDEs are not
-    /// among them, as they are known by their prefix.
+    /// among them, as they are known by their prefix, nor browsers, which macOS knows.
     public var knownApps: Set<String> {
         switch self {
         case .terminal: Self.terminals
         case .editor: Self.editors
+        case .browser: []
         }
     }
 

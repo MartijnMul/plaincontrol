@@ -105,7 +105,8 @@ extension LauncherConfigFile {
 
     /// A setting in the file, in the template's order.
     enum Setting: String, CaseIterable {
-        case holdKey, terminal, editor, claudeCommand, actionOrder, zoxide, roots, activeDays, projects, windows
+        case holdKey, terminal, editor, browser, claudeCommand, actionOrder, zoxide, roots, activeDays, projects,
+            windows
 
         var key: String { rawValue }
 
@@ -128,6 +129,11 @@ extension LauncherConfigFile {
                     "# The editor, by app name (such as Cursor or Zed) or bundle identifier. Without",
                     "# one, it is the editor you use most lately, such as Xcode or Zed; before you have used",
                     "# one, the app your Mac opens code files with, or else Visual Studio Code.",
+                ]
+            case .browser:
+                [
+                    "# The browser for a dev server's page and an empty browser window, by app name or",
+                    "# bundle identifier. Without one, it is your Mac's default browser.",
                 ]
             case .claudeCommand:
                 ["# What Claude Code runs in a new terminal window in the project's folder."]
@@ -185,6 +191,7 @@ extension LauncherConfigFile {
             case .holdKey: ["holdKey: \(config.holdKey.rawValue)"]
             case .terminal: config.terminal.map { ["terminal: \(Self.scalar($0))"] }
             case .editor: config.editor.map { ["editor: \(Self.scalar($0))"] }
+            case .browser: config.browser.map { ["browser: \(Self.scalar($0))"] }
             case .claudeCommand: ["claudeCommand: \(Self.scalar(config.claudeCommand))"]
             case .actionOrder: ["actionOrder: \(config.actionOrder.rawValue)"]
             case .zoxide: ["zoxide: \(config.zoxide)"]
@@ -213,6 +220,7 @@ extension LauncherConfigFile {
             switch self {
             case .terminal: config.terminal == nil
             case .editor: config.editor == nil
+            case .browser: config.browser == nil
             case .roots: config.roots.isEmpty
             case .projects: config.projects.isEmpty
             case .holdKey, .claudeCommand, .actionOrder, .zoxide, .activeDays, .windows: false
@@ -224,6 +232,7 @@ extension LauncherConfigFile {
             switch self {
             case .terminal: ["# terminal: iTerm2"]
             case .editor: ["# editor: Visual Studio Code"]
+            case .browser: ["# browser: Google Chrome"]
             case .roots: ["#  - ~/Developer"]
             case .projects:
                 ["#  - name: My App", "#    path: ~/Developer/my-app", "#    devCommand: uv run fastapi dev"]
@@ -237,6 +246,7 @@ extension LauncherConfigFile {
             case .holdKey: a.holdKey == b.holdKey
             case .terminal: a.terminal == b.terminal
             case .editor: a.editor == b.editor
+            case .browser: a.browser == b.browser
             case .claudeCommand: a.claudeCommand == b.claudeCommand
             case .actionOrder: a.actionOrder == b.actionOrder
             case .zoxide: a.zoxide == b.zoxide

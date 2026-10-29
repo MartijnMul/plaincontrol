@@ -52,6 +52,12 @@ enum Apps {
         URL(string: "http://localhost").flatMap(NSWorkspace.shared.urlForApplication(toOpen:))
     }
 
+    /// Every app that can open web pages, by bundle identifier.
+    static var browsers: [String] {
+        guard let page = URL(string: "http://localhost") else { return [] }
+        return NSWorkspace.shared.urlsForApplications(toOpen: page).compactMap(bundleIdentifier(of:))
+    }
+
     /// The name the app with `bundleIdentifier` shows, or the identifier when it is not
     /// installed.
     static func name(ofApp bundleIdentifier: String) -> String {

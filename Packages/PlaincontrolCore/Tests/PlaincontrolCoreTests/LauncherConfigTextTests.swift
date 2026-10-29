@@ -6,7 +6,7 @@ import Testing
 @Suite struct LauncherConfigRenderTests {
     /// A configuration that sets every setting away from its default.
     static let everything = LauncherConfig(
-        holdKey: .rightShift, terminal: "com.googlecode.iterm2", editor: "Visual Studio Code",
+        holdKey: .rightShift, terminal: "com.googlecode.iterm2", editor: "Visual Studio Code", browser: "Firefox",
         claudeCommand: "claude --continue", actionOrder: .usage, zoxide: false,
         roots: ["~/Developer", "/work/clients"], activeDays: 30,
         projects: [
@@ -63,6 +63,7 @@ import Testing
         case .holdKey: config.holdKey = source.holdKey
         case .terminal: config.terminal = source.terminal
         case .editor: config.editor = source.editor
+        case .browser: config.browser = source.browser
         case .claudeCommand: config.claudeCommand = source.claudeCommand
         case .actionOrder: config.actionOrder = source.actionOrder
         case .zoxide: config.zoxide = source.zoxide

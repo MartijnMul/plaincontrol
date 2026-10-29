@@ -208,7 +208,8 @@ private struct GeneralSettings: View {
         isDone: { config in
             let defaults = SettingsModel.defaults
             return config.holdKey == defaults.holdKey && config.terminal == defaults.terminal
-                && config.editor == defaults.editor && config.claudeCommand == defaults.claudeCommand
+                && config.editor == defaults.editor && config.browser == defaults.browser
+                && config.claudeCommand == defaults.claudeCommand
                 && config.actionOrder == defaults.actionOrder
         },
         apply: { config in
@@ -216,6 +217,7 @@ private struct GeneralSettings: View {
             config.holdKey = defaults.holdKey
             config.terminal = defaults.terminal
             config.editor = defaults.editor
+            config.browser = defaults.browser
             config.claudeCommand = defaults.claudeCommand
             config.actionOrder = defaults.actionOrder
         })
@@ -236,6 +238,7 @@ private struct GeneralSettings: View {
             }
             AppPicker(title: "Terminal", role: .terminal, setting: \.terminal, model: model)
             AppPicker(title: "Editor", role: .editor, setting: \.editor, model: model)
+            AppPicker(title: "Browser", role: .browser, setting: \.browser, model: model)
             SettingRow(
                 title: "Claude Code command", note: "What Claude Code in a terminal runs in the project's folder.",
                 isDefault: model.isDefault(\.claudeCommand), defaultValue: defaults.claudeCommand,
@@ -303,8 +306,8 @@ private struct GeneralSettings: View {
     }
 }
 
-/// A choice of app for the terminal or the editor: automatic, one of those found on this Mac,
-/// or any other.
+/// A choice of app for the terminal, the editor or the browser: automatic, one of those found
+/// on this Mac, or any other.
 private struct AppPicker: View {
     let title: String
     let role: AppRole
@@ -327,7 +330,7 @@ private struct AppPicker: View {
 
         let reset = { model.change { $0[keyPath: setting] = nil } }
         return SettingRow(
-            title: title, note: role == .terminal ? terminalNote(for: current == Self.automatic ? nil : current) : nil,
+            title: title, note: note(for: current == Self.automatic ? nil : current),
             isDefault: value == nil, defaultValue: automatic, reset: reset
         ) {
             Picker(title, selection: Binding(get: { current }, set: choose)) {
@@ -349,6 +352,21 @@ private struct AppPicker: View {
         }
         let name = Apps.name(ofApp: app)
         return role == .terminal && !model.launcher.canOpenWindows(in: app) ? "\(name) (can't open windows yet)" : name
+    }
+
+    /// What to know about the chosen app, or about the one chosen without a setting.
+    private func note(for app: String?) -> String? {
+        switch role {
+        case .terminal: terminalNote(for: app)
+        case .editor: nil
+        case .browser: browserNote(for: app ?? model.launcher.automaticApp(.browser))
+        }
+    }
+
+    /// What to know about the browser `app`: whether it opens a window of its own.
+    private func browserNote(for app: String?) -> String? {
+        guard let app, Apps.isInstalled(app), !model.launcher.canOpenWindows(inBrowser: app) else { return nil }
+        return "\(Apps.name(ofApp: app)) can't be asked for a new window, so a dev server's page opens as a link would."
     }
 
     /// What to know about the terminal `app`, or about the one chosen without a setting.
