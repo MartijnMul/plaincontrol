@@ -11,7 +11,7 @@ export PLAINCONTROL_SOCKET := $(HOME)/Library/Application Support/Plaincontrol D
 
 .DEFAULT_GOAL := help
 
-.PHONY: help generate build test lint format check open run hook simulate dev-claude release clean
+.PHONY: help generate build test lint format check open run fresh hook simulate dev-claude release clean
 
 help: ## List the available commands
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-11s %s\n", $$1, $$2}'
@@ -45,6 +45,9 @@ run: build ## Build and start the development app, quitting the release app
 	-pkill -x "Plaincontrol Dev"
 	-pkill -x Plaincontrol
 	env -i open "$(DEV_APP)"
+
+fresh: build ## Start the development app as on its first start (NEW=1: in an empty home folder)
+	scripts/fresh-dev.sh "$(DEV_APP)"
 
 hook: ## Build the hook command into the plugin
 	swift build --package-path $(CORE) -c release --product plaincontrol-hook
