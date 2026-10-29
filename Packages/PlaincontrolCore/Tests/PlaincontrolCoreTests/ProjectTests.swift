@@ -294,6 +294,19 @@ import Testing
         #expect(item(items, "/work/old")?.project.name == "Old Friend")
     }
 
+    @Test func findsTheListedProjectsTheSettingsDoNotName() {
+        var usage = ProjectUsage()
+        usage.record("/work/often", at: now - day)
+        usage.record("/work/often", at: now - day)
+        usage.record("/work/once", at: now - day)
+        let config = LauncherConfig(projects: [Project(path: "/work/named")])
+        let folders =
+            ["/work/named", "/work/once", "/work/often"].map { ProjectFolder(path: $0, lastChange: now) }
+            + [ProjectFolder(path: "/work/stale", lastChange: now - 200 * day)]
+        let items = ProjectCatalog.items(config: config, folders: folders, usage: usage, sessions: [], now: now)
+        #expect(ProjectCatalog.found(in: items, config: config).map(\.path) == ["/work/often", "/work/once"])
+    }
+
     @Test func makesAStaleFolderActiveAgainOnceUsed() {
         var usage = ProjectUsage()
         usage.record("/work/stale", at: now - day)

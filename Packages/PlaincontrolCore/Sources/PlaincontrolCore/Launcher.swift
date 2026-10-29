@@ -334,6 +334,11 @@ public struct Launcher: Sendable {
         return Array(candidates.sorted(by: ranksBefore).prefix(visibleLimit))
     }
 
+    /// Every project listed without a search, in the launcher's order, beyond the rows it shows.
+    static func listed(_ items: [LauncherItem]) -> [LauncherItem] {
+        items.filter(\.isActive).sorted(by: ranksBefore)
+    }
+
     private static func ranksBefore(_ a: LauncherItem, _ b: LauncherItem) -> Bool {
         if a.group != b.group { return a.group < b.group }
         if a.score != b.score { return a.score > b.score }

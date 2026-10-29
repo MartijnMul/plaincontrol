@@ -99,4 +99,11 @@ public enum ProjectCatalog {
                 lastActivity: lastActivity)
         }
     }
+
+    /// The projects the launcher lists without a search that the settings do not name, in the
+    /// launcher's order: the ones it found itself.
+    public static func found(in items: [LauncherItem], config: LauncherConfig) -> [Project] {
+        let configured = Set(config.projects.map { $0.resolvedPath.lowercased() })
+        return Launcher.listed(items).map(\.project).filter { !configured.contains($0.resolvedPath.lowercased()) }
+    }
 }

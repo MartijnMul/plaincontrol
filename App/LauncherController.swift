@@ -300,6 +300,11 @@ final class LauncherController {
         }
     }
 
+    /// The projects the launcher lists that the settings do not name, in its order.
+    func foundProjects() -> [Project] {
+        ProjectCatalog.found(in: items(), config: config)
+    }
+
     private func items() -> [LauncherItem] {
         ProjectCatalog.items(
             config: config, folders: folders, zoxide: config.zoxide ? zoxide : [], usage: usage, sessions: sessions())

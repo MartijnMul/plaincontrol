@@ -543,6 +543,36 @@ private struct ProjectSettings: View {
                 )
             }
             Section {
+                let found = model.launcher.foundProjects()
+                List(found) { project in
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text(project.name)
+                            Text((project.path as NSString).abbreviatingWithTildeInPath)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .truncationMode(.head)
+                        }
+                        .help(project.path)
+                        Spacer()
+                        Button("Always List") {
+                            model.change { $0.projects.append(Project(path: project.path)) }
+                        }
+                    }
+                }
+                .frame(height: 150)
+                .overlay {
+                    if found.isEmpty {
+                        Text("None yet").foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Found by the launcher")
+                Text(
+                    "Listed while you work in them: from your sessions, the launcher, zoxide and the folders below. Always List keeps one listed."
+                )
+            }
+            Section {
                 List(config.roots, id: \.self, selection: $selectedRoots) { root in
                     Text((root as NSString).abbreviatingWithTildeInPath).help(root)
                 }
