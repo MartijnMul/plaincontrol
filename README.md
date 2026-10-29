@@ -66,7 +66,7 @@ So **4** then **5** starts Claude Code in the fourth project. Actions for apps y
 
 ## Settings
 
-Settings… in the menu (Command-comma). Every setting shows whether it is at its default and can be reset. They are stored in `~/.config/plaincontrol/settings.yaml`, which you can also edit by hand or keep in your dotfiles; the window keeps your comments, and a schema next to it gives completion in editors with the YAML language server.
+Settings… in the menu (Command-comma). Every setting shows whether it is at its default and can be reset. They are stored in `~/.config/plaincontrol/settings.yaml`, which you can also edit by hand, from Edit as Text… in Settings › Advanced, or keep in your dotfiles; the window keeps your comments, and a schema next to it gives completion in editors with the YAML language server.
 
 <p align="center"><img src="docs/images/settings.png" width="473" alt="The settings window's General tab: the key that opens the launcher, the terminal, the editor, the Claude Code command and the order of a project's actions, each marked Default."></p>
 

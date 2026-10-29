@@ -4,6 +4,7 @@ What changes in each release of Plaincontrol. Versions follow [Semantic Versioni
 
 ## Unreleased
 
+- **Editing the settings as text moved to Advanced**: the settings file's location and Edit as Text… are no longer at the bottom of every settings tab, but on a tab of their own, Advanced. Restore Defaults… stays on each tab.
 - **zoxide's switch greys out without zoxide**: in Settings › Projects, Use zoxide's folders can no longer be switched while zoxide is not installed, as it has no effect then.
 - **See the projects the launcher found**: Settings › Projects lists, below your own projects, the ones the launcher lists because you work in them, from your sessions, the launcher, zoxide and your folders with projects, in the launcher's order. Always List moves one into your projects, so it stays listed.
 - **Choose the browser**: Settings › General has a Browser setting, `browser` in `settings.yaml`, for the dev server's page and the empty browser window from the launcher. Without one, it is your Mac's default browser, as before. The setting lists every app on your Mac that opens web pages, and says when the chosen one can't be asked for a window of its own.

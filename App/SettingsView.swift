@@ -26,6 +26,11 @@ struct SettingsView: View {
                     WindowSettings(model: model)
                 }
             }
+            Tab("Advanced", systemImage: "gearshape.2") {
+                SettingsPage(model: model, height: 220) {
+                    AdvancedSettings(model: model)
+                }
+            }
         }
         .frame(width: 600)
         .onAppear { model.startWatching() }
@@ -54,13 +59,13 @@ private struct Restore {
     let apply: (inout LauncherConfig) -> Void
 }
 
-/// A tab's settings, greyed out while the file cannot be read, with the way to edit the file
-/// as text and to restore the tab's defaults below them.
+/// A tab's settings, greyed out while the file cannot be read, with the way to restore the
+/// tab's defaults below them, if it has any.
 private struct SettingsPage<Content: View>: View {
     let model: SettingsModel
     /// The tab's height, so every setting shows without scrolling.
     let height: CGFloat
-    let restore: Restore
+    var restore: Restore?
     @ViewBuilder let content: Content
     @State private var isConfirmingRestore = false
 
@@ -77,22 +82,21 @@ private struct SettingsPage<Content: View>: View {
                 .padding([.horizontal, .top], 20)
             }
             content.disabled(model.problem != nil)
-            HStack {
-                Text("Saved in \(LauncherController.settingsFileForDisplay)")
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Button("Restore Defaults…") { isConfirmingRestore = true }
-                    .disabled(model.problem != nil || restore.isDone(model.config))
-                Button("Edit as Text…") { model.openFile() }
+            if let restore {
+                HStack {
+                    Spacer()
+                    Button("Restore Defaults…") { isConfirmingRestore = true }
+                        .disabled(model.problem != nil || restore.isDone(model.config))
+                }
+                .padding([.horizontal, .bottom], 20)
             }
-            .padding([.horizontal, .bottom], 20)
         }
         .frame(height: height)
         .background(NoInitialFocus())
         .confirmationDialog("Restore the defaults on this tab?", isPresented: $isConfirmingRestore) {
-            Button("Restore Defaults") { model.change(restore.apply) }
+            Button("Restore Defaults") { restore.map { model.change($0.apply) } }
         } message: {
-            if let keeps = restore.keeps { Text(keeps) }
+            if let keeps = restore?.keeps { Text(keeps) }
         }
     }
 }
@@ -634,6 +638,34 @@ private struct ProjectSettings: View {
         panel.prompt = "Add"
         guard panel.runModal() == .OK else { return [] }
         return panel.urls.map { ($0.path(percentEncoded: false) as NSString).standardizingPath }
+    }
+}
+
+// MARK: Advanced
+
+/// Where the settings are kept, and the way to edit them as text.
+private struct AdvancedSettings: View {
+    let model: SettingsModel
+
+    var body: some View {
+        Form {
+            Section {
+                LabeledContent {
+                    Button("Edit as Text…") { model.openFile() }
+                } label: {
+                    Text("Settings file")
+                    Text(LauncherController.settingsFileForDisplay)
+                }
+            } footer: {
+                Text(
+                    "The settings in this window are kept in this file, which you can also edit by hand or keep in your dotfiles. The window keeps your comments and follows the changes you save."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .formStyle(.grouped)
     }
 }
 
