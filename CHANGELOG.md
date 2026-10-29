@@ -4,6 +4,7 @@ What changes in each release of Plaincontrol. Versions follow [Semantic Versioni
 
 ## Unreleased
 
+- **zoxide's switch greys out without zoxide**: in Settings › Projects, Use zoxide's folders can no longer be switched while zoxide is not installed, as it has no effect then.
 - **See the projects the launcher found**: Settings › Projects lists, below your own projects, the ones the launcher lists because you work in them, from your sessions, the launcher, zoxide and your folders with projects, in the launcher's order. Always List moves one into your projects, so it stays listed.
 - **Choose the browser**: Settings › General has a Browser setting, `browser` in `settings.yaml`, for the dev server's page and the empty browser window from the launcher. Without one, it is your Mac's default browser, as before. The setting lists every app on your Mac that opens web pages, and says when the chosen one can't be asked for a window of its own.
 - **Terminal works too**: sessions that run in macOS's own Terminal app now jump to their tab when you click them in the menu or their notification, and the launcher opens its terminal windows in Terminal when that is the terminal you use, or the one the settings name. Before, Terminal sessions were listed but could not be opened, and the launcher's terminal actions said that only iTerm2 was supported. The first time, macOS asks whether Plaincontrol may control Terminal. Sessions that were already running before this update jump once they report again, on their next prompt.

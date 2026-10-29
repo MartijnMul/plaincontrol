@@ -600,15 +600,17 @@ private struct ProjectSettings: View {
                 Text("Their subfolders are listed while you work in them, and found by a search after that.")
             }
             Section {
+                let hasZoxide = Zoxide.executable() != nil
                 SettingRow(
                     title: "Use zoxide's folders",
-                    note: Zoxide.executable() == nil
-                        ? "zoxide is not installed, so this has no effect."
-                        : "Also list the folders you visit most with zoxide. Its data is only read.",
+                    note: hasZoxide
+                        ? "Also list the folders you visit most with zoxide. Its data is only read."
+                        : "zoxide is not installed, so this has no effect.",
                     isDefault: model.isDefault(\.zoxide), defaultValue: SettingsModel.defaults.zoxide ? "On" : "Off",
                     reset: { model.reset(\.zoxide) }
                 ) {
                     Toggle("Use zoxide's folders", isOn: model.binding(\.zoxide)).toggleStyle(.switch)
+                        .disabled(!hasZoxide)
                 }
             }
         }
