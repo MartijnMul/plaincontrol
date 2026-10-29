@@ -2,7 +2,7 @@
 
 What changes in each release of Plaincontrol. Versions follow [Semantic Versioning](https://semver.org); while the version starts with 0, any release may change how Plaincontrol is installed or configured, and says so.
 
-## Unreleased
+## 0.3.1 — 2026-10-29
 
 - **Claude Code Desktop opens in the project again**: since version 4.29 of the Claude desktop app, the launcher's Claude Code Desktop action opened a new window without the project's folder. It now finds the folder button in the new window again, whichever language the app is in.
 
