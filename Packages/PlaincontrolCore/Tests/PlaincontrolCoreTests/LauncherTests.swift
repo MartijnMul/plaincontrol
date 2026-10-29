@@ -103,6 +103,35 @@ import Testing
         #expect(press(.character("2"), on: &launcher) == [.stay])
     }
 
+    @Test func asksWhatTheDevServerOpens() {
+        var launcher = Launcher(items: [LauncherItem(project: app)]) { _ in
+            [.claude, .devServer]
+        } devServerChoices: {
+            _ in
+            DevServerChoice.allCases
+        }
+        _ = press(.enter, on: &launcher)
+        #expect(press(.character("2"), on: &launcher) == [.stay])
+        #expect(launcher.screen == .devServer(app))
+        #expect(launcher.devServerChoices == [.server, .serverAndPage])
+        #expect(press(.enter, on: &launcher) == [.run(.devServer, app)])
+        #expect(press(.down, .right, on: &launcher) == [.stay, .runDevServerWithPage(app)])
+        #expect(press(.character("1"), on: &launcher) == [.run(.devServer, app)])
+        #expect(press(.character("2"), on: &launcher) == [.runDevServerWithPage(app)])
+        #expect(press(.escape, on: &launcher) == [.stay])
+        #expect(launcher.screen == .project(app))
+        #expect(launcher.selectedAction == .devServer)
+    }
+
+    @Test func runsTheDevServerWithoutAskingWhenItHasNoPage() {
+        var launcher = Launcher(items: [LauncherItem(project: app)]) { _ in
+            [.devServer]
+        } devServerChoices: { _ in
+            []
+        }
+        #expect(press(.enter, .character("1"), on: &launcher) == [.stay, .run(.devServer, app)])
+    }
+
     @Test func runsTheSelectedActionWithReturnOrRight() {
         var launcher = makeLauncher([app], actions: [.claude, .finder, .editor])
         _ = press(.enter, on: &launcher)

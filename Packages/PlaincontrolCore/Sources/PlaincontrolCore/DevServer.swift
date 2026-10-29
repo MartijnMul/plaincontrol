@@ -24,6 +24,81 @@ public enum DevServer {
             makefile: makefile, packageJSON: try? Data(contentsOf: url.appending(path: "package.json")), files: files)
     }
 
+    /// The port the development server of the project in `folder` listens on, to open its page:
+    /// one that `command` or the `dev` script in `package.json` names, such as `next dev -p
+    /// 3210`, or else the default port of the framework the script runs.
+    public static func port(in folder: String, command: String?) -> Int? {
+        let url = URL(filePath: folder, directoryHint: .isDirectory).appending(path: "package.json")
+        return port(command: command, packageJSON: try? Data(contentsOf: url))
+    }
+
+    static func port(command: String?, packageJSON: Data?) -> Int? {
+        let script = packageJSON.flatMap { try? JSONDecoder().decode(Package.self, from: $0) }?.scripts?["dev"]
+        let words = [command, script].compactMap { $0?.split(whereSeparator: \.isWhitespace).map(String.init) }
+        for words in words {
+            if let port = namedPort(in: words) { return port }
+        }
+        for words in words {
+            if let port = words.lazy.compactMap({ defaultPorts[($0 as NSString).lastPathComponent] }).first {
+                return port
+            }
+        }
+        return nil
+    }
+
+    /// The port a command names: `-p 3210`, `--port 3210`, `--port=3210` or `PORT=3210`.
+    static func namedPort(in words: [String]) -> Int? {
+        for (index, word) in words.enumerated() {
+            let value: Substring?
+            if ["-p", "--port"].contains(word) {
+                value = words.indices.contains(index + 1) ? words[index + 1][...] : nil
+            } else if let equals = word.firstIndex(of: "="), ["-p", "--port", "PORT"].contains(word[..<equals]) {
+                value = word[word.index(after: equals)...]
+            } else {
+                value = nil
+            }
+            if let port = value.flatMap({ Int($0) }), (1...65535).contains(port) { return port }
+        }
+        return nil
+    }
+
+    /// The ports frameworks' dev servers take by default, by the command that starts them.
+    static let defaultPorts = [
+        "next": 3000, "nuxt": 3000, "nuxi": 3000, "vite": 5173, "react-router": 5173, "astro": 4321, "ng": 4200,
+    ]
+
+    /// Waits until something on this Mac listens on `port`, and says whether it did in time.
+    public static func waitUntilListening(
+        on port: Int, attempts: Int = 240, interval: Duration = .milliseconds(500),
+        isListening: @Sendable (Int) -> Bool = isListening(on:)
+    ) async -> Bool {
+        for attempt in 0..<attempts {
+            if attempt > 0 {
+                do { try await Task.sleep(for: interval) } catch { return false }
+            }
+            if isListening(port) { return true }
+        }
+        return false
+    }
+
+    /// Whether something on this Mac accepts connections on `port`, over IPv4 or IPv6.
+    public static func isListening(on port: Int) -> Bool {
+        ["127.0.0.1", "::1"].contains { connects(to: $0, port: port) }
+    }
+
+    private static func connects(to host: String, port: Int) -> Bool {
+        var hints = addrinfo()
+        hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV
+        hints.ai_socktype = SOCK_STREAM
+        var result: UnsafeMutablePointer<addrinfo>?
+        guard getaddrinfo(host, String(port), &hints, &result) == 0, let address = result?.pointee else { return false }
+        defer { freeaddrinfo(result) }
+        let socket = Darwin.socket(address.ai_family, address.ai_socktype, address.ai_protocol)
+        guard socket >= 0 else { return false }
+        defer { close(socket) }
+        return connect(socket, address.ai_addr, address.ai_addrlen) == 0
+    }
+
     /// The Compose files Docker Compose looks for, in its order.
     static let composeFiles = ["compose.yaml", "compose.yml", "docker-compose.yaml", "docker-compose.yml"]
 

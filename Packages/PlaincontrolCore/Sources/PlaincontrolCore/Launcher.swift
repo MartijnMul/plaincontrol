@@ -33,6 +33,14 @@ public enum ProjectAction: String, CaseIterable, Codable, Sendable {
     }
 }
 
+/// What the dev server action asks next: whether to open the server's page too.
+public enum DevServerChoice: CaseIterable, Sendable {
+    /// Only the dev server, in a new terminal window.
+    case server
+    /// The dev server, and its page in a new tab of the browser once the server listens.
+    case serverAndPage
+}
+
 /// How the launcher orders a project's actions, set as `actionOrder` in the settings.
 public enum ActionOrder: String, CaseIterable, Sendable {
     /// Always the order of ``ProjectAction``, with the first action selected.
@@ -65,12 +73,15 @@ public enum ActionOrder: String, CaseIterable, Sendable {
 ///
 /// An open project lists its actions: Up and Down select one, Return or Right runs it, and a
 /// digit runs the action in that row. Left or Escape goes back to the list; Escape on the list
-/// without a search closes the launcher.
+/// without a search closes the launcher. The dev server asks next whether to open its page too,
+/// in the same way, when the project offers that; Left or Escape goes back to the actions.
 public struct Launcher: Sendable {
     /// The actions a project offers, in the order shown.
     public typealias Actions = @Sendable (Project) -> [ProjectAction]
     /// The action selected when a project opens with these actions, or nil for the first one.
     public typealias Selection = @Sendable (Project, [ProjectAction]) -> ProjectAction?
+    /// What the dev server action of a project asks next; with fewer than two choices, it runs.
+    public typealias DevServerChoices = @Sendable (Project) -> [DevServerChoice]
 
     public enum Key: Equatable, Sendable {
         case up, down, left, right, enter, escape, backspace
@@ -80,6 +91,8 @@ public struct Launcher: Sendable {
     public enum Screen: Equatable, Sendable {
         case projects
         case project(Project)
+        /// What the dev server of the project should open.
+        case devServer(Project)
     }
 
     /// What should happen after a key press.
@@ -87,6 +100,8 @@ public struct Launcher: Sendable {
         case stay
         case close
         case run(ProjectAction, Project)
+        /// Start the project's dev server and open its page.
+        case runDevServerWithPage(Project)
         /// Find a folder to add as a project.
         case findFolder
     }
@@ -102,8 +117,13 @@ public struct Launcher: Sendable {
     public private(set) var items: [LauncherItem]
     private let actionsOf: Actions
     private let selectionOf: Selection
+    private let devServerChoicesOf: DevServerChoices
     /// The actions of the open project, in the order shown.
     public private(set) var actions: [ProjectAction] = []
+    /// What the dev server of the open project asks, while it asks.
+    public private(set) var devServerChoices: [DevServerChoice] = []
+    /// The selected one of ``devServerChoices``.
+    public private(set) var choiceSelection = 0
     /// What the user typed to search.
     public private(set) var query = ""
     /// The selected row of ``visible``.
@@ -122,12 +142,15 @@ public struct Launcher: Sendable {
     /// - Parameters:
     ///   - actions: The actions a project offers, asked each time it opens.
     ///   - selection: The action selected when a project opens.
+    ///   - devServerChoices: What the dev server action asks next, asked each time it runs.
     public init(
-        items: [LauncherItem], actions: @escaping Actions, selection: @escaping Selection = { _, _ in nil }
+        items: [LauncherItem], actions: @escaping Actions, selection: @escaping Selection = { _, _ in nil },
+        devServerChoices: @escaping DevServerChoices = { _ in [] }
     ) {
         self.items = items
         actionsOf = actions
         selectionOf = selection
+        devServerChoicesOf = devServerChoices
         visible = Self.rank(items, query: query)
     }
 
@@ -160,6 +183,10 @@ public struct Launcher: Sendable {
         actions.indices.contains(actionSelection) ? actions[actionSelection] : nil
     }
 
+    public var selectedChoice: DevServerChoice? {
+        devServerChoices.indices.contains(choiceSelection) ? devServerChoices[choiceSelection] : nil
+    }
+
     public mutating func press(_ key: Key) -> Outcome {
         switch (screen, key) {
         case (.projects, .up):
@@ -190,17 +217,49 @@ public struct Launcher: Sendable {
         case (.project, .down):
             actionSelection = min(actionSelection + 1, max(actions.count - 1, 0))
         case (.project(let project), .enter), (.project(let project), .right):
-            if let selectedAction { return .run(selectedAction, project) }
+            if let selectedAction { return run(selectedAction, on: project) }
         case (.project, .left), (.project, .escape):
             screen = .projects
         case (.project(let project), .character(let character)):
             if let row = Self.row(for: character), actions.indices.contains(row) {
-                return .run(actions[row], project)
+                return run(actions[row], on: project)
             }
-        case (.projects, .left), (.project, .backspace):
+        case (.devServer, .up):
+            choiceSelection = max(choiceSelection - 1, 0)
+        case (.devServer, .down):
+            choiceSelection = min(choiceSelection + 1, max(devServerChoices.count - 1, 0))
+        case (.devServer(let project), .enter), (.devServer(let project), .right):
+            if let selectedChoice { return Self.outcome(of: selectedChoice, on: project) }
+        case (.devServer(let project), .left), (.devServer(let project), .escape):
+            screen = .project(project)
+        case (.devServer(let project), .character(let character)):
+            if let row = Self.row(for: character), devServerChoices.indices.contains(row) {
+                return Self.outcome(of: devServerChoices[row], on: project)
+            }
+        case (.projects, .left), (.project, .backspace), (.devServer, .backspace):
             break
         }
         return .stay
+    }
+
+    /// Runs `action`, or asks first what the dev server should open.
+    private mutating func run(_ action: ProjectAction, on project: Project) -> Outcome {
+        guard action == .devServer else { return .run(action, project) }
+        let choices = devServerChoicesOf(project)
+        guard choices.count > 1 else { return .run(action, project) }
+        // Back from the question, the dev server stays selected.
+        actionSelection = actions.firstIndex(of: action) ?? actionSelection
+        devServerChoices = choices
+        choiceSelection = 0
+        screen = .devServer(project)
+        return .stay
+    }
+
+    private static func outcome(of choice: DevServerChoice, on project: Project) -> Outcome {
+        switch choice {
+        case .server: .run(.devServer, project)
+        case .serverAndPage: .runDevServerWithPage(project)
+        }
     }
 
     private mutating func enter(_ project: Project) {

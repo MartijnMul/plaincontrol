@@ -2,6 +2,10 @@
 
 What changes in each release of Plaincontrol. Versions follow [Semantic Versioning](https://semver.org); while the version starts with 0, any release may change how Plaincontrol is installed or configured, and says so.
 
+## Unreleased
+
+- **Open the dev server's page with it**: when the launcher can tell a project's dev server port, Dev server asks next whether to open the page too: 1 starts only the dev server, 2 also opens `localhost` on that port in a new window of your default browser once the server listens, in a free column like the launcher's other windows. Chrome, Firefox and other browsers built on Chromium open a window of their own; any other browser opens the page as it opens links. The port comes from the dev command or the `package.json` `dev` script (`-p 3210`, `--port 3210`, `--port=3210` or `PORT=3210`), or else is the default of the framework the script runs: Next.js and Nuxt 3000, Vite and React Router 5173, Astro 4321, Angular 4200. Without a port, Dev server starts at once, as before.
+
 ## 0.3.1 — 2026-10-29
 
 - **Claude Code Desktop opens in the project again**: since version 4.29 of the Claude desktop app, the launcher's Claude Code Desktop action opened a new window without the project's folder. It now finds the folder button in the new window again, whichever language the app is in.

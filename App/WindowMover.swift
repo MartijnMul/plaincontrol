@@ -8,8 +8,9 @@ import PlaincontrolCore
 /// Apps such as Finder and editors cannot be told where to open a window, so the mover notes
 /// the app's windows before it is asked to open one, then waits for a window that was not
 /// there and moves it. When the app shows a window it had already, such as an editor that
-/// has the folder open, nothing appears and nothing moves. Needs the Accessibility permission,
-/// which the launcher has.
+/// has the folder open, nothing appears and nothing moves. The windows of every instance of the
+/// app count, as a browser told to open a window by a new instance opens it in the one that was
+/// running. Needs the Accessibility permission, which the launcher has.
 @MainActor
 struct WindowMover {
     private let bundleIdentifier: String
@@ -23,7 +24,7 @@ struct WindowMover {
     init(bundleIdentifier: String, frame: CGRect) {
         self.bundleIdentifier = bundleIdentifier
         self.frame = frame
-        existing = Self.app(bundleIdentifier).map(Self.windows(of:)) ?? []
+        existing = Self.windows(ofAppsWith: bundleIdentifier)
     }
 
     /// Waits a few seconds, long enough for the app to start, for its new window, and moves it.
@@ -31,8 +32,7 @@ struct WindowMover {
         Task {
             for _ in 0..<100 {
                 try? await Task.sleep(for: .milliseconds(100))
-                guard let app = Self.app(bundleIdentifier) else { continue }
-                if let window = Self.windows(of: app).first(where: { window in
+                if let window = Self.windows(ofAppsWith: bundleIdentifier).first(where: { window in
                     !existing.contains { CFEqual($0, window) }
                 }) {
                     move(window)
@@ -92,9 +92,9 @@ struct WindowMover {
         return CGRect(origin: origin, size: extent)
     }
 
-    private static func app(_ bundleIdentifier: String) -> AXUIElement? {
-        NSRunningApplication.runningApplications(withBundleIdentifier: bundleIdentifier).first.map {
-            AXUIElementCreateApplication($0.processIdentifier)
+    private static func windows(ofAppsWith bundleIdentifier: String) -> [AXUIElement] {
+        NSRunningApplication.runningApplications(withBundleIdentifier: bundleIdentifier).flatMap {
+            windows(of: AXUIElementCreateApplication($0.processIdentifier))
         }
     }
 

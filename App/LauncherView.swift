@@ -21,6 +21,7 @@ struct LauncherView: View {
                 switch controller.launcher.screen {
                 case .projects: projectList
                 case .project(let project): actionList(for: project)
+                case .devServer(let project): choiceList(for: project)
                 }
             }
             if let problem = controller.problem {
@@ -135,13 +136,34 @@ struct LauncherView: View {
         }
     }
 
-    @ViewBuilder
-    private func actionList(for project: Project) -> some View {
+    private func header(for project: Project) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(project.name).font(.title3.weight(.semibold))
             Text(project.displayPath).foregroundStyle(.secondary).lineLimit(1).truncationMode(.head)
         }
         .padding(.horizontal, 10)
+    }
+
+    @ViewBuilder
+    private func choiceList(for project: Project) -> some View {
+        header(for: project)
+        VStack(spacing: 2) {
+            ForEach(Array(controller.launcher.devServerChoices.enumerated()), id: \.element) { index, choice in
+                row(selected: choice == controller.launcher.selectedChoice) {
+                    DigitCap(row: index)
+                    Text(controller.title(of: choice)).font(.title3)
+                    Spacer()
+                    if let address = controller.address(of: choice, in: project) {
+                        Text(address).font(.body.monospaced()).opacity(0.7)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func actionList(for project: Project) -> some View {
+        header(for: project)
         VStack(spacing: 2) {
             ForEach(Array(controller.launcher.actions.enumerated()), id: \.element) { index, action in
                 row(selected: action == controller.launcher.selectedAction) {
@@ -194,7 +216,7 @@ struct LauncherView: View {
                 hint("↑↓", "Select")
                 hint("↩ →", "Open")
                 hint("esc", controller.launcher.query.isEmpty ? "Close" : "Clear")
-            case .project:
+            case .project, .devServer:
                 hint("↑↓", "Select")
                 hint("↩ →", "Run")
                 hint("← esc", "Back")

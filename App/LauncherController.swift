@@ -87,6 +87,8 @@ final class LauncherController {
                 for: project, usage: usage)
         } selection: { project, actions in
             config.actionOrder.selection(in: actions, for: project, usage: usage)
+        } devServerChoices: { project in
+            Self.pagePort(of: project, config: config) == nil ? [] : DevServerChoice.allCases
         }
         let panel = panel ?? LauncherPanel(content: LauncherView(controller: self))
         self.panel = panel
@@ -161,6 +163,24 @@ final class LauncherController {
     /// The command `action` runs in `project`, to show next to it, where it depends on the project.
     func command(of action: ProjectAction, in project: Project) -> String? {
         action == .devServer ? Self.devCommand(for: project, config: config) : nil
+    }
+
+    /// What the launcher calls a choice of what the dev server opens.
+    func title(of choice: DevServerChoice) -> String {
+        switch choice {
+        case .server: title(of: .devServer)
+        case .serverAndPage: "\(title(of: .devServer)), page in \(Apps.browser.map(Apps.name(of:)) ?? "the browser")"
+        }
+    }
+
+    /// The address `choice` opens in `project`, to show next to it.
+    func address(of choice: DevServerChoice, in project: Project) -> String? {
+        choice == .serverAndPage ? Self.pagePort(of: project, config: config).map { "localhost:\($0)" } : nil
+    }
+
+    /// The port of the page of `project`'s development server, if the launcher can tell it.
+    private nonisolated static func pagePort(of project: Project, config: LauncherConfig) -> Int? {
+        devCommand(for: project, config: config).flatMap { DevServer.port(in: project.path, command: $0) }
     }
 
     /// The command that starts `project`'s development server: the one set, or else the one
@@ -304,6 +324,7 @@ final class LauncherController {
         case .stay: break
         case .close: hide()
         case .run(let action, let project): run(action, on: project)
+        case .runDevServerWithPage(let project): run(.devServer, on: project, openingPage: true)
         case .findFolder:
             pathFinder = PathFinder(
                 folder: NSHomeDirectory(), home: NSHomeDirectory(), list: ProjectFolders.subfolders(of:))
@@ -325,7 +346,8 @@ final class LauncherController {
         launcher.open(project)
     }
 
-    private func run(_ action: ProjectAction, on project: Project) {
+    /// - Parameter openingPage: Whether to open the dev server's page once the server listens.
+    private func run(_ action: ProjectAction, on project: Project, openingPage: Bool = false) {
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: project.path, isDirectory: &isDirectory), isDirectory.boolValue
         else {
@@ -384,10 +406,44 @@ final class LauncherController {
             }
             openDesktopWindow(in: project.path, app: app)
         }
+        if openingPage, let port = Self.pagePort(of: project, config: config) { openPage(at: port) }
         log.info("Ran \(action.rawValue, privacy: .public) on a project")
         usage.record(project.path, action: action)
         saveUsage()
         hide()
+    }
+
+    /// Opens the page at `port` on this Mac in the default browser, once a server listens there.
+    private func openPage(at port: Int) {
+        guard let url = URL(string: "http://localhost:\(port)") else { return }
+        Task {
+            guard await Task.detached(operation: { await DevServer.waitUntilListening(on: port) }).value else {
+                log.notice("Nothing listened on the dev server's port in time")
+                return
+            }
+            openInNewWindow(url)
+            log.info("Opened the dev server's page")
+        }
+    }
+
+    /// Opens `url` in a new window of the default browser, in a free column as the dev server's
+    /// terminal window; a browser without a way to ask for a window opens it as a link.
+    private func openInNewWindow(_ url: URL) {
+        guard let browser = Apps.browser, let id = Apps.bundleIdentifier(of: browser),
+            let arguments = BrowserWindow.arguments(opening: url, in: id)
+        else {
+            NSWorkspace.shared.open(url)
+            return
+        }
+        let placement = newWindowPlacement(for: .devServer)
+        placement?.moves.forEach(WindowMover.move)
+        let mover = placement.map { WindowMover(bundleIdentifier: id, frame: $0.frame) }
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.arguments = arguments
+        // A running browser only takes the arguments from an instance of its own.
+        configuration.createsNewApplicationInstance = true
+        NSWorkspace.shared.openApplication(at: browser, configuration: configuration)
+        mover?.moveNewWindow()
     }
 
     /// Opens a new session in the desktop app in a window of its own, placed as a terminal

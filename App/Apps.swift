@@ -47,6 +47,11 @@ enum Apps {
         NSWorkspace.shared.urlForApplication(toOpen: .folder)
     }
 
+    /// The browser macOS opens web pages with.
+    static var browser: URL? {
+        URL(string: "http://localhost").flatMap(NSWorkspace.shared.urlForApplication(toOpen:))
+    }
+
     /// The name the app with `bundleIdentifier` shows, or the identifier when it is not
     /// installed.
     static func name(ofApp bundleIdentifier: String) -> String {
