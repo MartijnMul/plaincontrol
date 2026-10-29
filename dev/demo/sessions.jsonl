@@ -1,0 +1,10 @@
+{"session_id": "demo-aurora", "hook_event_name": "SessionStart", "cwd": "__HOME__/Developer/aurora-web", "session_title": "Checkout redesign"}
+{"session_id": "demo-ledger", "hook_event_name": "SessionStart", "cwd": "__HOME__/Developer/ledger-api", "session_title": "Rate limiting"}
+{"session_id": "demo-notes", "hook_event_name": "SessionStart", "cwd": "__HOME__/Developer/field-notes", "session_title": "Search index"}
+{"session_id": "demo-pixel", "hook_event_name": "SessionStart", "cwd": "__HOME__/Developer/pixel-garden"}
+{"session_id": "demo-aurora", "hook_event_name": "UserPromptSubmit", "cwd": "__HOME__/Developer/aurora-web", "prompt": "Redesign the checkout"}
+{"session_id": "demo-ledger", "hook_event_name": "UserPromptSubmit", "cwd": "__HOME__/Developer/ledger-api", "prompt": "Add rate limiting"}
+{"session_id": "demo-notes", "hook_event_name": "UserPromptSubmit", "cwd": "__HOME__/Developer/field-notes", "prompt": "Index the notes"}
+{"session_id": "demo-aurora", "hook_event_name": "PermissionRequest", "cwd": "__HOME__/Developer/aurora-web", "tool_name": "Edit"}
+{"session_id": "demo-ledger", "hook_event_name": "PreToolUse", "cwd": "__HOME__/Developer/ledger-api", "tool_name": "AskUserQuestion"}
+{"session_id": "demo-pixel", "hook_event_name": "Stop", "cwd": "__HOME__/Developer/pixel-garden"}

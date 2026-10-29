@@ -40,7 +40,7 @@ final class SessionStore {
         processes = ProcessWatcher { [weak self] sessionID in self?.processExited(of: sessionID) }
         notifier.start()
         publishHookCommand()
-        let path = HookSocket.path(environment: ProcessInfo.processInfo.environment, appName: AppInfo.name)
+        let path = HookSocket.path(environment: ProcessInfo.processInfo.environment, appName: AppInfo.folderName)
         let server = HookServer(path: path) { [weak self] envelope in
             // The server calls in order on its own queue; the main queue keeps that order.
             DispatchQueue.main.async {
@@ -64,7 +64,7 @@ final class SessionStore {
         let command = folder.appending(path: HookCommandLink.commandName)
         guard FileManager.default.isExecutableFile(atPath: command.path(percentEncoded: false)) else { return }
         do {
-            try HookCommandLink.update(HookCommandLink.defaultURL(appName: AppInfo.name), to: command)
+            try HookCommandLink.update(HookCommandLink.defaultURL(appName: AppInfo.folderName), to: command)
         } catch {
             Logger(subsystem: AppInfo.subsystem, category: "hooks")
                 .error("Cannot link the hook command: \(error, privacy: .public)")

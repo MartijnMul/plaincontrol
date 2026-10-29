@@ -622,11 +622,11 @@ final class LauncherController {
     // MARK: Usage
 
     private static var usageURL: URL {
-        URL.applicationSupportDirectory.appending(path: "\(AppInfo.name)/project-usage.json")
+        URL.applicationSupportDirectory.appending(path: "\(AppInfo.folderName)/project-usage.json")
     }
 
     private static var appUsageURL: URL {
-        URL.applicationSupportDirectory.appending(path: "\(AppInfo.name)/app-usage.json")
+        URL.applicationSupportDirectory.appending(path: "\(AppInfo.folderName)/app-usage.json")
     }
 
     private static func load<Value: Decodable>(_ type: Value.Type, from url: URL) -> Value? {

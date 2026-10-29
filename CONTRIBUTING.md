@@ -36,6 +36,7 @@ There are three ways to try a change, from fastest to most real:
 make test         # the core's tests, in seconds; most changes start here
 make run          # builds and starts Plaincontrol Dev
 make fresh        # starts it as on its first start, with the welcome window (NEW=1: in an empty home folder)
+make demo         # the same on invented projects, named Plaincontrol, for screenshots; then make demo-sessions
 make simulate     # plays hook events into it, without Claude Code (SCENARIO= a file in dev/scenarios/)
 make dev-claude   # one Claude Code session with this repository's plugin, reporting to Plaincontrol Dev only
 make check        # formatting, tests and the build: run it before every commit
