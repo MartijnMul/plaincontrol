@@ -69,7 +69,7 @@ These keep Plaincontrol small and trustworthy. A pull request that breaks one ne
 - **Nothing about the user leaves the Mac.** No telemetry, and no network connections other than the update check, which runs only once the user has allowed it, and a connection to a dev server's port on the Mac itself, to tell when it is up.
 - **Hook events are private.** They can hold prompts and file paths. Keep only what a feature needs, and never store or log prompt text.
 - **Logic goes in the core, with tests.** The app stays a thin layer. The hook module stays small and does not depend on the rest of the core: it runs for every event in every session.
-- **No new permissions without a reason.** Plaincontrol asks for Accessibility (the launcher's key, its typing, moving windows) and for control of iTerm2. A feature that needs more says why in its pull request.
+- **No new permissions without a reason.** Plaincontrol asks for Accessibility (the launcher's key, its typing, moving windows) and for control of the terminal (iTerm2 or Terminal). A feature that needs more says why in its pull request.
 - **Few dependencies.** System frameworks, Yams for YAML and Sparkle for updates. A new one needs a reason and a licence compatible with Apache 2.0.
 - **It works for anyone.** Something only one setup needs goes behind a setting, with a default that works without it.
 - **Comments explain why,** not what. Look at the existing doc comments for the tone.

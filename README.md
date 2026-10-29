@@ -14,10 +14,10 @@
 
 - **See every session** in the menu bar, with the ones waiting on you counted and listed first.
 - **Get a notification** when a session finishes or asks you something.
-- **Jump to it** in one click: its iTerm2 window, tab and pane come to the front, on any Space.
+- **Jump to it** in one click: its window, tab and pane come to the front in iTerm2 or Terminal, on any Space.
 - **Open any project from the keyboard**: hold the right Option key, pick a project, and start Claude Code, a terminal, your editor or its dev server, in a free spot on your screens.
 
-> **Early days.** It works, with rough edges. Jumping to sessions and opening terminals work in iTerm2 only so far. Settings may still change; the [changelog](CHANGELOG.md) says when.
+> **Early days.** It works, with rough edges. Jumping to sessions and opening terminals work in iTerm2 and Terminal only so far. Settings may still change; the [changelog](CHANGELOG.md) says when.
 
 ## Install
 
@@ -38,7 +38,7 @@ Then install the Claude Code plugin, which reports your sessions to the app. In 
 
 Without the plugin, the launcher still works, but Plaincontrol sees no sessions: no list, no notifications, and only the projects you open from the launcher, zoxide or your settings.
 
-macOS asks for two permissions the first time they are needed: **Accessibility** for the launcher, and **control of iTerm2** to jump to a session.
+macOS asks for two permissions the first time they are needed: **Accessibility** for the launcher, and **control of your terminal**, iTerm2 or Terminal, to jump to a session and open its windows.
 
 **Uninstall**: quit Plaincontrol and run `brew uninstall --cask plaincontrol`, or drag it to the Bin; then run `/plugin uninstall plaincontrol@plaincontrol` in Claude Code. Your settings and history are in `~/.config/plaincontrol` and `~/Library/Application Support/Plaincontrol`; `brew uninstall --cask --zap plaincontrol` removes them too.
 

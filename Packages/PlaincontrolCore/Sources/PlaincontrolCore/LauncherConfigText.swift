@@ -121,7 +121,7 @@ extension LauncherConfigFile {
                 [
                     "# The terminal for Claude Code, Terminal and the dev server, by app name or bundle",
                     "# identifier. Without one, it is the terminal you run Claude Code in most. Plaincontrol",
-                    "# can open iTerm2 windows so far.",
+                    "# can open iTerm2 and Terminal windows so far.",
                 ]
             case .editor:
                 [

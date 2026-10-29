@@ -13,12 +13,10 @@ let environment = ProcessInfo.processInfo.environment
 do {
     let input = FileHandle.standardInput.readDataToEndOfFile()
     let event = try JSONDecoder().decode(HookEvent.self, from: input)
-    let envelope = HookEnvelope(
-        event: event,
-        terminal: TerminalLocation(environment: environment),
-        process: SessionProcess(environment: environment),
-        sentAt: .now
-    )
+    let process = SessionProcess(environment: environment)
+    var terminal = TerminalLocation(environment: environment)
+    terminal?.tty = process?.terminalDevice
+    let envelope = HookEnvelope(event: event, terminal: terminal, process: process, sentAt: .now)
     try HookClient.send(envelope, to: HookSocket.path(environment: environment))
 } catch {
     if environment["PLAINCONTROL_DEBUG"] == "1" {

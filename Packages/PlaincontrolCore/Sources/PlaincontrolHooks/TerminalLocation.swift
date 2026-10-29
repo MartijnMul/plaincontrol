@@ -1,5 +1,5 @@
-/// Where a session runs: the terminal program, the app it belongs to, and the identifiers it
-/// gives the pane.
+/// Where a session runs: the terminal program, the app it belongs to, the identifiers it
+/// gives the pane, and the pane's terminal device.
 ///
 /// Built from the environment the hook command inherits from the terminal. Only the
 /// variables below are kept; the rest of the environment is never read or stored.
@@ -12,6 +12,9 @@ public struct TerminalLocation: Sendable, Equatable, Codable {
     /// or an editor's for a session in its terminal. macOS sets `__CFBundleIdentifier` for an
     /// app it starts, and the processes the app starts inherit it.
     public var app: String?
+    /// The terminal device of the pane, such as `/dev/ttys003`, from the Claude Code process.
+    /// Terminal.app sets no variable its AppleScript knows, but it does know each tab's device.
+    public var tty: String?
 
     /// The environment variables that identify a pane, per terminal.
     public static let paneVariables = [
@@ -26,12 +29,14 @@ public struct TerminalLocation: Sendable, Equatable, Codable {
         case program
         case paneIDs = "pane_ids"
         case app
+        case tty
     }
 
-    public init(program: String?, paneIDs: [String: String] = [:], app: String? = nil) {
+    public init(program: String?, paneIDs: [String: String] = [:], app: String? = nil, tty: String? = nil) {
         self.program = program
         self.paneIDs = paneIDs
         self.app = app
+        self.tty = tty
     }
 
     /// Picks the terminal program, its app and the pane identifiers out of an environment.

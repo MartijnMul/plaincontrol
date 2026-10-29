@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 import PlaincontrolHooks
 import Testing
 
@@ -107,6 +108,95 @@ import Testing
         }
         #expect(throws: TerminalControlError.unsupported) {
             try controller.focus(TerminalLocation(program: "Apple_Terminal"))
+        }
+    }
+}
+
+@MainActor
+@Suite struct TerminalAppControllerTests {
+    func terminal(_ tty: String?, program: String = "Apple_Terminal") -> TerminalLocation {
+        TerminalLocation(program: program, paneIDs: ["TERM_SESSION_ID": "6B9F3C2A"], tty: tty)
+    }
+
+    @Test func findsTheTabByItsTerminalDevice() throws {
+        #expect(TerminalAppController.tty(in: terminal("/dev/ttys003")) == "/dev/ttys003")
+        var scripts: [String] = []
+        let controller = TerminalAppController { script in
+            scripts.append(script)
+            return "focused"
+        }
+        try controller.focus(terminal("/dev/ttys003"))
+        #expect(scripts.count == 1)
+        #expect(scripts[0].contains(#"if tty of aTab is "/dev/ttys003" then"#))
+    }
+
+    @Test func leavesOtherTerminalsAlone() {
+        #expect(TerminalAppController.tty(in: terminal(nil)) == nil)
+        #expect(TerminalAppController.tty(in: terminal("/dev/ttys003", program: "tmux")) == nil)
+        #expect(TerminalAppController.tty(in: terminal("/dev/ttys003", program: "iTerm.app")) == nil)
+    }
+
+    @Test func refusesDevicesTheKernelWouldNotName() {
+        #expect(TerminalAppController.tty(in: terminal("ttys003")) == nil)
+        #expect(TerminalAppController.tty(in: terminal("/dev/")) == nil)
+        #expect(TerminalAppController.tty(in: terminal(#"/dev/ttys0" & quit & ""#)) == nil)
+    }
+
+    @Test func reportsWhatTheScriptFound() {
+        #expect(throws: TerminalControlError.terminalNotRunning) {
+            try TerminalAppController { _ in "not running" }.focus(terminal("/dev/ttys003"))
+        }
+        #expect(throws: TerminalControlError.paneNotFound) {
+            try TerminalAppController { _ in "not found" }.focus(terminal("/dev/ttys003"))
+        }
+    }
+
+    @Test func opensAWindowInAFolderWithItsNameQuoted() throws {
+        var scripts: [String] = []
+        let controller = TerminalAppController { script in
+            scripts.append(script)
+            return ""
+        }
+        try controller.openWindow(in: #"/work/a "quoted" \ folder"#, running: "claude")
+        #expect(
+            scripts[0].contains(#"do script "cd " & quoted form of "/work/a \"quoted\" \\ folder" & " && " & "claude""#)
+        )
+    }
+
+    @Test func usesTheWindowTerminalOpensWhenItStarts() throws {
+        var scripts: [String] = []
+        let controller = TerminalAppController { script in
+            scripts.append(script)
+            return ""
+        }
+        try controller.openWindow(in: "/work/app")
+        #expect(scripts[0].contains(#"do script "cd " & quoted form of "/work/app" in window 1"#))
+        // Without anything to type, the window it opens is left as it is, and a new one is empty.
+        try controller.openWindow(in: nil)
+        #expect(!scripts[1].contains("in window 1"))
+        #expect(scripts[1].contains(#"do script """#))
+    }
+
+    @Test func leavesPlacingTheWindowToTheCaller() throws {
+        var scripts: [String] = []
+        let controller = TerminalAppController { script in
+            scripts.append(script)
+            return ""
+        }
+        #expect(!controller.placesWindows)
+        try controller.openWindow(in: "/work/app", frame: CGRect(x: -230, y: -1400, width: 840, height: 1390))
+        #expect(!scripts[0].contains("bounds"))
+    }
+
+    @Test func writesScriptsThatCompile() throws {
+        let scripts = [
+            TerminalAppController.focusScript(tty: "/dev/ttys003"),
+            TerminalAppController.openWindowScript(directory: "/work/app", command: "claude"),
+            TerminalAppController.openWindowScript(directory: nil, command: nil),
+        ]
+        for source in scripts {
+            var error: NSDictionary?
+            #expect(NSAppleScript(source: source)?.compileAndReturnError(&error) == true, "\(source)")
         }
     }
 }

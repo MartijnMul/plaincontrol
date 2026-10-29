@@ -399,8 +399,7 @@ final class LauncherController {
         case .claude, .terminal, .devServer:
             guard let terminalController else { return }
             do {
-                NSApp.yieldActivation(toApplicationWithBundleIdentifier: terminalController.bundleIdentifier)
-                try terminalController.openWindow(in: project.path, running: command, frame: frame)
+                try openTerminalWindow(with: terminalController, in: project.path, running: command, frame: frame)
             } catch {
                 fail(
                     "Could not open \(terminalController.name): \(error.launcherMessage(for: terminalController.name))")
@@ -441,8 +440,7 @@ final class LauncherController {
             let placement = newWindowPlacement(for: placed)
             placement?.moves.forEach(WindowMover.move)
             do {
-                NSApp.yieldActivation(toApplicationWithBundleIdentifier: controller.bundleIdentifier)
-                try controller.openWindow(in: nil, running: nil, frame: placement?.frame)
+                try openTerminalWindow(with: controller, in: nil, running: nil, frame: placement?.frame)
             } catch {
                 fail("Could not open \(controller.name): \(error.launcherMessage(for: controller.name))")
                 return
@@ -479,6 +477,19 @@ final class LauncherController {
             }
             if !openBrowserWindow(url) { NSWorkspace.shared.open(url) }
             log.info("Opened the dev server's page")
+    /// Opens a window of the terminal at `frame`, moving it there once it shows when the terminal
+    /// cannot place it itself.
+    private func openTerminalWindow(
+        with controller: any TerminalController, in directory: String?, running command: String?, frame: CGRect?
+    ) throws(TerminalControlError) {
+        let mover =
+            controller.placesWindows
+            ? nil : frame.map { WindowMover(bundleIdentifier: controller.bundleIdentifier, frame: $0) }
+        NSApp.yieldActivation(toApplicationWithBundleIdentifier: controller.bundleIdentifier)
+        try controller.openWindow(in: directory, running: command, frame: controller.placesWindows ? frame : nil)
+        mover?.moveNewWindow()
+    }
+
         }
     }
 

@@ -11,6 +11,9 @@ public protocol TerminalController: Sendable {
     var bundleIdentifier: String { get }
     /// The name of the terminal app, such as `iTerm2`.
     var name: String { get }
+    /// Whether ``openWindow(in:running:frame:)`` puts the window at its frame. When it doesn't,
+    /// the caller moves the new window once it shows.
+    var placesWindows: Bool { get }
 
     /// Whether this controller knows how to find the pane at `location`.
     func canFocus(_ location: TerminalLocation) -> Bool
@@ -23,9 +26,14 @@ public protocol TerminalController: Sendable {
     /// Starts the terminal when it is not running.
     ///
     /// - Parameter frame: Where the window goes, in global coordinates from the top left of the
-    ///   main screen; without one, the terminal decides.
+    ///   main screen; without one, or when the terminal does not ``placesWindows``, the
+    ///   terminal decides.
     @MainActor func openWindow(in directory: String?, running command: String?, frame: CGRect?)
         throws(TerminalControlError)
+}
+
+extension TerminalController {
+    public var placesWindows: Bool { true }
 }
 
 /// Why a pane could not be brought to the front.
@@ -51,7 +59,7 @@ public struct TerminalControllers: Sendable {
     }
 
     /// Every terminal Plaincontrol supports.
-    public static let standard = TerminalControllers([ITerm2Controller()])
+    public static let standard = TerminalControllers([ITerm2Controller(), TerminalAppController()])
 
     /// The first controller that can focus `location`, if any.
     public func controller(for location: TerminalLocation?) -> (any TerminalController)? {
