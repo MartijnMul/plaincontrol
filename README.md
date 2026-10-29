@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/platform-macOS%2026-lightgrey" alt="Platform: macOS 26">
 </p>
 
-<p align="center"><img src="docs/images/menu.png" width="437" alt="The Plaincontrol menu, listing four Claude Code sessions: one needs permission, one has a question, one is working and one is idle."></p>
+<p align="center"><img src="docs/images/menu.png" width="386" alt="The Plaincontrol menu, listing four Claude Code sessions: one needs permission, one has a question, one is working and one is idle."></p>
 
 - **See every session** in the menu bar, with the ones waiting on you counted and listed first.
 - **Get a notification** when a session finishes or asks you something.
@@ -36,6 +36,8 @@ Or download [`Plaincontrol.dmg`](https://github.com/MartijnMul/plaincontrol/rele
 ### 2. Open it
 
 Open **Plaincontrol** from Applications or Spotlight. A welcome window walks you through the rest: allowing **Accessibility**, which the launcher needs, connecting Claude Code (step 3 below), adding the projects you already worked on with Claude Code, and opening Plaincontrol when you log in. After that it has no window and no Dock icon: it lives in the menu bar, at the top right of your screen, where Getting Started… opens the welcome window again.
+
+<p align="center"><img src="docs/images/welcome.png" width="448" alt="The welcome window, with four numbered steps: allow Accessibility, connect Claude Code with the two plugin commands, bring in your projects, and try the launcher; below them a switch to open Plaincontrol when you log in."></p>
 
 The first time you jump to a session, macOS asks whether Plaincontrol may control your terminal (iTerm2 or Terminal): allow that too.
 
@@ -84,7 +86,7 @@ So **4** then **5** starts Claude Code in the fourth project. Actions for apps y
 
 Settings… in the menu (Command-comma). Every setting shows whether it is at its default and can be reset. They are stored in `~/.config/plaincontrol/settings.yaml`, which you can also edit by hand, from Edit as Text… in Settings › Advanced, or keep in your dotfiles; the window keeps your comments, and a schema next to it gives completion in editors with the YAML language server.
 
-<p align="center"><img src="docs/images/settings.png" width="473" alt="The settings window's General tab: the key that opens the launcher, the terminal, the editor, the Claude Code command and the order of a project's actions, each marked Default."></p>
+<p align="center"><img src="docs/images/settings.png" width="431" alt="The settings window's General tab: the key that opens the launcher, the terminal, the editor, the browser, the Claude Code command and the order of a project's actions, each marked Default."></p>
 
 ## Privacy
 
