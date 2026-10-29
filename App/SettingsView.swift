@@ -414,7 +414,7 @@ private struct AppPicker: View {
 }
 
 extension HoldKey {
-    fileprivate var title: String {
+    var title: String {
         switch self {
         case .rightOption: "Right Option"
         case .rightCommand: "Right Command"

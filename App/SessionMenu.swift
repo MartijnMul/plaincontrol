@@ -5,6 +5,7 @@ import SwiftUI
 struct SessionMenu: View {
     let store: SessionStore
     let launcher: LauncherController
+    let welcome: WelcomeWindow
     let updater: Updater
     @Environment(\.openSettings) private var openSettings
 
@@ -36,6 +37,9 @@ struct SessionMenu: View {
             Button("Allow Accessibility to Use the Launcher…") {
                 NSWorkspace.shared.open(LauncherHotkey.accessibilitySettings)
             }
+        }
+        Button("Getting Started…") {
+            welcome.show()
         }
         Button("Settings…") {
             // A menu bar app is not in front, and its window would open behind the app that is.

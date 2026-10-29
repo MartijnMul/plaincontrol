@@ -35,11 +35,9 @@ Or download [`Plaincontrol.dmg`](https://github.com/MartijnMul/plaincontrol/rele
 
 ### 2. Open it
 
-Open **Plaincontrol** from Applications or Spotlight. It has no window and no Dock icon: look for its icon in the menu bar, at the top right of your screen.
+Open **Plaincontrol** from Applications or Spotlight. A welcome window walks you through the rest: allowing **Accessibility**, which the launcher needs, connecting Claude Code (step 3 below), adding the projects you already worked on with Claude Code, and opening Plaincontrol when you log in. After that it has no window and no Dock icon: it lives in the menu bar, at the top right of your screen, where Getting Started… opens the welcome window again.
 
-macOS asks right away for **Accessibility**, which the launcher needs. Allow it in System Settings, then come back. Later, the first time you jump to a session, macOS asks whether Plaincontrol may control your terminal (iTerm2 or Terminal): allow that too.
-
-Plaincontrol does not start by itself after a restart yet. To have it always running, add it in System Settings › General › Login Items.
+The first time you jump to a session, macOS asks whether Plaincontrol may control your terminal (iTerm2 or Terminal): allow that too.
 
 ### 3. Connect Claude Code
 
@@ -95,6 +93,7 @@ Plaincontrol sends nothing about you off your Mac. Its one network request is th
 - Of each Claude Code event it keeps only the session, its folder, its status and its terminal pane. Prompts are never stored or logged.
 - The Accessibility permission lets it notice the launcher key and take your typing while the launcher is open, and move the windows it opens. It does not record what you type.
 - Your launcher history stays in `~/Library/Application Support/Plaincontrol`. zoxide's data is only read.
+- Adding your projects from Claude Code's history, in the welcome window, reads only the names of the folders in `~/.claude/projects` and the dates of the session files in them, never what is in those files.
 - On its second launch, Plaincontrol asks whether to check for updates automatically. If you agree, it asks GitHub once a day for the latest version, which tells GitHub your IP address and Plaincontrol's version, as any download from GitHub does. Change your mind in Settings.
 
 [SECURITY.md](SECURITY.md) has the details, and how to check that your copy is genuine.

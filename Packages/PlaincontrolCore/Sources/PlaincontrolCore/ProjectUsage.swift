@@ -48,6 +48,20 @@ public struct ProjectUsage: Codable, Sendable, Equatable {
         if uses.count > Self.limit { uses.removeFirst(uses.count - Self.limit) }
     }
 
+    /// Adds uses from before Plaincontrol saw them, such as the sessions in Claude Code's own
+    /// history, keeping every use in order of its date. A use already noted at the same time
+    /// is not noted again, so adding the same uses twice changes nothing.
+    public mutating func merge(_ earlier: [(path: String, date: Date)]) {
+        var known = Set(uses.map { "\($0.path)\u{0}\($0.date.timeIntervalSinceReferenceDate)" })
+        let added = earlier.map { Use(path: ($0.path as NSString).standardizingPath, date: $0.date, action: nil) }
+            .filter { known.insert("\($0.path)\u{0}\($0.date.timeIntervalSinceReferenceDate)").inserted }
+        guard !added.isEmpty else { return }
+        uses = (uses + added).enumerated()
+            .sorted { ($0.element.date, $0.offset) < ($1.element.date, $1.offset) }
+            .map(\.element)
+        if uses.count > Self.limit { uses.removeFirst(uses.count - Self.limit) }
+    }
+
     /// The folders used, most recent first, each once.
     public var paths: [String] {
         var seen = Set<String>()

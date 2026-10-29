@@ -13,6 +13,9 @@ final class SessionStore {
     private(set) var problem: String?
     /// Why the last jump to a session failed, until the next one succeeds.
     private(set) var jumpProblem: String?
+    /// Whether a Claude Code session ever reported, which shows that the plugin is installed.
+    private(set) var hasHeardFromClaudeCode = UserDefaults.standard.bool(forKey: hasHeardKey)
+    @ObservationIgnored private static let hasHeardKey = "hasHeardFromClaudeCode"
     /// Called with the folder of each session that starts, and where it runs.
     @ObservationIgnored var onSessionStart: ((String, TerminalLocation?) -> Void)?
     @ObservationIgnored private var server: HookServer?
@@ -95,6 +98,10 @@ final class SessionStore {
     }
 
     private func receive(_ envelope: HookEnvelope) {
+        if !hasHeardFromClaudeCode {
+            hasHeardFromClaudeCode = true
+            UserDefaults.standard.set(true, forKey: Self.hasHeardKey)
+        }
         let change = registry.apply(envelope.event, terminal: envelope.terminal, at: envelope.sentAt)
         let sessionID = envelope.event.sessionID
         if envelope.event.kind == .sessionStart, let cwd = envelope.event.cwd {

@@ -28,12 +28,20 @@ final class LauncherHotkey {
     static let accessibilitySettings = URL(
         string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
 
-    /// Starts watching the keyboard, asking for the Accessibility permission first if needed.
-    func start() {
+    /// Asks macOS to ask the user for the Accessibility permission, which opens System Settings.
+    static func askForPermission() {
+        // The value of `kAXTrustedCheckOptionPrompt`, a global Swift 6 cannot read safely.
+        AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
+    }
+
+    /// Starts watching the keyboard once the Accessibility permission is there.
+    ///
+    /// - Parameter asking: Whether to ask for the permission now if needed, or leave that to
+    ///   the welcome window, which first says what it is for.
+    func start(asking: Bool = true) {
         guard tap == nil else { return }
         guard Self.isAllowed else {
-            // The value of `kAXTrustedCheckOptionPrompt`, a global Swift 6 cannot read safely.
-            AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
+            if asking { Self.askForPermission() }
             waitForPermission()
             return
         }

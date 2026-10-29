@@ -21,6 +21,8 @@ final class LauncherController {
     private(set) var problem: String?
     /// Something to know about the actions, such as a terminal Plaincontrol cannot open yet.
     private(set) var notice: String?
+    /// Whether the launcher has opened since Plaincontrol started.
+    private(set) var hasOpened = false
     @ObservationIgnored private var panel: LauncherPanel?
     @ObservationIgnored private var keyTap: LauncherKeyTap?
     @ObservationIgnored private var config = LauncherConfig()
@@ -95,6 +97,7 @@ final class LauncherController {
         let panel = panel ?? LauncherPanel(content: LauncherView(controller: self))
         self.panel = panel
         panel.present()
+        hasOpened = true
         scanFolders()
         askZoxide()
     }
@@ -111,6 +114,22 @@ final class LauncherController {
         saveUsage()
         appUsage.record(terminal)
         save(appUsage, to: Self.appUsageURL)
+    }
+
+    /// Whether the launcher has no history yet, as on the first start.
+    var isNew: Bool { usage.uses.isEmpty }
+
+    /// Adds the sessions in Claude Code's own history to the launcher's, so the projects worked
+    /// on before Plaincontrol came appear and rank by that work. Returns how many projects that
+    /// gives; reading the folders may wait for macOS to ask for access to them.
+    func addClaudeCodeHistory() async -> Int {
+        let sessions = await Task.detached { ClaudeCodeHistory.sessions() }.value
+        usage.merge(sessions.map { (path: $0.folder, date: $0.date) })
+        saveUsage()
+        lastScan = nil
+        scanFolders()
+        log.info("Added \(sessions.count, privacy: .public) sessions from Claude Code's history")
+        return Set(sessions.map(\.folder)).count
     }
 
     /// The key that opens the launcher when held, as last read from the settings.
