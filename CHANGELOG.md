@@ -1,10 +1,10 @@
 # Changelog
 
-What changes in each release of Plaincontrol. Versions follow [Semantic Versioning](https://semver.org); while the version starts with 0, any release may change how Plaincontrol is installed or configured, and says so.
+What changes in each release of Plaincontrol. Versions follow [Semantic Versioning](https://semver.org): most releases raise the last number; the middle one goes up for a bigger feature or a change to how Plaincontrol is installed or configured, which the release says.
 
 ## Unreleased
 
-- **Your own commands per project**: give a project commands of its own, each with a name and what to run, such as a script that wakes up a machine and connects to it over SSH. Each one is one more action of the project in the launcher, after the dev server, and runs in a new terminal window in the project's folder, like the other terminal actions. Set them in Settings › Projects, from the new Commands column, where you can also drag them in order, or under `commands` for the project in `settings.yaml`. With actions ordered by use, a command you run often comes first.
+- **Commands per project**: give a project its own commands in Settings › Projects; each one is a launcher action that runs in a new terminal window.
 
 ## 0.6.0 — 2026-10-31
 
