@@ -7,7 +7,7 @@ import Sparkle
 /// second launch whether to check automatically, and fetches nothing before the user says yes;
 /// Check for Updates… checks once, on demand. Once checks are allowed, Sparkle also downloads
 /// updates by itself, unless the user turned that off, and installs them when Plaincontrol
-/// quits; until then the menu offers to restart, a dot on the menu bar icon says so, and
+/// quits; until then the menu offers to restart, a badge on the menu bar icon says so, and
 /// Plaincontrol restarts by itself once the user is away (``QuietRestart``). No window opens.
 @MainActor
 @Observable
@@ -59,6 +59,11 @@ final class Updater {
     init(bundle: Bundle = .main) {
         controller = SPUStandardUpdaterController(
             startingUpdater: false, updaterDelegate: quietInstall, userDriverDelegate: reminders)
+        #if DEBUG
+            // To see the menu bar dot and Restart to Update without a real update, open the
+            // development app with `--args -pretendUpdate 9.9.9`; restarting does nothing then.
+            readyVersion = UserDefaults.standard.string(forKey: "pretendUpdate")
+        #endif
         let feed = bundle.object(forInfoDictionaryKey: "SUFeedURL") as? String ?? ""
         let key = bundle.object(forInfoDictionaryKey: "SUPublicEDKey") as? String ?? ""
         guard !feed.isEmpty, !key.isEmpty else {

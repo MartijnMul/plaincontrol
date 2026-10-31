@@ -5,7 +5,7 @@ What changes in each release of Plaincontrol. Versions follow [Semantic Versioni
 ## Unreleased
 
 - **Commands per project**: give a project its own commands in Settings › Projects; each one is a launcher action that runs in a new terminal window.
-- **Quiet updates**: new versions download by themselves and install while you're away from your Mac; a dot on the menu bar icon shows one is waiting. Turn it off in Settings › General.
+- **Quiet updates**: new versions download by themselves and install while you're away from your Mac; a badge on the menu bar icon shows one is waiting. Turn it off in Settings › General.
 - **Sessions survive a restart**: after Plaincontrol restarts, such as for an update, your running sessions show right away.
 
 ## 0.6.0 — 2026-10-31

@@ -87,22 +87,26 @@ struct MenuBarLabel: View {
         }
     }
 
-    /// The icon named `name`, with a dot at its top right while an update waits to install.
+    /// The icon named `name`, with a badge on its bottom right while an update waits to install:
+    /// a down arrow in a circle, set apart from the icon by a gap, as other menu bar apps mark
+    /// something that needs a look.
     private func icon(_ name: String, dot: Bool) -> Image {
-        guard dot, let base = NSImage(named: name) else { return Image(name) }
-        let image = NSImage(size: base.size, flipped: false) { rect in
-            base.draw(in: rect)
-            let size = rect.height * 0.38
-            let dot = NSRect(x: rect.maxX - size, y: rect.maxY - size, width: size, height: size)
-            // A clear ring sets the dot apart from the icon under it.
+        guard dot, let base = NSImage(named: name),
+            let badge = NSImage(systemSymbolName: "arrow.down.circle.fill", accessibilityDescription: "Update ready")
+        else { return Image(name) }
+        let badgeSize = (base.size.height * 0.68).rounded()
+        // The badge reaches past the icon's right edge, so the icon stays whole enough to know.
+        let size = NSSize(width: base.size.width + badgeSize * 0.4, height: base.size.height)
+        let image = NSImage(size: size, flipped: false) { _ in
+            base.draw(in: NSRect(origin: .zero, size: base.size))
+            let spot = NSRect(x: size.width - badgeSize, y: 0, width: badgeSize, height: badgeSize)
             NSGraphicsContext.current?.compositingOperation = .clear
-            NSBezierPath(ovalIn: dot.insetBy(dx: -1.5, dy: -1.5)).fill()
+            NSBezierPath(ovalIn: spot.insetBy(dx: -1.5, dy: -1.5)).fill()
             NSGraphicsContext.current?.compositingOperation = .sourceOver
-            NSColor.black.setFill()
-            NSBezierPath(ovalIn: dot).fill()
+            badge.draw(in: spot)
             return true
         }
-        // A template, so the menu bar draws the icon and the dot in its own colour.
+        // A template, so the menu bar draws the icon and the badge in its own colour.
         image.isTemplate = true
         return Image(nsImage: image)
     }
