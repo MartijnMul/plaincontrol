@@ -120,9 +120,9 @@ extension LauncherConfigFile {
                 ]
             case .terminal:
                 [
-                    "# The terminal for Claude Code, Terminal and the dev server, by app name or bundle",
-                    "# identifier. Without one, it is the terminal you run Claude Code in most. Plaincontrol",
-                    "# can open iTerm2 and Terminal windows so far.",
+                    "# The terminal for Claude Code, Terminal, the dev server and commands, by app name or",
+                    "# bundle identifier. Without one, it is the terminal you run Claude Code in most.",
+                    "# Plaincontrol can open iTerm2 and Terminal windows so far.",
                 ]
             case .editor:
                 [
@@ -165,7 +165,8 @@ extension LauncherConfigFile {
                 [
                     "# Projects that are always listed, with an optional name; without one, a project is",
                     "# named after its folder. A dev server command replaces the one the launcher finds:",
-                    "# make dev or the package.json dev script, else make run or Docker Compose.",
+                    "# make dev or the package.json dev script, else make run or Docker Compose. Each of a",
+                    "# project's commands is one more of its actions, run in a new terminal window.",
                 ]
             case .windows:
                 [
@@ -208,6 +209,14 @@ extension LauncherConfigFile {
                         if let command = config.devCommand(for: project) {
                             entry.append("devCommand: \(Self.scalar(command))")
                         }
+                        let commands = config.commands(for: project)
+                        if !commands.isEmpty {
+                            entry.append("commands:")
+                            for command in commands {
+                                entry.append("  - name: \(Self.scalar(command.name))")
+                                entry.append("    run: \(Self.scalar(command.run))")
+                            }
+                        }
                         return entry.enumerated().map { $0.offset == 0 ? "  - \($0.element)" : "    \($0.element)" }
                     }
             case .windows: config.windows.map(Self.lines(for:)) ?? ["windows: false"]
@@ -235,7 +244,10 @@ extension LauncherConfigFile {
             case .browser: ["# browser: Google Chrome"]
             case .roots: ["#  - ~/Developer"]
             case .projects:
-                ["#  - name: My App", "#    path: ~/Developer/my-app", "#    devCommand: uv run fastapi dev"]
+                [
+                    "#  - name: My App", "#    path: ~/Developer/my-app", "#    devCommand: uv run fastapi dev",
+                    "#    commands:", "#      - name: Deploy", "#        run: make deploy",
+                ]
             case .holdKey, .claudeCommand, .actionOrder, .zoxide, .activeDays, .windows: []
             }
         }
@@ -254,6 +266,7 @@ extension LauncherConfigFile {
             case .activeDays: a.activeDays == b.activeDays
             case .projects:
                 a.projects == b.projects && a.projects.map(a.devCommand(for:)) == b.projects.map(b.devCommand(for:))
+                    && a.projects.map(a.commands(for:)) == b.projects.map(b.commands(for:))
             case .windows: a.windows == b.windows
             }
         }

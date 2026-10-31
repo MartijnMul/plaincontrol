@@ -91,7 +91,8 @@ final class LauncherController {
         let terminals = terminals
         launcher = Launcher(items: items(), apps: AppWindow.allCases.filter(canOpen)) { project in
             config.actionOrder.order(
-                offered.filter { $0 != .devServer || Self.devCommand(for: project, config: config) != nil },
+                offered.filter { $0 != .devServer || Self.devCommand(for: project, config: config) != nil }
+                    + config.commands(for: project).map { .command($0.name) },
                 for: project, usage: usage)
         } selection: { project, actions in
             config.actionOrder.selection(in: actions, for: project, usage: usage)
@@ -197,13 +198,17 @@ final class LauncherController {
         case .terminal: terminalName ?? action.title
         case .finder: folderApp.map(Apps.name(of:)) ?? action.title
         case .editor: editor.map(Apps.name(of:)) ?? action.title
-        case .claudeDesktop: action.title
+        case .claudeDesktop, .command: action.title
         }
     }
 
     /// The command `action` runs in `project`, to show next to it, where it depends on the project.
     func command(of action: ProjectAction, in project: Project) -> String? {
-        action == .devServer ? Self.devCommand(for: project, config: config) : nil
+        switch action {
+        case .devServer: Self.devCommand(for: project, config: config)
+        case .command(let name): config.commands(for: project).first { $0.name == name }?.run
+        case .claude, .terminal, .finder, .editor, .claudeDesktop: nil
+        }
     }
 
     /// What the launcher calls something to do with a running server: its terminal pane by the
@@ -504,10 +509,21 @@ final class LauncherController {
                 fail("\(project.name) no longer has a dev server to start.")
                 return
             }
+        case .command(let name):
+            command = config.commands(for: project).first { $0.name == name }?.run
+            if command == nil {
+                fail("\(project.name) no longer has the command \(name).")
+                return
+            }
         case .terminal, .finder, .editor, .claudeDesktop: break
         }
+        let opensTerminal =
+            switch action {
+            case .claude, .terminal, .devServer, .command: true
+            case .finder, .editor, .claudeDesktop: false
+            }
         var terminalController: (any TerminalController)?
-        if [.claude, .terminal, .devServer].contains(action) {
+        if opensTerminal {
             guard let controller = openableTerminal() else { return }
             terminalController = controller
         }
@@ -516,7 +532,7 @@ final class LauncherController {
         placement?.moves.forEach(WindowMover.move)
         let frame = placement?.frame
         switch action {
-        case .claude, .terminal, .devServer:
+        case .claude, .terminal, .devServer, .command:
             guard let terminalController else { return }
             do {
                 try openTerminalWindow(
@@ -543,7 +559,9 @@ final class LauncherController {
             openDesktopWindow(in: project.path, app: app)
         }
         if devServer?.opensPage == true, let port = Self.pagePort(of: project, config: config) { openPage(at: port) }
-        log.info("Ran \(action.rawValue, privacy: .public) on a project")
+        // A command's name is the user's own.
+        let name = if case .command = action { "a command" } else { action.rawValue }
+        log.info("Ran \(name, privacy: .public) on a project")
         usage.record(project.path, action: action, devServer: devServer)
         saveUsage()
         hide()
@@ -689,7 +707,7 @@ final class LauncherController {
 
     private func isAvailable(_ action: ProjectAction) -> Bool {
         switch action {
-        case .claude, .terminal, .finder, .devServer: true
+        case .claude, .terminal, .finder, .devServer, .command: true
         case .editor: editor != nil
         case .claudeDesktop: Apps.isInstalled(ClaudeDesktop.bundleIdentifier)
         }

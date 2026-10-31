@@ -5,7 +5,7 @@ import Foundation
 /// Each action runs under the digit of its place, so the order is what the user learns. An
 /// action that is missing, such as the desktop app or the editor when neither is installed,
 /// leaves no gap, so the actions after it move up a digit.
-public enum ProjectAction: String, CaseIterable, Codable, Sendable {
+public enum ProjectAction: Hashable, Codable, Sendable {
     /// A new Claude Code session in the project's folder, in a window of its own in the Claude
     /// desktop app (``ClaudeDesktop``).
     case claudeDesktop
@@ -18,8 +18,14 @@ public enum ProjectAction: String, CaseIterable, Codable, Sendable {
     /// A new terminal window in the project's folder, running Claude Code.
     case claude
     /// A new terminal window in the project's folder, running its development server
-    /// (``DevServer``). It comes last, as only some projects have one.
+    /// (``DevServer``). It comes after the others, as only some projects have one.
     case devServer
+    /// A new terminal window in the project's folder, running a command the user set for the
+    /// project (``ProjectCommand``), by its name. A project's commands come last.
+    case command(String)
+
+    /// The actions any project can offer, in order; a project's own commands follow them.
+    public static let allCases: [ProjectAction] = [.claudeDesktop, .terminal, .finder, .editor, .claude, .devServer]
 
     public var title: String {
         switch self {
@@ -29,7 +35,48 @@ public enum ProjectAction: String, CaseIterable, Codable, Sendable {
         case .editor: "Editor"
         case .claudeDesktop: "Claude Code Desktop"
         case .devServer: "Dev server"
+        case .command(let name): name
         }
+    }
+
+    /// The action as the usage history stores it: the case's name, or `command:` and the
+    /// command's name.
+    public var rawValue: String {
+        switch self {
+        case .claudeDesktop: "claudeDesktop"
+        case .terminal: "terminal"
+        case .finder: "finder"
+        case .editor: "editor"
+        case .claude: "claude"
+        case .devServer: "devServer"
+        case .command(let name): Self.commandPrefix + name
+        }
+    }
+
+    public init?(rawValue: String) {
+        if rawValue.hasPrefix(Self.commandPrefix) {
+            self = .command(String(rawValue.dropFirst(Self.commandPrefix.count)))
+        } else if let action = Self.allCases.first(where: { $0.rawValue == rawValue }) {
+            self = action
+        } else {
+            return nil
+        }
+    }
+
+    private static let commandPrefix = "command:"
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let rawValue = try container.decode(String.self)
+        guard let action = Self(rawValue: rawValue) else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unknown action \(rawValue)")
+        }
+        self = action
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
     }
 }
 

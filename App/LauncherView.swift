@@ -311,10 +311,10 @@ struct LauncherView: View {
             ForEach(Array(controller.launcher.actions.enumerated()), id: \.element) { index, action in
                 row(selected: action == controller.launcher.selectedAction) {
                     DigitCap(row: index)
-                    Text(controller.title(of: action)).font(.title3)
+                    Text(controller.title(of: action)).font(.title3).layoutPriority(1)
                     Spacer()
                     if let command = controller.command(of: action, in: project) {
-                        Text(command).font(.body.monospaced()).opacity(0.7)
+                        Text(command).font(.body.monospaced()).opacity(0.7).lineLimit(1).truncationMode(.tail)
                     }
                 }
             }

@@ -37,6 +37,14 @@ import Testing
         #expect(outcomes == [.stay, .run(.claudeDesktop, site), .run(.finder, site)])
     }
 
+    @Test func runsAProjectsCommandLikeAnyAction() {
+        var launcher = makeLauncher([app], actions: [.terminal, .command("Deploy")])
+        _ = press(.enter, on: &launcher)
+        #expect(launcher.actions.map(\.title) == ["Terminal", "Deploy"])
+        #expect(press(.character("2"), on: &launcher) == [.run(.command("Deploy"), app)])
+        #expect(press(.down, .enter, on: &launcher) == [.stay, .run(.command("Deploy"), app)])
+    }
+
     @Test func opensTheProjectInARowByItsDigit() {
         var launcher = makeLauncher([app, site])
         #expect(press(.character("3"), .character("0"), on: &launcher) == [.stay, .stay])

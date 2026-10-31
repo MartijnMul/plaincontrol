@@ -128,6 +128,38 @@ import Testing
         #expect(config.devCommand(for: Project(path: "/work/site")) == nil)
     }
 
+    @Test func readsAProjectsCommandsInTheirOrder() throws {
+        let config = try LauncherConfigFile.parse(
+            """
+            projects:
+              - path: /work/api
+                commands:
+                  - name: " Wake the server "
+                    run: ssh build-box wake && ssh box
+                  - name: Deploy
+                    run: make deploy
+              - path: /work/site
+                commands:
+            """)
+        #expect(
+            config.commands(for: Project(path: "/work/api")) == [
+                ProjectCommand(name: "Wake the server", run: "ssh build-box wake && ssh box"),
+                ProjectCommand(name: "Deploy", run: "make deploy"),
+            ])
+        #expect(config.commands(for: Project(path: "/work/site")).isEmpty)
+    }
+
+    @Test func refusesACommandWithoutANameOrRunOrWithTheNameOfAnother() {
+        for commands in [
+            "      - run: make deploy", "      - name: Deploy", "      - name: Deploy\n        run: \"  \"",
+            "      - name: Deploy\n        run: a\n      - name: Deploy\n        run: b",
+        ] {
+            #expect(throws: LauncherConfigError.self) {
+                try LauncherConfigFile.parse("projects:\n  - path: /work/api\n    commands:\n\(commands)\n")
+            }
+        }
+    }
+
     @Test func readsTheWindowLayout() throws {
         #expect(try LauncherConfigFile.parse("zoxide: true\n").windows == WindowLayout())
         #expect(try LauncherConfigFile.parse("windows: true\n").windows == WindowLayout())
@@ -261,6 +293,17 @@ import Testing
             + #"{"path":"/work/app","date":2,"action":"finder"}]}"#
         let usage = try JSONDecoder().decode(ProjectUsage.self, from: Data(json.utf8))
         #expect(usage.uses.map(\.action) == [nil, nil, .finder])
+    }
+
+    @Test func storesACommandByItsName() throws {
+        var usage = ProjectUsage()
+        usage.record("/work/app", action: .command("Deploy"), at: now)
+        usage.record("/work/app", action: .finder, at: now)
+        let decoded = try JSONDecoder().decode(ProjectUsage.self, from: JSONEncoder().encode(usage))
+        #expect(decoded.uses.map(\.action) == [.command("Deploy"), .finder])
+        #expect(ProjectAction.command("Deploy").rawValue == "command:Deploy")
+        #expect(ProjectAction(rawValue: "devServer") == .devServer)
+        #expect(ProjectAction(rawValue: "gone") == nil)
     }
 
     @Test func remembersHowTheDevServerStartedLastInEachProject() throws {

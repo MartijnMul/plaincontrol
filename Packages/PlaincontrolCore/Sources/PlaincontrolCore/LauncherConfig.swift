@@ -35,7 +35,7 @@ public enum HoldKey: String, CaseIterable, Sendable {
 ///
 /// ```yaml
 /// holdKey: rightOption  # rightOption, rightCommand, rightControl or rightShift
-/// terminal: iTerm2      # the app for Claude Code, Terminal and the dev server, by name or bundle id
+/// terminal: iTerm2      # the app for Claude Code, Terminal, the dev server and commands, by name or bundle id
 /// editor: Cursor        # the app for Editor, by name or bundle identifier
 /// browser: Firefox      # the app for a dev server's page and an empty browser window
 /// claudeCommand: claude # what Claude Code runs in the new terminal window
@@ -44,10 +44,13 @@ public enum HoldKey: String, CaseIterable, Sendable {
 /// roots:                # folders whose subfolders are projects
 ///   - ~/Developer
 /// activeDays: 90        # a project is listed this long after its last change or use
-/// projects:             # always listed, with an optional name and dev server command
+/// projects:             # always listed, with an optional name, dev server command and commands
 ///   - name: My App
 ///     path: ~/Developer/my-app
 ///     devCommand: uv run fastapi dev
+///     commands:           # each one more action of the project, in a new terminal window
+///       - name: Deploy
+///         run: make deploy
 /// windows:              # new windows in free columns, nearest the user first; false: each app places them
 ///   builtIn: 2          # columns on the built-in screen
 ///   external: 3         # columns on every other screen
@@ -59,7 +62,7 @@ public enum HoldKey: String, CaseIterable, Sendable {
 public struct LauncherConfig: Sendable, Equatable {
     /// The key that opens the launcher when held on its own.
     public var holdKey = HoldKey.rightOption
-    /// The terminal for the Claude Code, terminal and dev server actions, by app name or bundle
+    /// The terminal for the Claude Code, terminal, dev server and command actions, by app name or bundle
     /// identifier, or nil to pick one (``AppChoice``).
     public var terminal: String?
     /// The editor for the editor action, by app name or bundle identifier, or nil to pick one
@@ -83,6 +86,9 @@ public struct LauncherConfig: Sendable, Equatable {
     /// The commands that start the development servers of projects, by their resolved paths,
     /// where the user sets one instead of leaving it to ``DevServer``.
     public var devCommands: [String: String] = [:]
+    /// The commands the user set for projects, by their resolved paths, each one more action
+    /// of its project.
+    public var commands: [String: [ProjectCommand]] = [:]
     /// How to arrange the windows the launcher opens, or nil to leave it to each app. Without
     /// the setting, they go in columns of the default layout.
     public var windows: WindowLayout? = WindowLayout()
@@ -91,7 +97,8 @@ public struct LauncherConfig: Sendable, Equatable {
         holdKey: HoldKey = .rightOption, terminal: String? = nil, editor: String? = nil, browser: String? = nil,
         claudeCommand: String = "claude", actionOrder: ActionOrder = .fixed, zoxide: Bool = true, roots: [String] = [],
         activeDays: Int = 90,
-        projects: [Project] = [], devCommands: [String: String] = [:], windows: WindowLayout? = WindowLayout()
+        projects: [Project] = [], devCommands: [String: String] = [:], commands: [String: [ProjectCommand]] = [:],
+        windows: WindowLayout? = WindowLayout()
     ) {
         self.holdKey = holdKey
         self.terminal = terminal
@@ -104,6 +111,7 @@ public struct LauncherConfig: Sendable, Equatable {
         self.activeDays = activeDays
         self.projects = projects
         self.devCommands = devCommands
+        self.commands = commands
         self.windows = windows
     }
 
@@ -111,6 +119,28 @@ public struct LauncherConfig: Sendable, Equatable {
     public func devCommand(for project: Project) -> String? {
         devCommands[project.resolvedPath]
     }
+
+    /// The commands set for `project`, in the order of the file.
+    public func commands(for project: Project) -> [ProjectCommand] {
+        commands[project.resolvedPath] ?? []
+    }
+}
+
+/// A command the user set for a project, which the launcher offers as one of its actions and
+/// runs in a new terminal window in the project's folder, such as a script that only that
+/// project needs.
+public struct ProjectCommand: Sendable, Equatable, Hashable, Identifiable {
+    /// What the launcher calls it, which tells it from the project's other commands.
+    public var name: String
+    /// The shell command it runs.
+    public var run: String
+
+    public init(name: String, run: String) {
+        self.name = name
+        self.run = run
+    }
+
+    public var id: String { name }
 }
 
 /// The settings file, which the user edits by hand or through the settings window.
@@ -183,19 +213,33 @@ public enum LauncherConfigFile {
         }
         var seen = Set<String>()
         var devCommands: [String: String] = [:]
-        let projects = (file.projects ?? []).compactMap { entry -> Project? in
+        var commands: [String: [ProjectCommand]] = [:]
+        var projects: [Project] = []
+        for entry in file.projects ?? [] {
             let project = Project(path: entry.path, name: entry.name)
             if let command = entry.devCommand?.trimmingCharacters(in: .whitespaces), !command.isEmpty {
                 devCommands[project.resolvedPath] = command
             }
-            return seen.insert(project.path).inserted ? project : nil
+            let own = try (entry.commands ?? []).map { command throws(LauncherConfigError) in
+                let name = command.name?.trimmingCharacters(in: .whitespaces) ?? ""
+                let run = command.run?.trimmingCharacters(in: .whitespaces) ?? ""
+                guard !name.isEmpty, !run.isEmpty else {
+                    throw LauncherConfigError(message: "projects: every command needs a name and what to run.")
+                }
+                return ProjectCommand(name: name, run: run)
+            }
+            if Set(own.map(\.name)).count < own.count {
+                throw LauncherConfigError(message: "projects: the commands of a project need names of their own.")
+            }
+            if !own.isEmpty { commands[project.resolvedPath] = own }
+            if seen.insert(project.path).inserted { projects.append(project) }
         }
         return LauncherConfig(
             holdKey: holdKey, terminal: terminal?.isEmpty == false ? terminal : nil,
             editor: editor?.isEmpty == false ? editor : nil, browser: browser?.isEmpty == false ? browser : nil,
             claudeCommand: claudeCommand, actionOrder: actionOrder,
             zoxide: file.zoxide ?? true, roots: file.roots ?? [], activeDays: file.activeDays ?? 90,
-            projects: projects, devCommands: devCommands, windows: windows)
+            projects: projects, devCommands: devCommands, commands: commands, windows: windows)
     }
 
     /// Reads the configuration at `path`, or the defaults when there is no file yet.
@@ -271,6 +315,12 @@ public enum LauncherConfigFile {
         var name: String?
         var path: String
         var devCommand: String?
+        var commands: [Command]?
+    }
+
+    struct Command: Decodable {
+        var name: String?
+        var run: String?
     }
 }
 

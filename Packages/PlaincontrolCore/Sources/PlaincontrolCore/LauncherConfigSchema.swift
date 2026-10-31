@@ -79,6 +79,22 @@ extension LauncherConfigFile.Setting {
                             "description":
                                 "What starts the project's dev server, instead of the one the launcher finds.",
                         ],
+                        "commands": [
+                            "type": ["array", "null"],
+                            "description":
+                                "Commands for the project, each one more of its actions, run in a new terminal window.",
+                            "items": Self.object(
+                                [
+                                    "name": [
+                                        "type": "string", "pattern": "\\S",
+                                        "description": "What the launcher calls it; each command of a project its own.",
+                                    ],
+                                    "run": [
+                                        "type": "string", "pattern": "\\S",
+                                        "description": "The shell command to run, in the project's folder.",
+                                    ],
+                                ], required: ["name", "run"]),
+                        ],
                     ], required: ["path"]),
             ]
         case .windows:

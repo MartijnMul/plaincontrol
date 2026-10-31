@@ -524,6 +524,9 @@ private struct ProjectSettings: View {
                         }
                         .labelsHidden()
                     }
+                    TableColumn("Commands") { project in
+                        CommandsButton(model: model, project: project)
+                    }
                 }
                 .frame(height: 150)
                 AddRemoveButtons(canRemove: !selectedProjects.isEmpty) {
@@ -536,6 +539,7 @@ private struct ProjectSettings: View {
                     model.change { config in
                         for project in config.projects where removed.contains(project.id) {
                             config.devCommands[project.resolvedPath] = nil
+                            config.commands[project.resolvedPath] = nil
                         }
                         config.projects.removeAll { removed.contains($0.id) }
                     }
@@ -543,7 +547,7 @@ private struct ProjectSettings: View {
             } header: {
                 Text("Projects")
                 Text(
-                    "Always listed. An empty name is the folder's; an empty command is the one the launcher finds, shown in grey."
+                    "Always listed. An empty name is the folder's; an empty dev server command is the one the launcher finds, shown in grey. Each command is one more action of its project, run in a new terminal window."
                 )
             }
             Section {
@@ -670,6 +674,106 @@ private struct AdvancedSettings: View {
 }
 
 /// The + and − buttons below a list.
+/// The commands of a project in the projects table, which opens them to edit.
+private struct CommandsButton: View {
+    let model: SettingsModel
+    let project: Project
+    @State private var isEditing = false
+
+    var body: some View {
+        let count = model.config.commands(for: project).count
+        Button(count == 0 ? "Add…" : count == 1 ? "1 command" : "\(count) commands") { isEditing = true }
+            .buttonStyle(.link)
+            .popover(isPresented: $isEditing, arrowEdge: .bottom) {
+                CommandsEditor(model: model, project: project)
+            }
+    }
+}
+
+/// The commands of a project, to rename, change, remove and add to.
+private struct CommandsEditor: View {
+    let model: SettingsModel
+    let project: Project
+    @State private var selection = Set<String>()
+    @State private var newName = ""
+    @State private var newRun = ""
+
+    var body: some View {
+        let commands = model.config.commands(for: project)
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Commands of \(project.name)").font(.headline)
+            Table(commands, selection: $selection) {
+                TableColumn("Name") { command in
+                    CommittingField("Name", value: command.name, prompt: "Name") { name in
+                        guard !name.isEmpty, !commands.contains(where: { $0.name == name }) else { return }
+                        change(command) { $0.name = name }
+                    }
+                    .labelsHidden()
+                }
+                .width(min: 100, ideal: 140)
+                TableColumn("Command") { command in
+                    CommittingField("Command", value: command.run, prompt: "Command") { run in
+                        guard !run.isEmpty else { return }
+                        change(command) { $0.run = run }
+                    }
+                    .labelsHidden()
+                }
+                .width(min: 200, ideal: 340)
+            }
+            .frame(height: 140)
+            Button {
+                let removed = selection
+                selection = []
+                model.change { config in
+                    let kept = config.commands(for: project).filter { !removed.contains($0.name) }
+                    config.commands[project.resolvedPath] = kept.isEmpty ? nil : kept
+                }
+            } label: {
+                Image(systemName: "minus")
+            }
+            .buttonStyle(.borderless)
+            .disabled(selection.isEmpty)
+            .help("Remove the selected")
+            HStack {
+                TextField("Name", text: $newName, prompt: Text("Name")).frame(width: 140)
+                TextField("Command", text: $newRun, prompt: Text("ssh my-server")).onSubmit(add)
+                Button("Add", action: add).disabled(newCommand == nil)
+            }
+            Text("Each runs in a new terminal window in the project's folder, as one more action of the project.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding()
+        .frame(width: 560)
+    }
+
+    /// The command typed below the list, when it has a name of its own and something to run.
+    private var newCommand: ProjectCommand? {
+        let name = newName.trimmingCharacters(in: .whitespaces)
+        let run = newRun.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty, !run.isEmpty, !model.config.commands(for: project).contains(where: { $0.name == name })
+        else { return nil }
+        return ProjectCommand(name: name, run: run)
+    }
+
+    private func add() {
+        guard let command = newCommand else { return }
+        model.change { $0.commands[project.resolvedPath, default: []].append(command) }
+        newName = ""
+        newRun = ""
+    }
+
+    private func change(_ command: ProjectCommand, _ edit: (inout ProjectCommand) -> Void) {
+        model.change { config in
+            guard var commands = config.commands[project.resolvedPath],
+                let index = commands.firstIndex(of: command)
+            else { return }
+            edit(&commands[index])
+            config.commands[project.resolvedPath] = commands
+        }
+    }
+}
+
 private struct AddRemoveButtons: View {
     let canRemove: Bool
     let add: () -> Void
