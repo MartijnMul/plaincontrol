@@ -70,7 +70,7 @@ final class LauncherController {
         let keyTap =
             keyTap
             ?? LauncherKeyTap(
-                onKey: { [weak self] key in self?.handle(key) },
+                onKey: { [weak self] key, isRepeat in self?.handle(key, isRepeat: isRepeat) },
                 onClick: { [weak self] in
                     self?.log.info("Closed the launcher on a click")
                     self?.hide()
@@ -103,6 +103,7 @@ final class LauncherController {
         hasOpened = true
         scanFolders()
         askZoxide()
+        scanServers()
     }
 
     func hide() {
@@ -371,7 +372,16 @@ final class LauncherController {
         }
     }
 
-    private func handle(_ key: Launcher.Key) {
+    /// Looks for the servers running in the projects, off the main thread.
+    private func scanServers() {
+        let projects = launcher.items.map(\.project)
+        Task {
+            let servers = await Task.detached { RunningServers.scan(in: projects) }.value
+            if isShown { launcher.update(servers: servers) }
+        }
+    }
+
+    private func handle(_ key: Launcher.Key, isRepeat: Bool) {
         guard isShown else { return }
         if var finder = pathFinder {
             let outcome = finder.press(key, list: ProjectFolders.subfolders(of:))
@@ -383,7 +393,7 @@ final class LauncherController {
             }
             return
         }
-        switch launcher.press(key) {
+        switch launcher.press(key, isRepeat: isRepeat) {
         case .stay: break
         case .close:
             log.info("Closed the launcher on a key")
@@ -394,6 +404,30 @@ final class LauncherController {
         case .findFolder:
             pathFinder = PathFinder(
                 folder: NSHomeDirectory(), home: NSHomeDirectory(), list: ProjectFolders.subfolders(of:))
+        case .serverAction(let action, let server): run(action, on: server)
+        }
+    }
+
+    private func run(_ action: ServerAction, on server: RunningServer) {
+        switch action {
+        case .openPage:
+            guard let port = server.port else { return }
+            openPage(at: port)
+            log.info("Opened the page of a running server")
+            hide()
+        case .stop:
+            guard RunningServers.stop(server) else {
+                fail("Could not stop the server of \(server.project.name); it may have stopped already.")
+                scanServers()
+                return
+            }
+            log.info("Stopped a running server")
+            launcher.update(servers: launcher.servers.filter { $0.id != server.id })
+            // The rest of its job may take a moment to end, or a server may start again.
+            Task {
+                try? await Task.sleep(for: .seconds(1))
+                scanServers()
+            }
         }
     }
 

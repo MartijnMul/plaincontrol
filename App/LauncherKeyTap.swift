@@ -11,10 +11,11 @@ import PlaincontrolCore
 final class LauncherKeyTap {
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
-    private let onKey: (Launcher.Key) -> Void
+    private let onKey: (Launcher.Key, _ isRepeat: Bool) -> Void
     private let onClick: () -> Void
 
-    init(onKey: @escaping (Launcher.Key) -> Void, onClick: @escaping () -> Void) {
+    /// - Parameter onKey: Called with each key the launcher takes, and whether it repeats because it is held.
+    init(onKey: @escaping (Launcher.Key, _ isRepeat: Bool) -> Void, onClick: @escaping () -> Void) {
         self.onKey = onKey
         self.onClick = onClick
     }
@@ -52,12 +53,14 @@ final class LauncherKeyTap {
         var keyCode: UInt16
         var characters: String?
         var isShortcut: Bool
+        var isRepeat: Bool
 
         init(_ type: CGEventType, _ event: CGEvent) {
             self.type = type
             keyCode = UInt16(truncatingIfNeeded: event.getIntegerValueField(.keyboardEventKeycode))
             characters = type == .keyDown ? NSEvent(cgEvent: event)?.charactersIgnoringModifiers : nil
             isShortcut = event.flags.contains(.maskCommand) || event.flags.contains(.maskControl)
+            isRepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
         }
     }
 
@@ -73,7 +76,7 @@ final class LauncherKeyTap {
         case .keyDown, .keyUp:
             guard !input.isShortcut else { return false }
             if input.type == .keyDown, let key = Launcher.Key(keyCode: input.keyCode, characters: input.characters) {
-                onKey(key)
+                onKey(key, input.isRepeat)
             }
             return true
         default:

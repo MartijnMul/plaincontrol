@@ -2,6 +2,10 @@
 
 What changes in each release of Plaincontrol. Versions follow [Semantic Versioning](https://semver.org); while the version starts with 0, any release may change how Plaincontrol is installed or configured, and says so.
 
+## Unreleased
+
+- **See the servers still running**: when a server runs in one of your projects, such as a dev server you forgot in a terminal tab or one a Claude Code session started in the background, the launcher says so above the list of projects, with how many are orphaned: still running after the terminal or session that started them is gone. Up on the top row shows them, with the ports they listen on and how long they have run. Return opens a server's page in your browser; Right offers to stop it, with what started it in the same terminal job, such as `pnpm dev`. A server is anything that listens on a port from inside a project folder, so apps such as Spotify or Docker are left out; it needs no permission.
+
 ## 0.5.0 — 2026-10-29
 
 - **A welcome window**: on its first start, Plaincontrol opens a window that walks you through setting it up, with each step checked off as it is done: allowing Accessibility, which it now asks for only from this window, after saying what it is for; installing the Claude Code plugin, with a button that copies the two commands; adding your projects, with zoxide's folders too when you have zoxide; and a first try of the launcher. Getting Started… in the menu opens it again.

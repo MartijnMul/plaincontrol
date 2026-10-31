@@ -23,6 +23,8 @@ struct LauncherView: View {
                 case .project(let project): actionList(for: project)
                 case .devServer(let project): choiceList(for: project)
                 case .apps: appList
+                case .servers: serverList
+                case .server(let server): serverActionList(for: server)
                 }
             }
             if let problem = controller.problem {
@@ -54,6 +56,9 @@ struct LauncherView: View {
         .font(.title3)
         .foregroundStyle(.secondary)
         .padding(.horizontal, 10)
+        if !launcher.servers.isEmpty {
+            runningLine(launcher.servers)
+        }
         if launcher.visible.isEmpty {
             if launcher.query.isEmpty {
                 Text("No projects yet")
@@ -134,6 +139,90 @@ struct LauncherView: View {
                     }
                 }
             }
+        }
+    }
+
+    /// How many servers run, above the list, which Up on its top row shows.
+    private func runningLine(_ servers: [RunningServer]) -> some View {
+        let orphaned = servers.count { $0.isOrphaned }
+        return HStack(spacing: 8) {
+            KeyCap("↑")
+            Text(servers.count == 1 ? "1 server running" : "\(servers.count) servers running")
+            if orphaned > 0 {
+                Text("·")
+                Text("\(orphaned) orphaned").foregroundStyle(.orange)
+            }
+            Spacer()
+        }
+        .font(.callout)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 10)
+    }
+
+    @ViewBuilder
+    private var serverList: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Running servers").font(.title3.weight(.semibold))
+            Text("Listening on a port in your projects").foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 10)
+        VStack(spacing: 2) {
+            ForEach(Array(controller.launcher.servers.enumerated()), id: \.element.id) { index, server in
+                let selected = server.id == controller.launcher.selectedServer?.id
+                row(selected: selected) {
+                    DigitCap(row: index)
+                    Text(server.project.name).font(.title3.weight(.medium))
+                    if server.isOrphaned {
+                        Text("orphaned").foregroundStyle(selected ? .white : .orange)
+                    }
+                    Spacer()
+                    Text(Self.uptime(of: server)).opacity(0.7)
+                    Text(Self.ports(of: server)).font(.body.monospaced()).opacity(0.7)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func serverActionList(for server: RunningServer) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(server.project.name).font(.title3.weight(.semibold))
+            Text(
+                "\(server.process.name), running for \(Self.uptime(of: server))"
+                    + (server.isOrphaned ? ", orphaned: what started it is gone" : "")
+            )
+            .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 10)
+        VStack(spacing: 2) {
+            ForEach(Array(controller.launcher.serverActions.enumerated()), id: \.element) { index, action in
+                row(selected: action == controller.launcher.selectedServerAction) {
+                    DigitCap(row: index)
+                    Text(action.title).font(.title3)
+                    Spacer()
+                    if action == .openPage, let port = server.port {
+                        Text("localhost:\(port)").font(.body.monospaced()).opacity(0.7)
+                    }
+                }
+            }
+        }
+    }
+
+    /// The ports a server listens on, such as `:3000`.
+    private static func ports(of server: RunningServer) -> String {
+        server.process.ports.map { ":\($0)" }.joined(separator: " ")
+    }
+
+    /// How long a server has been running, in its largest unit, such as `23 h`.
+    private static func uptime(of server: RunningServer) -> String {
+        let seconds = max(Int(Date.now.timeIntervalSince(server.process.started)), 0)
+        switch seconds {
+        case ..<60: return "just now"
+        case ..<3600: return "\(seconds / 60) min"
+        case ..<86_400: return "\(seconds / 3600) h"
+        default:
+            let days = seconds / 86_400
+            return days == 1 ? "1 day" : "\(days) days"
         }
     }
 
@@ -240,10 +329,15 @@ struct LauncherView: View {
                 hint("↑↓", "Select")
                 hint("↩ ←", "Open")
                 hint("→ esc", "Back")
-            case .project, .devServer:
+            case .project, .devServer, .server:
                 hint("↑↓", "Select")
                 hint("↩ →", "Run")
                 hint("← esc", "Back")
+            case .servers:
+                hint("↑↓", "Select")
+                hint("↩", "Open page")
+                hint("→", "More")
+                hint("esc", "Back")
             }
         }
     }

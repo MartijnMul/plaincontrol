@@ -120,6 +120,74 @@ import Testing
         #expect(launcher.selectedProject == app)
     }
 
+    func server(_ pid: Int32, in project: Project) -> RunningServer {
+        RunningServer(
+            process: ListeningProcess(
+                pid: pid, parent: 500, group: pid, name: "node", folder: project.path, ports: [3000], started: .now),
+            project: project)
+    }
+
+    @Test func showsTheRunningServersAboveTheList() {
+        var launcher = makeLauncher([app, site])
+        let first = server(1, in: app)
+        let second = server(2, in: site)
+        launcher.update(servers: [first, second])
+        _ = press(.down, .up, on: &launcher)
+        #expect(launcher.screen == .projects)
+        #expect(launcher.selectedProject == app)
+        #expect(press(.up, on: &launcher) == [.stay])
+        #expect(launcher.screen == .servers)
+        #expect(launcher.selectedServer == second)
+        #expect(press(.up, .enter, on: &launcher) == [.stay, .serverAction(.openPage, first)])
+        #expect(press(.character("2"), on: &launcher) == [.serverAction(.openPage, second)])
+        _ = press(.down, .down, on: &launcher)
+        #expect(launcher.screen == .projects)
+        _ = press(.up, .escape, on: &launcher)
+        #expect(launcher.screen == .projects)
+    }
+
+    @Test func aHeldKeyStaysInTheList() {
+        var launcher = makeLauncher([app])
+        launcher.update(servers: [server(1, in: app)])
+        #expect(launcher.press(.up, isRepeat: true) == .stay)
+        #expect(launcher.screen == .projects)
+        _ = launcher.press(.up)
+        #expect(launcher.press(.down, isRepeat: true) == .stay)
+        #expect(launcher.screen == .servers)
+    }
+
+    @Test func upDoesNothingWithoutRunningServers() {
+        var launcher = makeLauncher([app])
+        #expect(press(.up, on: &launcher) == [.stay])
+        #expect(launcher.screen == .projects)
+    }
+
+    @Test func offersWhatCanBeDoneWithAServer() {
+        var launcher = makeLauncher([app])
+        let running = server(1, in: app)
+        launcher.update(servers: [running])
+        _ = press(.up, .right, on: &launcher)
+        #expect(launcher.screen == .server(running))
+        #expect(press(.down, .enter, on: &launcher) == [.stay, .serverAction(.stop, running)])
+        #expect(press(.character("1"), on: &launcher) == [.serverAction(.openPage, running)])
+        _ = press(.left, on: &launcher)
+        #expect(launcher.screen == .servers)
+    }
+
+    @Test func goesBackOnceTheServerStops() {
+        var launcher = makeLauncher([app])
+        let first = server(1, in: app)
+        let second = server(2, in: app)
+        launcher.update(servers: [first, second])
+        _ = press(.up, .right, on: &launcher)
+        #expect(launcher.screen == .server(second))
+        launcher.update(servers: [first])
+        #expect(launcher.screen == .servers)
+        #expect(launcher.selectedServer == first)
+        launcher.update(servers: [])
+        #expect(launcher.screen == .projects)
+    }
+
     @Test func leftDoesNothingWithoutApps() {
         var launcher = makeLauncher([app], actions: [.claude])
         #expect(press(.left, on: &launcher) == [.stay])

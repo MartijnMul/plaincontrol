@@ -87,6 +87,11 @@ public enum ActionOrder: String, CaseIterable, Sendable {
 /// window of: Up and Down select one, Return or Left runs it, a digit runs the one in that row,
 /// and Right or Escape goes back to the list. The dev server asks next whether to open its page too,
 /// in the same way, when the project offers that; Left or Escape goes back to the actions.
+///
+/// Up on the top row of the list, pressed rather than held, shows the servers running in the
+/// projects (``RunningServers``), when there are any: Up and Down select one, Return opens its
+/// page, a digit opens the page of the one in that row, and Right lists what can be done with
+/// it, as a project's actions. Down on the bottom row or Escape goes back to the list.
 public struct Launcher: Sendable {
     /// The actions a project offers, in the order shown.
     public typealias Actions = @Sendable (Project) -> [ProjectAction]
@@ -107,6 +112,10 @@ public struct Launcher: Sendable {
         case devServer(Project)
         /// The apps to open an empty window of.
         case apps
+        /// The servers running in the projects.
+        case servers
+        /// What can be done with a running server.
+        case server(RunningServer)
     }
 
     /// What should happen after a key press.
@@ -120,6 +129,8 @@ public struct Launcher: Sendable {
         case openApp(AppWindow)
         /// Find a folder to add as a project.
         case findFolder
+        /// Do something with a running server.
+        case serverAction(ServerAction, RunningServer)
     }
 
     /// How many projects the list shows at most: one for each digit.
@@ -144,6 +155,14 @@ public struct Launcher: Sendable {
     public let apps: [AppWindow]
     /// The selected one of ``apps``.
     public private(set) var appSelection = 0
+    /// The servers running in the projects, in the order shown.
+    public private(set) var servers: [RunningServer] = []
+    /// The selected one of ``servers``.
+    public private(set) var serverSelection = 0
+    /// What can be done with the open server.
+    public let serverActions = ServerAction.allCases
+    /// The selected one of ``serverActions``.
+    public private(set) var serverActionSelection = 0
     /// What the user typed to search.
     public private(set) var query = ""
     /// The selected row of ``visible``.
@@ -185,6 +204,30 @@ public struct Launcher: Sendable {
         selection = visible.firstIndex { $0.id == selected } ?? 0
     }
 
+    /// Replaces the running servers, keeping the selected one when it still runs, and going
+    /// back to the list once none is left.
+    public mutating func update(servers: [RunningServer]) {
+        let selected = selectedServer?.id
+        self.servers = servers
+        serverSelection = servers.firstIndex { $0.id == selected } ?? min(serverSelection, max(servers.count - 1, 0))
+        switch screen {
+        case .servers where servers.isEmpty:
+            screen = .projects
+        case .server(let server) where !servers.contains(where: { $0.id == server.id }):
+            screen = servers.isEmpty ? .projects : .servers
+        default:
+            break
+        }
+    }
+
+    public var selectedServer: RunningServer? {
+        servers.indices.contains(serverSelection) ? servers[serverSelection] : nil
+    }
+
+    public var selectedServerAction: ServerAction? {
+        serverActions.indices.contains(serverActionSelection) ? serverActions[serverActionSelection] : nil
+    }
+
     public var selectedItem: LauncherItem? {
         visible.indices.contains(selection) ? visible[selection] : nil
     }
@@ -213,10 +256,17 @@ public struct Launcher: Sendable {
         devServerChoices.indices.contains(choiceSelection) ? devServerChoices[choiceSelection] : nil
     }
 
-    public mutating func press(_ key: Key) -> Outcome {
+    /// - Parameter isRepeat: Whether the key is held down and repeats, which does not leave the
+    ///   list past its top or bottom row.
+    public mutating func press(_ key: Key, isRepeat: Bool = false) -> Outcome {
         switch (screen, key) {
         case (.projects, .up):
-            selection = max(selection - 1, 0)
+            if selection == 0, !isRepeat, !servers.isEmpty {
+                serverSelection = servers.count - 1
+                screen = .servers
+            } else {
+                selection = max(selection - 1, 0)
+            }
         case (.projects, .down):
             selection = min(selection + 1, max(visible.count - 1, 0))
         case (.projects, .enter), (.projects, .right):
@@ -277,7 +327,41 @@ public struct Launcher: Sendable {
             screen = .projects
         case (.apps, .character(let character)):
             if let row = Self.row(for: character), apps.indices.contains(row) { return .openApp(apps[row]) }
-        case (.project, .backspace), (.devServer, .backspace), (.apps, .backspace):
+        case (.servers, .up):
+            serverSelection = max(serverSelection - 1, 0)
+        case (.servers, .down):
+            if serverSelection >= servers.count - 1 {
+                if !isRepeat { screen = .projects }
+            } else {
+                serverSelection += 1
+            }
+        case (.servers, .enter):
+            if let selectedServer { return .serverAction(.openPage, selectedServer) }
+        case (.servers, .right):
+            if let selectedServer {
+                serverActionSelection = 0
+                screen = .server(selectedServer)
+            }
+        case (.servers, .escape):
+            screen = .projects
+        case (.servers, .character(let character)):
+            if let row = Self.row(for: character), servers.indices.contains(row) {
+                return .serverAction(.openPage, servers[row])
+            }
+        case (.server, .up):
+            serverActionSelection = max(serverActionSelection - 1, 0)
+        case (.server, .down):
+            serverActionSelection = min(serverActionSelection + 1, serverActions.count - 1)
+        case (.server(let server), .enter), (.server(let server), .right):
+            if let selectedServerAction { return .serverAction(selectedServerAction, server) }
+        case (.server, .left), (.server, .escape):
+            screen = .servers
+        case (.server(let server), .character(let character)):
+            if let row = Self.row(for: character), serverActions.indices.contains(row) {
+                return .serverAction(serverActions[row], server)
+            }
+        case (.servers, .left), (.servers, .backspace), (.server, .backspace), (.project, .backspace),
+            (.devServer, .backspace), (.apps, .backspace):
             break
         }
         return .stay
