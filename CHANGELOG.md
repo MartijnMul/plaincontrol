@@ -5,6 +5,7 @@ What changes in each release of Plaincontrol. Versions follow [Semantic Versioni
 ## Unreleased
 
 - **Commands per project**: give a project its own commands in Settings › Projects; each one is a launcher action that runs in a new terminal window.
+- **Quiet updates**: new versions download by themselves and install when Plaincontrol quits, or from Restart to Update in its menu. Turn it off in Settings › General.
 
 ## 0.6.0 — 2026-10-31
 

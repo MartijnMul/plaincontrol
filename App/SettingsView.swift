@@ -12,7 +12,7 @@ struct SettingsView: View {
     var body: some View {
         TabView {
             Tab("General", systemImage: "gearshape") {
-                SettingsPage(model: model, height: updater.isAvailable ? 750 : 660, restore: GeneralSettings.restore) {
+                SettingsPage(model: model, height: updater.isAvailable ? 800 : 660, restore: GeneralSettings.restore) {
                     GeneralSettings(model: model, updater: updater)
                 }
             }
@@ -296,6 +296,13 @@ private struct GeneralSettings: View {
                         Text("Check for updates automatically")
                         Text("Once a day, Plaincontrol asks GitHub for a newer version. It sends nothing about you.")
                     }
+                    Toggle(isOn: $updater.installsAutomatically) {
+                        Text("Install updates automatically")
+                        Text(
+                            "A new version installs when Plaincontrol quits, or when you choose Restart to Update in its menu."
+                        )
+                    }
+                    .disabled(!updater.checksAutomatically)
                     LabeledContent("Updates") {
                         Button("Check Now") { updater.checkForUpdates() }
                             .disabled(!updater.canCheck)

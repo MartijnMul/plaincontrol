@@ -10,6 +10,8 @@
 	<true/>
 	<key>SUVerifyUpdateBeforeExtraction</key>
 	<true/>
+	<key>SUAutomaticallyUpdate</key>
+	<true/>
 	<key>SUEnableSystemProfiling</key>
 	<false/>
 </dict>

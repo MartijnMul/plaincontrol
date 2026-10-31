@@ -58,7 +58,7 @@ The sessions you start from then on show up in Plaincontrol's menu. Without the 
 
 Hold the **right Option key** on its own for a moment: the launcher opens. [The launcher](#the-launcher) below explains the rest.
 
-**Updates**: with Homebrew, `brew upgrade`. Either way, Plaincontrol asks on its second launch whether to update itself.
+**Updates**: with Homebrew, `brew upgrade`. Either way, Plaincontrol asks on its second launch whether to update itself; if you agree, new versions install quietly when it quits, or from Restart to Update in its menu.
 
 **Uninstall**: quit Plaincontrol and run `brew uninstall --cask plaincontrol`, or drag it to the Bin; then run `/plugin uninstall plaincontrol@plaincontrol` in Claude Code. Your settings and history are in `~/.config/plaincontrol` and `~/Library/Application Support/Plaincontrol`; `brew uninstall --cask --zap plaincontrol` removes them too.
 
@@ -108,7 +108,7 @@ Plaincontrol sends nothing about you off your Mac. Its one network request is th
 - The Accessibility permission lets it notice the launcher key and take your typing while the launcher is open, and move the windows it opens. It does not record what you type.
 - Your launcher history stays in `~/Library/Application Support/Plaincontrol`. zoxide's data is only read.
 - Adding your projects from Claude Code's history, in the welcome window, reads only the names of the folders in `~/.claude/projects` and the dates of the session files in them, never what is in those files.
-- On its second launch, Plaincontrol asks whether to check for updates automatically. If you agree, it asks GitHub once a day for the latest version, which tells GitHub your IP address and Plaincontrol's version, as any download from GitHub does. Change your mind in Settings.
+- On its second launch, Plaincontrol asks whether to check for updates automatically. If you agree, it asks GitHub once a day for the latest version and downloads it, which tells GitHub your IP address and Plaincontrol's version, as any download from GitHub does. Change your mind in Settings.
 
 [SECURITY.md](SECURITY.md) has the details, and how to check that your copy is genuine.
 

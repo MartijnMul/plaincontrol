@@ -47,7 +47,11 @@ struct SessionMenu: View {
             openSettings()
         }
         .keyboardShortcut(",")
-        if updater.isAvailable {
+        if let version = updater.readyVersion {
+            Button("Restart to Update to \(version)") {
+                updater.restartToUpdate()
+            }
+        } else if updater.isAvailable {
             Button("Check for Updates…") {
                 NSApp.activate()
                 updater.checkForUpdates()
