@@ -33,7 +33,7 @@ struct PlaincontrolApp: App {
         MenuBarExtra {
             SessionMenu(store: store, launcher: launcher, welcome: welcome, updater: updater)
         } label: {
-            MenuBarLabel(store: store)
+            MenuBarLabel(store: store, updater: updater)
         }
         Settings {
             SettingsView(model: settings, updater: updater)

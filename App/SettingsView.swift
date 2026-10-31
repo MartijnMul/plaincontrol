@@ -299,7 +299,7 @@ private struct GeneralSettings: View {
                     Toggle(isOn: $updater.installsAutomatically) {
                         Text("Install updates automatically")
                         Text(
-                            "A new version installs when Plaincontrol quits, or when you choose Restart to Update in its menu."
+                            "A new version installs while you're away from your Mac, or when you choose Restart to Update in its menu."
                         )
                     }
                     .disabled(!updater.checksAutomatically)

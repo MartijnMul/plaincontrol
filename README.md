@@ -58,7 +58,7 @@ The sessions you start from then on show up in Plaincontrol's menu. Without the 
 
 Hold the **right Option key** on its own for a moment: the launcher opens. [The launcher](#the-launcher) below explains the rest.
 
-**Updates**: with Homebrew, `brew upgrade`. Either way, Plaincontrol asks on its second launch whether to update itself; if you agree, new versions install quietly when it quits, or from Restart to Update in its menu.
+**Updates**: with Homebrew, `brew upgrade`. Either way, Plaincontrol asks on its second launch whether to update itself; if you agree, new versions install quietly while you're away from your Mac, and your sessions stay listed.
 
 **Uninstall**: quit Plaincontrol and run `brew uninstall --cask plaincontrol`, or drag it to the Bin; then run `/plugin uninstall plaincontrol@plaincontrol` in Claude Code. Your settings and history are in `~/.config/plaincontrol` and `~/Library/Application Support/Plaincontrol`; `brew uninstall --cask --zap plaincontrol` removes them too.
 

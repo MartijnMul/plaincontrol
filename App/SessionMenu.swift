@@ -70,19 +70,41 @@ struct SessionMenu: View {
 /// the number of sessions waiting beside them.
 struct MenuBarLabel: View {
     let store: SessionStore
+    let updater: Updater
 
     var body: some View {
         let waiting = store.waitingCount
+        let hasUpdate = updater.readyVersion != nil
         if waiting > 0 {
             Label {
                 Text("\(waiting)")
             } icon: {
-                Image("MenuBarWaiting")
+                icon("MenuBarWaiting", dot: hasUpdate)
             }
             .labelStyle(.titleAndIcon)
         } else {
-            Image("MenuBarQuiet")
+            icon("MenuBarQuiet", dot: hasUpdate)
         }
+    }
+
+    /// The icon named `name`, with a dot at its top right while an update waits to install.
+    private func icon(_ name: String, dot: Bool) -> Image {
+        guard dot, let base = NSImage(named: name) else { return Image(name) }
+        let image = NSImage(size: base.size, flipped: false) { rect in
+            base.draw(in: rect)
+            let size = rect.height * 0.38
+            let dot = NSRect(x: rect.maxX - size, y: rect.maxY - size, width: size, height: size)
+            // A clear ring sets the dot apart from the icon under it.
+            NSGraphicsContext.current?.compositingOperation = .clear
+            NSBezierPath(ovalIn: dot.insetBy(dx: -1.5, dy: -1.5)).fill()
+            NSGraphicsContext.current?.compositingOperation = .sourceOver
+            NSColor.black.setFill()
+            NSBezierPath(ovalIn: dot).fill()
+            return true
+        }
+        // A template, so the menu bar draws the icon and the dot in its own colour.
+        image.isTemplate = true
+        return Image(nsImage: image)
     }
 }
 

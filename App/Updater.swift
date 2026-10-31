@@ -1,12 +1,14 @@
-import Foundation
+import AppKit
 import OSLog
+import PlaincontrolCore
 import Sparkle
 
 /// Updates through Sparkle, in the release build only (ADR 0006 and 0008). Sparkle asks on the
 /// second launch whether to check automatically, and fetches nothing before the user says yes;
 /// Check for Updates… checks once, on demand. Once checks are allowed, Sparkle also downloads
 /// updates by itself, unless the user turned that off, and installs them when Plaincontrol
-/// quits; until then the menu offers to restart, and no window opens.
+/// quits; until then the menu offers to restart, a dot on the menu bar icon says so, and
+/// Plaincontrol restarts by itself once the user is away (``QuietRestart``). No window opens.
 @MainActor
 @Observable
 final class Updater {
@@ -51,6 +53,8 @@ final class Updater {
     @ObservationIgnored private var observation: NSKeyValueObservation?
     /// Installs the downloaded update and opens Plaincontrol again.
     @ObservationIgnored private var installNow: (() -> Void)?
+    /// Looks every minute, while an update waits, whether the user is away.
+    @ObservationIgnored private var quietMomentTimer: Timer?
 
     init(bundle: Bundle = .main) {
         controller = SPUStandardUpdaterController(
@@ -73,6 +77,7 @@ final class Updater {
         quietInstall.onReady = { [weak self] version, install in
             self?.readyVersion = version
             self?.installNow = install
+            self?.waitForQuietMoment()
         }
         canCheck = controller.updater.canCheckForUpdates
         observation = controller.updater.observe(\.canCheckForUpdates, options: [.new]) { [weak self] _, change in
@@ -88,6 +93,31 @@ final class Updater {
     /// Installs the update that is ready and opens Plaincontrol again.
     func restartToUpdate() {
         installNow?()
+    }
+
+    private func waitForQuietMoment() {
+        quietMomentTimer?.invalidate()
+        quietMomentTimer = Timer.scheduledTimer(withTimeInterval: QuietRestart.checkInterval, repeats: true) {
+            [weak self] _ in
+            MainActor.assumeIsolated { self?.restartIfQuiet() }
+        }
+    }
+
+    /// Installs the update now if the user is away, as no one is then using Plaincontrol.
+    private func restartIfQuiet() {
+        let anyInput = CGEventType(rawValue: ~0)!
+        let idle = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: anyInput)
+        let isLocked =
+            CGSessionCopyCurrentDictionary().map { session in
+                (session as NSDictionary)["CGSSessionScreenIsLocked"] as? Bool == true
+            } ?? false
+        // The menu bar item's own window is always there.
+        let windowOpen = NSApp.windows.contains { $0.isVisible && !$0.className.contains("StatusBar") }
+        guard QuietRestart.isGoodMoment(idleFor: idle, screenLocked: isLocked, windowOpen: windowOpen) else { return }
+        Logger(subsystem: AppInfo.subsystem, category: "updates")
+            .info("Restarting to install \(self.readyVersion ?? "an update", privacy: .public) while the user is away")
+        quietMomentTimer?.invalidate()
+        restartToUpdate()
     }
 }
 
