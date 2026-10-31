@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import PlaincontrolHooks
 
 /// A process of the user's that accepts connections on a TCP port, as the kernel reports it.
 public struct ListeningProcess: Sendable, Equatable {
@@ -15,8 +16,14 @@ public struct ListeningProcess: Sendable, Equatable {
     /// The ports it listens on, lowest first.
     public var ports: [Int]
     public var started: Date
+    /// The terminal pane it was started in, from the same few variables of its environment that
+    /// the hook passes on for a session, and its terminal device.
+    public var terminal: TerminalLocation?
 
-    public init(pid: Int32, parent: Int32, group: Int32, name: String, folder: String?, ports: [Int], started: Date) {
+    public init(
+        pid: Int32, parent: Int32, group: Int32, name: String, folder: String?, ports: [Int], started: Date,
+        terminal: TerminalLocation? = nil
+    ) {
         self.pid = pid
         self.parent = parent
         self.group = group
@@ -24,6 +31,7 @@ public struct ListeningProcess: Sendable, Equatable {
         self.folder = folder
         self.ports = ports
         self.started = started
+        self.terminal = terminal
     }
 }
 
@@ -46,12 +54,15 @@ public struct RunningServer: Sendable, Equatable, Identifiable {
 public enum ServerAction: CaseIterable, Sendable {
     /// Its page, `localhost` on its port, in the browser.
     case openPage
+    /// The terminal pane it runs in, brought to the front.
+    case showTerminal
     /// Ends it, with the terminal job it belongs to (``RunningServers/stop(_:)``).
     case stop
 
     public var title: String {
         switch self {
         case .openPage: "Open page"
+        case .showTerminal: "Terminal tab"
         case .stop: "Stop"
         }
     }
@@ -118,10 +129,55 @@ public enum RunningServers {
             guard let info = info(pid: pid), info.user == getuid() else { return nil }
             let ports = listeningPorts(of: pid)
             guard !ports.isEmpty else { return nil }
+            var terminal = TerminalLocation(environment: environment(of: pid))
+            terminal?.tty = info.terminalDevice
             return ListeningProcess(
                 pid: pid, parent: info.parent, group: info.group, name: info.name, folder: folder(of: pid),
-                ports: ports, started: info.started)
+                ports: ports, started: info.started, terminal: terminal)
         }
+    }
+
+    /// The variables of a process's environment that say which terminal pane it runs in. The
+    /// environment can hold secrets, such as those a secrets manager passes on, so nothing else
+    /// in it is kept.
+    private static func environment(of pid: Int32) -> [String: String] {
+        var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, pid]
+        var size = 0
+        guard sysctl(&mib, u_int(mib.count), nil, &size, nil, 0) == 0, size > 0 else { return [:] }
+        var buffer = [UInt8](repeating: 0, count: size)
+        guard sysctl(&mib, u_int(mib.count), &buffer, &size, nil, 0) == 0 else { return [:] }
+        return environment(fromArguments: buffer.prefix(size), keeping: terminalVariables)
+    }
+
+    /// The environment variables ``TerminalLocation`` reads.
+    static let terminalVariables: Set<String> =
+        Set(TerminalLocation.paneVariables).union(["TERM_PROGRAM", "__CFBundleIdentifier"])
+
+    /// The variables named in `names` from what the kernel reports as a process's arguments: the
+    /// argument count, the path it was started from, padding, the arguments and then the
+    /// environment, each ending in a zero byte, and an empty string after the environment.
+    static func environment(fromArguments bytes: some Collection<UInt8>, keeping names: Set<String>) -> [String: String]
+    {
+        let bytes = Array(bytes)
+        guard bytes.count > 4 else { return [:] }
+        let count = bytes.withUnsafeBytes { Int($0.loadUnaligned(as: Int32.self)) }
+        var index = 4
+        func nextString() -> String? {
+            guard index < bytes.count else { return nil }
+            let end = bytes[index...].firstIndex(of: 0) ?? bytes.count
+            defer { index = end + 1 }
+            return String(decoding: bytes[index..<end], as: UTF8.self)
+        }
+        _ = nextString()
+        while index < bytes.count, bytes[index] == 0 { index += 1 }
+        for _ in 0..<max(count, 0) { _ = nextString() }
+        var environment: [String: String] = [:]
+        while let entry = nextString(), !entry.isEmpty {
+            guard let equals = entry.firstIndex(of: "=") else { continue }
+            let name = String(entry[..<equals])
+            if names.contains(name) { environment[name] = String(entry[entry.index(after: equals)...]) }
+        }
+        return environment
     }
 
     private static func allProcesses() -> [Int32] {
@@ -146,6 +202,8 @@ public enum RunningServers {
         var user: uid_t
         var name: String
         var started: Date
+        /// Such as `/dev/ttys003`, or nil without a terminal.
+        var terminalDevice: String?
     }
 
     private static func info(pid: Int32) -> Info? {
@@ -156,7 +214,15 @@ public enum RunningServers {
             timeIntervalSince1970: TimeInterval(info.pbi_start_tvsec) + TimeInterval(info.pbi_start_tvusec) / 1e6)
         return Info(
             parent: Int32(info.pbi_ppid), group: Int32(info.pbi_pgid), user: info.pbi_uid,
-            name: string(from: info.pbi_name).nonEmpty ?? string(from: info.pbi_comm), started: started)
+            name: string(from: info.pbi_name).nonEmpty ?? string(from: info.pbi_comm), started: started,
+            terminalDevice: terminalDevice(info.e_tdev))
+    }
+
+    private static func terminalDevice(_ device: UInt32) -> String? {
+        guard device != UInt32.max, let name = devname(dev_t(bitPattern: device), S_IFCHR).map({ String(cString: $0) }),
+            name != "??"
+        else { return nil }
+        return "/dev/\(name)"
     }
 
     private static func folder(of pid: Int32) -> String? {

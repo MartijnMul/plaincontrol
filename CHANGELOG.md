@@ -4,7 +4,7 @@ What changes in each release of Plaincontrol. Versions follow [Semantic Versioni
 
 ## Unreleased
 
-- **See the servers still running**: when a server runs in one of your projects, such as a dev server you forgot in a terminal tab or one a Claude Code session started in the background, the launcher says so above the list of projects, with how many are orphaned: still running after the terminal or session that started them is gone. Up on the top row shows them, with the ports they listen on and how long they have run. Return opens a server's page in your browser; Right offers to stop it, with what started it in the same terminal job, such as `pnpm dev`. A server is anything that listens on a port from inside a project folder, so apps such as Spotify or Docker are left out; it needs no permission.
+- **See the servers still running**: when a server runs in one of your projects, such as a dev server you forgot in a terminal tab or one a Claude Code session started in the background, the launcher says so above the list of projects, with how many are orphaned: still running after the terminal or session that started them is gone. Up on the top row shows them, with the ports they listen on and how long they have run. Return opens a server's page in your browser; Right also offers its tab in iTerm2 or Terminal, when it runs in one, and to stop it, with what started it in the same terminal job, such as `pnpm dev`. A server is anything that listens on a port from inside a project folder, so apps such as Spotify or Docker are left out; it needs no permission.
 
 ## 0.5.0 — 2026-10-29
 

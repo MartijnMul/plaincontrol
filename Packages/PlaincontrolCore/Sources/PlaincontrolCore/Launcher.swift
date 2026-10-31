@@ -99,6 +99,8 @@ public struct Launcher: Sendable {
     public typealias Selection = @Sendable (Project, [ProjectAction]) -> ProjectAction?
     /// What the dev server action of a project asks next; with fewer than two choices, it runs.
     public typealias DevServerChoices = @Sendable (Project) -> [DevServerChoice]
+    /// What can be done with a running server, in the order shown.
+    public typealias ServerActions = @Sendable (RunningServer) -> [ServerAction]
 
     public enum Key: Equatable, Sendable {
         case up, down, left, right, enter, escape, backspace
@@ -145,6 +147,7 @@ public struct Launcher: Sendable {
     private let actionsOf: Actions
     private let selectionOf: Selection
     private let devServerChoicesOf: DevServerChoices
+    private let serverActionsOf: ServerActions
     /// The actions of the open project, in the order shown.
     public private(set) var actions: [ProjectAction] = []
     /// What the dev server of the open project asks, while it asks.
@@ -160,7 +163,7 @@ public struct Launcher: Sendable {
     /// The selected one of ``servers``.
     public private(set) var serverSelection = 0
     /// What can be done with the open server.
-    public let serverActions = ServerAction.allCases
+    public private(set) var serverActions: [ServerAction] = []
     /// The selected one of ``serverActions``.
     public private(set) var serverActionSelection = 0
     /// What the user typed to search.
@@ -183,15 +186,18 @@ public struct Launcher: Sendable {
     ///   - actions: The actions a project offers, asked each time it opens.
     ///   - selection: The action selected when a project opens.
     ///   - devServerChoices: What the dev server action asks next, asked each time it runs.
+    ///   - serverActions: What can be done with a running server, asked each time it opens.
     public init(
         items: [LauncherItem], apps: [AppWindow] = [], actions: @escaping Actions,
-        selection: @escaping Selection = { _, _ in nil }, devServerChoices: @escaping DevServerChoices = { _ in [] }
+        selection: @escaping Selection = { _, _ in nil }, devServerChoices: @escaping DevServerChoices = { _ in [] },
+        serverActions: @escaping ServerActions = { _ in ServerAction.allCases }
     ) {
         self.items = items
         self.apps = apps
         actionsOf = actions
         selectionOf = selection
         devServerChoicesOf = devServerChoices
+        serverActionsOf = serverActions
         visible = Self.rank(items, query: query)
     }
 
@@ -339,6 +345,7 @@ public struct Launcher: Sendable {
             if let selectedServer { return .serverAction(.openPage, selectedServer) }
         case (.servers, .right):
             if let selectedServer {
+                serverActions = serverActionsOf(selectedServer)
                 serverActionSelection = 0
                 screen = .server(selectedServer)
             }
@@ -351,7 +358,7 @@ public struct Launcher: Sendable {
         case (.server, .up):
             serverActionSelection = max(serverActionSelection - 1, 0)
         case (.server, .down):
-            serverActionSelection = min(serverActionSelection + 1, serverActions.count - 1)
+            serverActionSelection = min(serverActionSelection + 1, max(serverActions.count - 1, 0))
         case (.server(let server), .enter), (.server(let server), .right):
             if let selectedServerAction { return .serverAction(selectedServerAction, server) }
         case (.server, .left), (.server, .escape):

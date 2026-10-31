@@ -88,6 +88,7 @@ final class LauncherController {
         let offered = ProjectAction.allCases.filter(isAvailable)
         let config = config
         let usage = usage
+        let terminals = terminals
         launcher = Launcher(items: items(), apps: AppWindow.allCases.filter(canOpen)) { project in
             config.actionOrder.order(
                 offered.filter { $0 != .devServer || Self.devCommand(for: project, config: config) != nil },
@@ -96,6 +97,11 @@ final class LauncherController {
             config.actionOrder.selection(in: actions, for: project, usage: usage)
         } devServerChoices: { project in
             Self.pagePort(of: project, config: config) == nil ? [] : DevServerChoice.allCases
+        } serverActions: { server in
+            // An orphaned server's terminal pane is gone.
+            ServerAction.allCases.filter {
+                $0 != .showTerminal || (!server.isOrphaned && terminals.canFocus(server.process.terminal))
+            }
         }
         let panel = panel ?? LauncherPanel(content: LauncherView(controller: self))
         self.panel = panel
@@ -196,6 +202,15 @@ final class LauncherController {
     /// The command `action` runs in `project`, to show next to it, where it depends on the project.
     func command(of action: ProjectAction, in project: Project) -> String? {
         action == .devServer ? Self.devCommand(for: project, config: config) : nil
+    }
+
+    /// What the launcher calls something to do with a running server: its terminal pane by the
+    /// terminal's name.
+    func title(of action: ServerAction, for server: RunningServer) -> String {
+        guard action == .showTerminal, let controller = terminals.controller(for: server.process.terminal) else {
+            return action.title
+        }
+        return "\(controller.name) tab"
     }
 
     /// What the launcher calls an app it opens an empty window of: by its name.
@@ -414,6 +429,20 @@ final class LauncherController {
             guard let port = server.port else { return }
             openPage(at: port)
             log.info("Opened the page of a running server")
+            hide()
+        case .showTerminal:
+            guard let controller = terminals.controller(for: server.process.terminal) else { return }
+            NSApp.yieldActivation(toApplicationWithBundleIdentifier: controller.bundleIdentifier)
+            do {
+                try terminals.focus(server.process.terminal)
+            } catch .paneNotFound, .terminalNotRunning {
+                fail("The \(controller.name) tab of this server is gone.")
+                return
+            } catch {
+                fail("Could not open \(controller.name): \(error.launcherMessage(for: controller.name))")
+                return
+            }
+            log.info("Showed the terminal of a running server")
             hide()
         case .stop:
             guard RunningServers.stop(server) else {

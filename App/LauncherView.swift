@@ -198,7 +198,7 @@ struct LauncherView: View {
             ForEach(Array(controller.launcher.serverActions.enumerated()), id: \.element) { index, action in
                 row(selected: action == controller.launcher.selectedServerAction) {
                     DigitCap(row: index)
-                    Text(action.title).font(.title3)
+                    Text(controller.title(of: action, for: server)).font(.title3)
                     Spacer()
                     if action == .openPage, let port = server.port {
                         Text("localhost:\(port)").font(.body.monospaced()).opacity(0.7)

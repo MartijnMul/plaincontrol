@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import PlaincontrolHooks
 import Testing
 
 @testable import PlaincontrolCore
@@ -55,6 +56,26 @@ import Testing
         #expect(!RunningServers.stopsGroup(1, ownGroup: 10, leadsSession: false, memberNames: ["node"]))
     }
 
+    /// What the kernel reports as a process's arguments and environment.
+    func arguments(_ strings: [String], count: Int32) -> [UInt8] {
+        withUnsafeBytes(of: count) { Array($0) } + Array("/bin/node".utf8) + [0, 0, 0]
+            + strings.flatMap { Array($0.utf8) + [0] } + [0] + Array("ptr_munge=".utf8) + [0]
+    }
+
+    @Test func keepsOnlyTheNamedVariablesOfTheEnvironment() {
+        let bytes = arguments(
+            ["node", "TERM_PROGRAM=fake", "TERM_PROGRAM=iTerm.app", "SECRET=1", "ITERM_SESSION_ID=w0t0p0:ABC"],
+            count: 2)
+        let environment = RunningServers.environment(
+            fromArguments: bytes, keeping: ["TERM_PROGRAM", "ITERM_SESSION_ID", "ptr_munge"])
+        #expect(environment == ["TERM_PROGRAM": "iTerm.app", "ITERM_SESSION_ID": "w0t0p0:ABC"])
+    }
+
+    @Test func readsNothingFromTooFewBytes() {
+        #expect(RunningServers.environment(fromArguments: [1, 0], keeping: ["TERM_PROGRAM"]).isEmpty)
+        #expect(RunningServers.environment(fromArguments: arguments([], count: 5), keeping: ["TERM_PROGRAM"]).isEmpty)
+    }
+
     @Test func findsAPortThisProcessListensOn() throws {
         let socket = Darwin.socket(AF_INET, SOCK_STREAM, 0)
         try #require(socket >= 0)
@@ -79,5 +100,8 @@ import Testing
         #expect(me?.ports.contains(port) == true)
         #expect(me?.folder == FileManager.default.currentDirectoryPath)
         #expect(me?.parent == getppid())
+        let environment = ProcessInfo.processInfo.environment
+        #expect(me?.terminal?.program == TerminalLocation(environment: environment)?.program)
+        #expect(me?.terminal?.paneIDs == TerminalLocation(environment: environment)?.paneIDs)
     }
 }

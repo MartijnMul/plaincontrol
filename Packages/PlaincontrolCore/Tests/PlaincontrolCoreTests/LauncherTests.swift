@@ -168,10 +168,21 @@ import Testing
         launcher.update(servers: [running])
         _ = press(.up, .right, on: &launcher)
         #expect(launcher.screen == .server(running))
-        #expect(press(.down, .enter, on: &launcher) == [.stay, .serverAction(.stop, running)])
+        #expect(press(.down, .down, .enter, on: &launcher) == [.stay, .stay, .serverAction(.stop, running)])
         #expect(press(.character("1"), on: &launcher) == [.serverAction(.openPage, running)])
         _ = press(.left, on: &launcher)
         #expect(launcher.screen == .servers)
+    }
+
+    @Test func asksWhatCanBeDoneWithEachServer() {
+        var launcher = Launcher(
+            items: [LauncherItem(project: app)], actions: { _ in [.claude] },
+            serverActions: { server in server.isOrphaned ? [.stop] : [.showTerminal, .stop] })
+        let running = server(1, in: app)
+        launcher.update(servers: [running])
+        _ = press(.up, .right, on: &launcher)
+        #expect(launcher.serverActions == [.showTerminal, .stop])
+        #expect(press(.enter, on: &launcher) == [.serverAction(.showTerminal, running)])
     }
 
     @Test func goesBackOnceTheServerStops() {
