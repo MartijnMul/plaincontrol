@@ -4,7 +4,7 @@ What changes in each release of Plaincontrol. Versions follow [Semantic Versioni
 
 ## Unreleased
 
-- **Your own commands per project**: give a project commands of its own, each with a name and what to run, such as a script that wakes up a machine and connects to it over SSH. Each one is one more action of the project in the launcher, after the dev server, and runs in a new terminal window in the project's folder, like the other terminal actions. Set them in Settings › Projects, in the new Commands column, or under `commands` for the project in `settings.yaml`. With actions ordered by use, a command you run often comes first.
+- **Your own commands per project**: give a project commands of its own, each with a name and what to run, such as a script that wakes up a machine and connects to it over SSH. Each one is one more action of the project in the launcher, after the dev server, and runs in a new terminal window in the project's folder, like the other terminal actions. Set them in Settings › Projects, from the new Commands column, where you can also drag them in order, or under `commands` for the project in `settings.yaml`. With actions ordered by use, a command you run often comes first.
 
 ## 0.6.0 — 2026-10-31
 

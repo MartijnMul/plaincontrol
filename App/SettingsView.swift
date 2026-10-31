@@ -485,6 +485,8 @@ private struct ProjectSettings: View {
     let model: SettingsModel
     @State private var selectedProjects = Set<Project.ID>()
     @State private var selectedRoots = Set<String>()
+    /// The project whose commands the sheet shows, while it shows.
+    @State private var commandsProject: Project?
 
     static let restore = Restore(
         keeps: "Your projects and folders with projects stay.",
@@ -525,7 +527,12 @@ private struct ProjectSettings: View {
                         .labelsHidden()
                     }
                     TableColumn("Commands") { project in
-                        CommandsButton(model: model, project: project)
+                        let names = config.commands(for: project).map(\.name)
+                        Button(names.isEmpty ? "Add…" : names.joined(separator: ", ")) { commandsProject = project }
+                            .buttonStyle(.link)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .help(names.isEmpty ? "Add commands to run from the launcher" : "Edit the commands")
                     }
                 }
                 .frame(height: 150)
@@ -547,7 +554,7 @@ private struct ProjectSettings: View {
             } header: {
                 Text("Projects")
                 Text(
-                    "Always listed. An empty name is the folder's; an empty dev server command is the one the launcher finds, shown in grey. Each command is one more action of its project, run in a new terminal window."
+                    "Always listed. An empty name is the folder's; an empty dev server command is the one the launcher finds, shown in grey. Commands are a project's own actions in the launcher."
                 )
             }
             Section {
@@ -623,6 +630,9 @@ private struct ProjectSettings: View {
             }
         }
         .formStyle(.grouped)
+        .sheet(item: $commandsProject) { project in
+            CommandsSheet(model: model, project: project)
+        }
     }
 
     private func change(_ project: Project, _ change: @escaping (inout Project) -> Void) {
@@ -674,103 +684,248 @@ private struct AdvancedSettings: View {
 }
 
 /// The + and − buttons below a list.
-/// The commands of a project in the projects table, which opens them to edit.
-private struct CommandsButton: View {
+/// The commands of a project: a list to put in order, with a form to add a command or change
+/// one.
+private struct CommandsSheet: View {
     let model: SettingsModel
     let project: Project
-    @State private var isEditing = false
+    /// The command being added or changed, while the form shows.
+    @State private var draft: CommandDraft?
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        let count = model.config.commands(for: project).count
-        Button(count == 0 ? "Add…" : count == 1 ? "1 command" : "\(count) commands") { isEditing = true }
-            .buttonStyle(.link)
-            .popover(isPresented: $isEditing, arrowEdge: .bottom) {
-                CommandsEditor(model: model, project: project)
+        Group {
+            if let draft {
+                CommandForm(
+                    original: draft.original, project: project,
+                    takenNames: commands.map(\.name).filter { $0 != draft.original?.name },
+                    save: save, delete: draft.original.map { original in { remove(original) } },
+                    cancel: { self.draft = nil })
+            } else {
+                list
             }
+        }
+        .padding(20)
+        .frame(width: 540)
+    }
+
+    private var commands: [ProjectCommand] { model.config.commands(for: project) }
+
+    private var list: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Commands of \(project.name)").font(.title3.weight(.semibold))
+                Text(
+                    "Each command is an action of the project in the launcher, after its dev server. It runs in a new terminal window in the project's folder."
+                )
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            if commands.isEmpty {
+                ContentUnavailableView {
+                    Label("No Commands", systemImage: "terminal")
+                } description: {
+                    Text(
+                        "Add one for something only this project needs, such as a deploy, or a script that wakes up a server and connects to it."
+                    )
+                } actions: {
+                    Button("Add Command…") { draft = CommandDraft() }
+                }
+                .frame(maxWidth: .infinity, minHeight: 200)
+                .background(.background.secondary, in: RoundedRectangle(cornerRadius: 8))
+            } else {
+                List {
+                    ForEach(commands) { command in
+                        CommandRow(command: command) {
+                            draft = CommandDraft(command)
+                        } remove: {
+                            remove(command)
+                        }
+                    }
+                    .onMove(perform: move)
+                }
+                .listStyle(.bordered)
+                .frame(height: min(CGFloat(commands.count) * 52 + 12, 280))
+                if commands.count > 1 {
+                    Text(
+                        "Drag a command to move it. The launcher shows them in this order, unless it orders actions by use."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+            }
+            HStack {
+                if !commands.isEmpty {
+                    Button("Add Command…", systemImage: "plus") { draft = CommandDraft() }
+                }
+                Spacer()
+                Button("Done") { dismiss() }
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+    }
+
+    private func save(_ command: ProjectCommand) {
+        let original = draft?.original
+        model.change { config in
+            var commands = config.commands(for: project)
+            if let original, let index = commands.firstIndex(of: original) {
+                commands[index] = command
+            } else {
+                commands.append(command)
+            }
+            config.commands[project.resolvedPath] = commands
+        }
+        draft = nil
+    }
+
+    private func remove(_ command: ProjectCommand) {
+        model.change { config in
+            let kept = config.commands(for: project).filter { $0 != command }
+            config.commands[project.resolvedPath] = kept.isEmpty ? nil : kept
+        }
+        draft = nil
+    }
+
+    private func move(from source: IndexSet, to destination: Int) {
+        model.change { config in
+            var commands = config.commands(for: project)
+            commands.move(fromOffsets: source, toOffset: destination)
+            config.commands[project.resolvedPath] = commands
+        }
     }
 }
 
-/// The commands of a project, to rename, change, remove and add to.
-private struct CommandsEditor: View {
-    let model: SettingsModel
-    let project: Project
-    @State private var selection = Set<String>()
-    @State private var newName = ""
-    @State private var newRun = ""
+/// A command in the list: its name, with what it runs below it.
+private struct CommandRow: View {
+    let command: ProjectCommand
+    let edit: () -> Void
+    let remove: () -> Void
 
     var body: some View {
-        let commands = model.config.commands(for: project)
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Commands of \(project.name)").font(.headline)
-            Table(commands, selection: $selection) {
-                TableColumn("Name") { command in
-                    CommittingField("Name", value: command.name, prompt: "Name") { name in
-                        guard !name.isEmpty, !commands.contains(where: { $0.name == name }) else { return }
-                        change(command) { $0.name = name }
-                    }
-                    .labelsHidden()
-                }
-                .width(min: 100, ideal: 140)
-                TableColumn("Command") { command in
-                    CommittingField("Command", value: command.run, prompt: "Command") { run in
-                        guard !run.isEmpty else { return }
-                        change(command) { $0.run = run }
-                    }
-                    .labelsHidden()
-                }
-                .width(min: 200, ideal: 340)
-            }
-            .frame(height: 140)
-            Button {
-                let removed = selection
-                selection = []
-                model.change { config in
-                    let kept = config.commands(for: project).filter { !removed.contains($0.name) }
-                    config.commands[project.resolvedPath] = kept.isEmpty ? nil : kept
-                }
-            } label: {
-                Image(systemName: "minus")
-            }
-            .buttonStyle(.borderless)
-            .disabled(selection.isEmpty)
-            .help("Remove the selected")
-            HStack {
-                TextField("Name", text: $newName, prompt: Text("Name")).frame(width: 140)
-                TextField("Command", text: $newRun, prompt: Text("ssh my-server")).onSubmit(add)
-                Button("Add", action: add).disabled(newCommand == nil)
-            }
-            Text("Each runs in a new terminal window in the project's folder, as one more action of the project.")
-                .font(.caption)
+        HStack(spacing: 10) {
+            Image(systemName: "terminal")
                 .foregroundStyle(.secondary)
+                .frame(width: 18)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(command.name).fontWeight(.medium)
+                Text(command.run)
+                    .font(.callout.monospaced())
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .help(command.run)
+            }
+            Spacer(minLength: 12)
+            Button("Edit…", action: edit)
         }
-        .padding()
-        .frame(width: 560)
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2, perform: edit)
+        .contextMenu {
+            Button("Edit…", action: edit)
+            Button("Delete", role: .destructive, action: remove)
+        }
+    }
+}
+
+/// That the form shows, to add a command or to change `original`.
+private struct CommandDraft {
+    var original: ProjectCommand?
+
+    init(_ original: ProjectCommand? = nil) {
+        self.original = original
+    }
+}
+
+/// The form to add a command or change one.
+private struct CommandForm: View {
+    /// The command it changes, or nil to add one.
+    let original: ProjectCommand?
+    let project: Project
+    /// The names of the project's other commands, which this one can't take.
+    let takenNames: [String]
+    let save: (ProjectCommand) -> Void
+    let delete: (() -> Void)?
+    let cancel: () -> Void
+    // The form keeps its own text, so closing it never reads a draft that is gone.
+    @State private var nameText: String
+    @State private var runText: String
+    @FocusState private var focus: Field?
+
+    private enum Field { case name, run }
+
+    init(
+        original: ProjectCommand?, project: Project, takenNames: [String], save: @escaping (ProjectCommand) -> Void,
+        delete: (() -> Void)?, cancel: @escaping () -> Void
+    ) {
+        self.original = original
+        self.project = project
+        self.takenNames = takenNames
+        self.save = save
+        self.delete = delete
+        self.cancel = cancel
+        _nameText = State(initialValue: original?.name ?? "")
+        _runText = State(initialValue: original?.run ?? "")
     }
 
-    /// The command typed below the list, when it has a name of its own and something to run.
-    private var newCommand: ProjectCommand? {
-        let name = newName.trimmingCharacters(in: .whitespaces)
-        let run = newRun.trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty, !run.isEmpty, !model.config.commands(for: project).contains(where: { $0.name == name })
-        else { return nil }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(original == nil ? "New Command" : "Edit Command").font(.title3.weight(.semibold))
+            Form {
+                TextField("Name:", text: $nameText, prompt: Text("Connect to server"))
+                    .focused($focus, equals: .name)
+                    .onSubmit { focus = .run }
+                TextField("Command:", text: $runText, prompt: Text("ssh my-server"), axis: .vertical)
+                    .font(.body.monospaced())
+                    .lineLimit(4...10)
+                    .focused($focus, equals: .run)
+                    .onSubmit(submit)
+            }
+            .formStyle(.columns)
+            Group {
+                if let problem {
+                    Label(problem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                } else {
+                    Text(
+                        "Runs in a new terminal window in \((project.path as NSString).abbreviatingWithTildeInPath), which stays open when it ends."
+                    )
+                    .foregroundStyle(.secondary)
+                }
+            }
+            .font(.callout)
+            .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                if let delete {
+                    Button("Delete", role: .destructive, action: delete)
+                }
+                Spacer()
+                Button("Cancel", action: cancel)
+                    .keyboardShortcut(.cancelAction)
+                Button(original == nil ? "Add" : "Save", action: submit)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(command == nil)
+            }
+        }
+        .onAppear { focus = original == nil ? .name : .run }
+    }
+
+    private var name: String { nameText.trimmingCharacters(in: .whitespaces) }
+    private var run: String { runText.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    /// Why the command can't be saved yet, where that needs saying.
+    private var problem: String? {
+        takenNames.contains(name) ? "Another command of this project is called “\(name)”." : nil
+    }
+
+    /// The command to save, once it has a name of its own and something to run.
+    private var command: ProjectCommand? {
+        guard !name.isEmpty, !run.isEmpty, problem == nil else { return nil }
         return ProjectCommand(name: name, run: run)
     }
 
-    private func add() {
-        guard let command = newCommand else { return }
-        model.change { $0.commands[project.resolvedPath, default: []].append(command) }
-        newName = ""
-        newRun = ""
-    }
-
-    private func change(_ command: ProjectCommand, _ edit: (inout ProjectCommand) -> Void) {
-        model.change { config in
-            guard var commands = config.commands[project.resolvedPath],
-                let index = commands.firstIndex(of: command)
-            else { return }
-            edit(&commands[index])
-            config.commands[project.resolvedPath] = commands
-        }
+    private func submit() {
+        if let command { save(command) }
     }
 }
 
