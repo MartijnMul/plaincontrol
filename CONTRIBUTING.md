@@ -85,6 +85,14 @@ These keep Plaincontrol small and trustworthy. A pull request that breaks one ne
 - Describe how you tested it in the app: what you did, on which macOS and with which terminal. Much of Plaincontrol (hotkeys, windows, other apps) cannot be tested automatically. The pull request template has a checklist.
 - For a larger change, a new terminal or a new permission, open an issue first, so we can agree on the approach before you spend time on it.
 
+## Releasing
+
+Plaincontrol is released whenever something is ready, often one change at a time, and updates itself quietly for everyone who allowed it.
+
+- **Versions**: most releases raise the patch number (0.7.1, 0.7.2). The minor number goes up for a feature worth announcing, or a change to how Plaincontrol is installed or configured.
+- **Release notes**: each line under `## Unreleased` is one change: a bold lead of a few words, then what it gives the user, in one short sentence. The README holds the details.
+- **Publishing** is the maintainer's: `make publish VERSION=x.y.z` signs, notarises and publishes a release, and asks before anything leaves the Mac.
+
 ## License
 
 Plaincontrol is licensed under the [Apache License 2.0](LICENSE). By opening a pull request you agree that your contribution is licensed under it too.

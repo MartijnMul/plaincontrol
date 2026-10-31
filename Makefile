@@ -11,7 +11,7 @@ export PLAINCONTROL_SOCKET := $(HOME)/Library/Application Support/Plaincontrol D
 
 .DEFAULT_GOAL := help
 
-.PHONY: help generate build test lint format check open run fresh demo demo-sessions hook simulate dev-claude release clean
+.PHONY: help generate build test lint format check open run fresh demo demo-sessions hook simulate dev-claude release publish clean
 
 help: ## List the available commands
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-14s %s\n", $$1, $$2}'
@@ -72,6 +72,9 @@ dev-claude: hook ## Start Claude Code with this plugin, reporting to the develop
 
 release: ## Build, sign and notarise a release disk image (see scripts/release.sh)
 	scripts/release.sh
+
+publish: ## Publish release VERSION=x.y.z: version, notarised build, tag, GitHub release, cask
+	scripts/publish.sh "$(VERSION)"
 
 clean: ## Remove generated and built files
 	rm -rf $(PROJECT) .build $(CORE)/.build plugin/bin
