@@ -2,7 +2,7 @@
 
 What changes in each release of Plaincontrol. Versions follow [Semantic Versioning](https://semver.org): most releases raise the last number; the middle one goes up for a bigger feature or a change to how Plaincontrol is installed or configured, which the release says.
 
-## Unreleased
+## 0.7.0 — 2026-10-31
 
 - **Commands per project**: give a project its own commands in Settings › Projects; each one is a launcher action that runs in a new terminal window.
 - **Quiet updates**: new versions download by themselves and install while you're away from your Mac; a badge on the menu bar icon shows one is waiting. Turn it off in Settings › General.
