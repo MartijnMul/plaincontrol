@@ -2,7 +2,7 @@ import Foundation
 import PlaincontrolHooks
 
 /// A Claude Code session as Plaincontrol tracks it.
-public struct Session: Sendable, Equatable, Identifiable {
+public struct Session: Sendable, Equatable, Identifiable, Codable {
     public let id: String
     public var status: SessionStatus
     /// When the session entered its current status.
@@ -63,6 +63,13 @@ public struct SessionRegistry: Sendable {
         sessions[event.sessionID] = session
 
         return changed ? StatusChange(sessionID: event.sessionID, from: existing?.status, to: newStatus) : nil
+    }
+
+    /// Adds `session`, such as one saved before Plaincontrol restarted, unless an event has
+    /// told about it since.
+    public mutating func restore(_ session: Session) {
+        guard sessions[session.id] == nil, session.status != .gone else { return }
+        sessions[session.id] = session
     }
 
     /// Marks a session as gone because its process exited without a `SessionEnd`, such as

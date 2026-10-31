@@ -20,6 +20,8 @@ final class SessionStore {
     @ObservationIgnored var onSessionStart: ((String, TerminalLocation?) -> Void)?
     @ObservationIgnored private var server: HookServer?
     @ObservationIgnored private var processes: ProcessWatcher?
+    /// The process each session runs in, as far as known, to save with it.
+    @ObservationIgnored private var processOf: [String: SessionProcess] = [:]
     @ObservationIgnored private let notifier = SessionNotifier()
     @ObservationIgnored private let terminals = TerminalControllers.standard
     @ObservationIgnored private let log = Logger(subsystem: AppInfo.subsystem, category: "jump")
@@ -38,6 +40,12 @@ final class SessionStore {
     func start() {
         notifier.onOpen = { [weak self] sessionID in self?.jump(to: sessionID) }
         processes = ProcessWatcher { [weak self] sessionID in self?.processExited(of: sessionID) }
+        restoreSessions()
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.saveSessions() }
+        }
         notifier.start()
         publishHookCommand()
         let path = HookSocket.path(environment: ProcessInfo.processInfo.environment, appName: AppInfo.folderName)
@@ -55,6 +63,44 @@ final class SessionStore {
         } catch {
             problem = "Cannot listen for Claude Code sessions: \(error)"
         }
+    }
+
+    /// Where the sessions wait while Plaincontrol restarts, such as to install an update.
+    private static var snapshotURL: URL {
+        URL.applicationSupportDirectory.appending(path: "\(AppInfo.folderName)/sessions.json")
+    }
+
+    /// Saves the running sessions as Plaincontrol quits, so it shows them again if it starts
+    /// soon after (``SessionSnapshot``).
+    private func saveSessions() {
+        let snapshot = SessionSnapshot(registry, processes: processOf)
+        guard !snapshot.entries.isEmpty else { return }
+        do {
+            let url = Self.snapshotURL
+            try FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try JSONEncoder().encode(snapshot).write(to: url, options: .atomic)
+        } catch {
+            Logger(subsystem: AppInfo.subsystem, category: "sessions")
+                .error("Cannot save the sessions: \(error, privacy: .public)")
+        }
+    }
+
+    /// Shows the sessions saved when Plaincontrol last quit, if that was a restart and they
+    /// still run. The file is removed either way: it is only for the next start.
+    private func restoreSessions() {
+        let url = Self.snapshotURL
+        guard let data = try? Data(contentsOf: url) else { return }
+        try? FileManager.default.removeItem(at: url)
+        guard let snapshot = try? JSONDecoder().decode(SessionSnapshot.self, from: data) else { return }
+        let restored = snapshot.restorable()
+        for entry in restored {
+            registry.restore(entry.session)
+            processOf[entry.session.id] = entry.process
+            processes?.watch(entry.process, for: entry.session.id)
+        }
+        Logger(subsystem: AppInfo.subsystem, category: "sessions")
+            .info("Restored \(restored.count, privacy: .public) sessions after a restart")
     }
 
     /// Points the Claude Code plugin at the hook command inside this app, so the hooks run the
@@ -109,8 +155,10 @@ final class SessionStore {
         }
         if registry.sessions[sessionID]?.status == .gone {
             processes?.stopWatching(sessionID)
+            processOf[sessionID] = nil
         } else if let process = envelope.process {
             processes?.watch(process, for: sessionID)
+            processOf[sessionID] = process
         }
         if let change { notify(change) }
     }
@@ -119,6 +167,7 @@ final class SessionStore {
     private func processExited(of sessionID: String) {
         Logger(subsystem: AppInfo.subsystem, category: "sessions")
             .info("The process of session \(sessionID, privacy: .public) exited")
+        processOf[sessionID] = nil
         if let change = registry.markGone(sessionID) { notify(change) }
     }
 

@@ -104,7 +104,7 @@ Settings… in the menu (Command-comma). Every setting shows whether it is at it
 
 Plaincontrol sends nothing about you off your Mac. Its one network request is the update check, and only if you allow it.
 
-- Of each Claude Code event it keeps only the session, its folder, its status and its terminal pane. Prompts are never stored or logged.
+- Of each Claude Code event it keeps only the session, its folder, its status and its terminal pane. Prompts are never stored or logged. When Plaincontrol quits it saves the running sessions, to show them again if it starts within five minutes, as after an update; the next start removes the file.
 - The Accessibility permission lets it notice the launcher key and take your typing while the launcher is open, and move the windows it opens. It does not record what you type.
 - Your launcher history stays in `~/Library/Application Support/Plaincontrol`. zoxide's data is only read.
 - Adding your projects from Claude Code's history, in the welcome window, reads only the names of the folders in `~/.claude/projects` and the dates of the session files in them, never what is in those files.
