@@ -36,9 +36,10 @@ public struct ITerm2Controller: TerminalController {
 
     @MainActor
     public func openWindow(
-        in directory: String?, running command: String? = nil, frame: CGRect? = nil
+        in directory: String?, running command: String? = nil, frame: CGRect? = nil, minimized: Bool = false
     ) throws(TerminalControlError) {
-        _ = try runScript(Self.openWindowScript(directory: directory, command: command, frame: frame))
+        _ = try runScript(
+            Self.openWindowScript(directory: directory, command: command, frame: frame, minimized: minimized))
     }
 
     /// The pane's unique id, when the session runs directly in iTerm2.
@@ -55,7 +56,9 @@ public struct ITerm2Controller: TerminalController {
         return String(paneID)
     }
 
-    static func openWindowScript(directory: String?, command: String?, frame: CGRect? = nil) -> String {
+    static func openWindowScript(
+        directory: String?, command: String?, frame: CGRect? = nil, minimized: Bool = false
+    ) -> String {
         // `quoted form of` quotes the folder for the shell; the literals are quoted for AppleScript.
         let cd = directory.map { "\"cd \" & quoted form of " + AppleScript.literal($0) }
         let line = [cd, command.map(AppleScript.literal)].compactMap { $0 }.joined(separator: " & \" && \" & ")
@@ -74,10 +77,12 @@ public struct ITerm2Controller: TerminalController {
             let edges = [frame.minX, frame.minY, frame.maxX, frame.maxY].map { String(Int($0.rounded())) }
             return "\n        set bounds of newWindow to {\(edges.joined(separator: ", "))}"
         }
+        // A minimised window leaves iTerm2 in the background.
+        let activate = minimized ? "" : "\n    activate"
+        let minimize = minimized ? "\n    set miniaturized of newWindow to true" : ""
         return """
-            tell application id "\(Self.iTerm2)"
-                activate
-                set newWindow to (create window with default profile)\(bounds ?? "")\(write)
+            tell application id "\(Self.iTerm2)"\(activate)
+                set newWindow to (create window with default profile)\(bounds ?? "")\(write)\(minimize)
             end tell
             """
     }
@@ -93,6 +98,7 @@ public struct ITerm2Controller: TerminalController {
                             -- Activate first: a window brought forward while iTerm2 is not
                             -- active stays on its Space when iTerm2 has a window on this one.
                             activate
+                            set miniaturized of aWindow to false
                             select aWindow
                             select aTab
                             select aSession

@@ -97,8 +97,9 @@ import Testing
         }
         _ = press(.enter, on: &launcher)
         #expect(launcher.actions == [.claude, .devServer])
-        #expect(press(.character("2"), on: &launcher) == [.run(.devServer, app)])
-        _ = press(.escape, .character("2"), on: &launcher)
+        #expect(press(.character("2"), on: &launcher) == [.stay])
+        #expect(launcher.screen == .devServer(app))
+        _ = press(.escape, .escape, .character("2"), on: &launcher)
         #expect(launcher.actions == [.claude])
         #expect(press(.character("2"), on: &launcher) == [.stay])
     }
@@ -205,33 +206,56 @@ import Testing
         #expect(launcher.screen == .projects)
     }
 
-    @Test func asksWhatTheDevServerOpens() {
-        var launcher = Launcher(items: [LauncherItem(project: app)]) { _ in
-            [.claude, .devServer]
-        } devServerChoices: {
-            _ in
-            DevServerChoice.allCases
-        }
+    /// A launcher whose projects offer Claude Code and the dev server, asking `question`.
+    func devServerLauncher(_ question: DevServerQuestion) -> Launcher {
+        Launcher(
+            items: [LauncherItem(project: app)], actions: { _ in [.claude, .devServer] },
+            devServerQuestion: { _ in question })
+    }
+
+    @Test func asksWhereTheDevServerGoesThenAboutItsPage() {
+        var launcher = devServerLauncher(DevServerQuestion(hasPage: true))
         _ = press(.enter, on: &launcher)
         #expect(press(.character("2"), on: &launcher) == [.stay])
         #expect(launcher.screen == .devServer(app))
-        #expect(launcher.devServerChoices == [.server, .serverAndPage])
-        #expect(press(.enter, on: &launcher) == [.run(.devServer, app)])
-        #expect(press(.down, .right, on: &launcher) == [.stay, .runDevServerWithPage(app)])
-        #expect(press(.character("1"), on: &launcher) == [.run(.devServer, app)])
-        #expect(press(.character("2"), on: &launcher) == [.runDevServerWithPage(app)])
-        #expect(press(.escape, on: &launcher) == [.stay])
+        #expect(launcher.selectedWindow == .shown)
+        #expect(press(.down, .enter, on: &launcher) == [.stay, .stay])
+        #expect(launcher.screen == .devServerPage(app, .minimized))
+        #expect(!launcher.pageSelected)
+        let both = DevServerStart(window: .minimized, opensPage: true)
+        #expect(press(.down, .right, on: &launcher) == [.stay, .runDevServer(app, both)])
+        #expect(
+            press(.up, .enter, on: &launcher) == [
+                .stay, .runDevServer(app, DevServerStart(window: .minimized, opensPage: false)),
+            ])
+        #expect(press(.character("2"), on: &launcher) == [.runDevServer(app, both)])
+        _ = press(.left, on: &launcher)
+        #expect(launcher.screen == .devServer(app))
+        #expect(launcher.selectedWindow == .minimized)
+        _ = press(.character("1"), on: &launcher)
+        #expect(launcher.screen == .devServerPage(app, .shown))
+        #expect(press(.character("1"), on: &launcher) == [.runDevServer(app, .standard)])
+        _ = press(.escape, .escape, on: &launcher)
         #expect(launcher.screen == .project(app))
         #expect(launcher.selectedAction == .devServer)
     }
 
-    @Test func runsTheDevServerWithoutAskingWhenItHasNoPage() {
-        var launcher = Launcher(items: [LauncherItem(project: app)]) { _ in
-            [.devServer]
-        } devServerChoices: { _ in
-            []
-        }
-        #expect(press(.enter, .character("1"), on: &launcher) == [.stay, .run(.devServer, app)])
+    @Test func asksOnlyWhereTheDevServerGoesWithoutAPage() {
+        var launcher = devServerLauncher(DevServerQuestion(hasPage: false))
+        let minimized = DevServerStart(window: .minimized, opensPage: false)
+        #expect(
+            press(.enter, .character("2"), .character("2"), on: &launcher) == [
+                .stay, .stay, .runDevServer(app, minimized),
+            ])
+        #expect(press(.enter, on: &launcher) == [.runDevServer(app, minimized)])
+    }
+
+    @Test func selectsTheAnswersGivenLastTime() {
+        let last = DevServerStart(window: .minimized, opensPage: true)
+        var launcher = devServerLauncher(DevServerQuestion(hasPage: true, selected: last))
+        _ = press(.enter, .character("2"), on: &launcher)
+        #expect(launcher.selectedWindow == .minimized)
+        #expect(press(.enter, .enter, on: &launcher) == [.stay, .runDevServer(app, last)])
     }
 
     @Test func runsTheSelectedActionWithReturnOrRight() {

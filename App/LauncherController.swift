@@ -95,8 +95,10 @@ final class LauncherController {
                 for: project, usage: usage)
         } selection: { project, actions in
             config.actionOrder.selection(in: actions, for: project, usage: usage)
-        } devServerChoices: { project in
-            Self.pagePort(of: project, config: config) == nil ? [] : DevServerChoice.allCases
+        } devServerQuestion: { project in
+            DevServerQuestion(
+                hasPage: Self.pagePort(of: project, config: config) != nil,
+                selected: usage.lastDevServerStart(in: project) ?? .standard)
         } serverActions: { server in
             // An orphaned server's terminal pane is gone.
             ServerAction.allCases.filter {
@@ -231,17 +233,23 @@ final class LauncherController {
         }
     }
 
-    /// What the launcher calls a choice of what the dev server opens.
-    func title(of choice: DevServerChoice) -> String {
-        switch choice {
-        case .server: title(of: .devServer)
-        case .serverAndPage: "\(title(of: .devServer)), page in \(browser.map(Apps.name(of:)) ?? "the browser")"
+    /// What the launcher calls a place for the dev server's window, such as `Minimised in iTerm2`.
+    func title(of window: DevServerWindow) -> String {
+        let terminal = terminalName ?? "the terminal"
+        switch window {
+        case .shown: return "Window in \(terminal)"
+        case .minimized: return "Minimised in \(terminal)"
         }
     }
 
-    /// The address `choice` opens in `project`, to show next to it.
-    func address(of choice: DevServerChoice, in project: Project) -> String? {
-        choice == .serverAndPage ? Self.pagePort(of: project, config: config).map { "localhost:\($0)" } : nil
+    /// What the launcher calls opening the dev server's page too, or only the server.
+    func title(ofPage opensPage: Bool) -> String {
+        opensPage ? "And its page in \(browser.map(Apps.name(of:)) ?? "the browser")" : "Only the server"
+    }
+
+    /// The address of the page of `project`'s dev server, to show next to it.
+    func pageAddress(in project: Project) -> String? {
+        Self.pagePort(of: project, config: config).map { "localhost:\($0)" }
     }
 
     /// The port of the page of `project`'s development server, if the launcher can tell it.
@@ -414,7 +422,7 @@ final class LauncherController {
             log.info("Closed the launcher on a key")
             hide()
         case .run(let action, let project): run(action, on: project)
-        case .runDevServerWithPage(let project): run(.devServer, on: project, openingPage: true)
+        case .runDevServer(let project, let start): run(.devServer, on: project, devServer: start)
         case .openApp(let app): open(app)
         case .findFolder:
             pathFinder = PathFinder(
@@ -475,8 +483,10 @@ final class LauncherController {
         launcher.open(project)
     }
 
-    /// - Parameter openingPage: Whether to open the dev server's page once the server listens.
-    private func run(_ action: ProjectAction, on project: Project, openingPage: Bool = false) {
+    /// - Parameter devServer: How to start the dev server: its window in a column or in the Dock,
+    ///   and whether to open its page once the server listens.
+    private func run(_ action: ProjectAction, on project: Project, devServer: DevServerStart? = nil) {
+        let minimized = devServer?.window == .minimized
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: project.path, isDirectory: &isDirectory), isDirectory.boolValue
         else {
@@ -502,14 +512,15 @@ final class LauncherController {
             terminalController = controller
         }
         // The desktop app's window opens after a few steps, so it makes room then.
-        let placement = action == .claudeDesktop ? nil : newWindowPlacement(for: action)
+        let placement = action == .claudeDesktop || minimized ? nil : newWindowPlacement(for: action)
         placement?.moves.forEach(WindowMover.move)
         let frame = placement?.frame
         switch action {
         case .claude, .terminal, .devServer:
             guard let terminalController else { return }
             do {
-                try openTerminalWindow(with: terminalController, in: project.path, running: command, frame: frame)
+                try openTerminalWindow(
+                    with: terminalController, in: project.path, running: command, frame: frame, minimized: minimized)
             } catch {
                 fail(
                     "Could not open \(terminalController.name): \(error.launcherMessage(for: terminalController.name))")
@@ -531,9 +542,9 @@ final class LauncherController {
             }
             openDesktopWindow(in: project.path, app: app)
         }
-        if openingPage, let port = Self.pagePort(of: project, config: config) { openPage(at: port) }
+        if devServer?.opensPage == true, let port = Self.pagePort(of: project, config: config) { openPage(at: port) }
         log.info("Ran \(action.rawValue, privacy: .public) on a project")
-        usage.record(project.path, action: action)
+        usage.record(project.path, action: action, devServer: devServer)
         saveUsage()
         hide()
     }
@@ -570,15 +581,17 @@ final class LauncherController {
     }
 
     /// Opens a window of the terminal at `frame`, moving it there once it shows when the terminal
-    /// cannot place it itself.
+    /// cannot place it itself, or minimised in the Dock.
     private func openTerminalWindow(
-        with controller: any TerminalController, in directory: String?, running command: String?, frame: CGRect?
+        with controller: any TerminalController, in directory: String?, running command: String?, frame: CGRect?,
+        minimized: Bool = false
     ) throws(TerminalControlError) {
         let mover =
             controller.placesWindows
             ? nil : frame.map { WindowMover(bundleIdentifier: controller.bundleIdentifier, frame: $0) }
-        NSApp.yieldActivation(toApplicationWithBundleIdentifier: controller.bundleIdentifier)
-        try controller.openWindow(in: directory, running: command, frame: controller.placesWindows ? frame : nil)
+        if !minimized { NSApp.yieldActivation(toApplicationWithBundleIdentifier: controller.bundleIdentifier) }
+        try controller.openWindow(
+            in: directory, running: command, frame: controller.placesWindows ? frame : nil, minimized: minimized)
         mover?.moveNewWindow()
     }
 

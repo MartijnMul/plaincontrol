@@ -39,9 +39,9 @@ public struct TerminalAppController: TerminalController {
 
     @MainActor
     public func openWindow(
-        in directory: String?, running command: String? = nil, frame: CGRect? = nil
+        in directory: String?, running command: String? = nil, frame: CGRect? = nil, minimized: Bool = false
     ) throws(TerminalControlError) {
-        _ = try runScript(Self.openWindowScript(directory: directory, command: command))
+        _ = try runScript(Self.openWindowScript(directory: directory, command: command, minimized: minimized))
     }
 
     /// The tab's terminal device, when the session runs directly in Terminal.app.
@@ -57,7 +57,7 @@ public struct TerminalAppController: TerminalController {
         return tty
     }
 
-    static func openWindowScript(directory: String?, command: String?) -> String {
+    static func openWindowScript(directory: String?, command: String?, minimized: Bool = false) -> String {
         // `quoted form of` quotes the folder for the shell; the literals are quoted for AppleScript.
         let cd = directory.map { "\"cd \" & quoted form of " + AppleScript.literal($0) }
         let line = [cd, command.map(AppleScript.literal)].compactMap { $0 }.joined(separator: " & \" && \" & ")
@@ -65,14 +65,17 @@ public struct TerminalAppController: TerminalController {
         // when it starts, so a terminal that was not running uses that one instead of a second.
         // Without anything to type, that window stays as Terminal.app opened it.
         let inStartWindow = line.isEmpty ? "" : "\n            do script \(line) in window 1"
+        // Either way the window is the front one. A minimised window leaves Terminal.app in the
+        // background.
+        let activate = minimized ? "" : "\n    activate"
+        let minimize = minimized ? "\n    set miniaturized of window 1 to true" : ""
         return """
             set wasRunning to application id "\(Self.terminal)" is running
-            tell application id "\(Self.terminal)"
-                activate
+            tell application id "\(Self.terminal)"\(activate)
                 if not wasRunning and (count of windows) is 1 then\(inStartWindow)
                 else
                     do script \(line.isEmpty ? "\"\"" : line)
-                end if
+                end if\(minimize)
             end tell
             """
     }

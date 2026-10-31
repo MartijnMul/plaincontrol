@@ -11,7 +11,7 @@ public protocol TerminalController: Sendable {
     var bundleIdentifier: String { get }
     /// The name of the terminal app, such as `iTerm2`.
     var name: String { get }
-    /// Whether ``openWindow(in:running:frame:)`` puts the window at its frame. When it doesn't,
+    /// Whether ``openWindow(in:running:frame:minimized:)`` puts the window at its frame. When it doesn't,
     /// the caller moves the new window once it shows.
     var placesWindows: Bool { get }
 
@@ -25,10 +25,14 @@ public protocol TerminalController: Sendable {
     /// and runs `command` there, if any, through the user's shell, as if they had typed it.
     /// Starts the terminal when it is not running.
     ///
-    /// - Parameter frame: Where the window goes, in global coordinates from the top left of the
-    ///   main screen; without one, or when the terminal does not ``placesWindows``, the
-    ///   terminal decides.
-    @MainActor func openWindow(in directory: String?, running command: String?, frame: CGRect?)
+    /// - Parameters:
+    ///   - frame: Where the window goes, in global coordinates from the top left of the main
+    ///     screen; without one, or when the terminal does not ``placesWindows``, the terminal
+    ///     decides.
+    ///   - minimized: Whether the window goes to the Dock at once, leaving the terminal and its
+    ///     other windows where they are, such as for a dev server whose page is what the user
+    ///     looks at.
+    @MainActor func openWindow(in directory: String?, running command: String?, frame: CGRect?, minimized: Bool)
         throws(TerminalControlError)
 }
 

@@ -43,12 +43,40 @@ public enum AppWindow: String, CaseIterable, Sendable {
     case finder
 }
 
-/// What the dev server action asks next: whether to open the server's page too.
-public enum DevServerChoice: CaseIterable, Sendable {
-    /// Only the dev server, in a new terminal window.
-    case server
-    /// The dev server, and its page in a new tab of the browser once the server listens.
-    case serverAndPage
+/// Where the dev server's terminal window goes, the first thing the dev server action asks.
+public enum DevServerWindow: String, CaseIterable, Codable, Sendable {
+    /// In a free column, to watch it.
+    case shown
+    /// In the Dock at once, out of the way; the launcher's running servers bring it back.
+    case minimized
+}
+
+/// How to start a project's dev server.
+public struct DevServerStart: Equatable, Codable, Sendable {
+    public var window: DevServerWindow
+    /// Whether its page opens in the browser too, once the server listens.
+    public var opensPage: Bool
+
+    public init(window: DevServerWindow, opensPage: Bool) {
+        self.window = window
+        self.opensPage = opensPage
+    }
+
+    /// In a window of its own, without its page: what the dev server action offers first.
+    public static let standard = DevServerStart(window: .shown, opensPage: false)
+}
+
+/// What the dev server action of a project asks.
+public struct DevServerQuestion: Sendable {
+    /// Whether the launcher can tell the port of its page, so it asks about the page too.
+    public var hasPage: Bool
+    /// The answers selected when it asks, such as the ones given last time.
+    public var selected: DevServerStart
+
+    public init(hasPage: Bool, selected: DevServerStart = .standard) {
+        self.hasPage = hasPage
+        self.selected = selected
+    }
 }
 
 /// How the launcher orders a project's actions, set as `actionOrder` in the settings.
@@ -85,8 +113,9 @@ public enum ActionOrder: String, CaseIterable, Sendable {
 /// digit runs the action in that row. Left or Escape goes back to the list; Escape on the list
 /// without a search closes the launcher. Left on the list shows the apps it opens an empty
 /// window of: Up and Down select one, Return or Left runs it, a digit runs the one in that row,
-/// and Right or Escape goes back to the list. The dev server asks next whether to open its page too,
-/// in the same way, when the project offers that; Left or Escape goes back to the actions.
+/// and Right or Escape goes back to the list. The dev server asks next, in the same way, where its
+/// terminal window goes, in a column or in the Dock, and then, when the launcher knows the port
+/// of its page, whether to open the page too; Left or Escape goes back a step.
 ///
 /// Up on the top row of the list, pressed rather than held, shows the servers running in the
 /// projects (``RunningServers``), when there are any: Up and Down select one, Return opens its
@@ -97,8 +126,8 @@ public struct Launcher: Sendable {
     public typealias Actions = @Sendable (Project) -> [ProjectAction]
     /// The action selected when a project opens with these actions, or nil for the first one.
     public typealias Selection = @Sendable (Project, [ProjectAction]) -> ProjectAction?
-    /// What the dev server action of a project asks next; with fewer than two choices, it runs.
-    public typealias DevServerChoices = @Sendable (Project) -> [DevServerChoice]
+    /// What the dev server action of a project asks.
+    public typealias DevServerQuestions = @Sendable (Project) -> DevServerQuestion
     /// What can be done with a running server, in the order shown.
     public typealias ServerActions = @Sendable (RunningServer) -> [ServerAction]
 
@@ -110,8 +139,10 @@ public struct Launcher: Sendable {
     public enum Screen: Equatable, Sendable {
         case projects
         case project(Project)
-        /// What the dev server of the project should open.
+        /// Where the window of the project's dev server goes.
         case devServer(Project)
+        /// Whether the page of the project's dev server opens too, with its window going there.
+        case devServerPage(Project, DevServerWindow)
         /// The apps to open an empty window of.
         case apps
         /// The servers running in the projects.
@@ -125,8 +156,8 @@ public struct Launcher: Sendable {
         case stay
         case close
         case run(ProjectAction, Project)
-        /// Start the project's dev server and open its page.
-        case runDevServerWithPage(Project)
+        /// Start the project's dev server.
+        case runDevServer(Project, DevServerStart)
         /// Open an empty window of the app.
         case openApp(AppWindow)
         /// Find a folder to add as a project.
@@ -146,14 +177,16 @@ public struct Launcher: Sendable {
     public private(set) var items: [LauncherItem]
     private let actionsOf: Actions
     private let selectionOf: Selection
-    private let devServerChoicesOf: DevServerChoices
+    private let devServerQuestionOf: DevServerQuestions
     private let serverActionsOf: ServerActions
     /// The actions of the open project, in the order shown.
     public private(set) var actions: [ProjectAction] = []
     /// What the dev server of the open project asks, while it asks.
-    public private(set) var devServerChoices: [DevServerChoice] = []
-    /// The selected one of ``devServerChoices``.
-    public private(set) var choiceSelection = 0
+    public private(set) var devServerQuestion = DevServerQuestion(hasPage: false)
+    /// The selected one of ``DevServerWindow/allCases``.
+    public private(set) var windowSelection = 0
+    /// Whether the page is selected, rather than only the server.
+    public private(set) var pageSelected = false
     /// The apps the launcher opens an empty window of, in the order shown.
     public let apps: [AppWindow]
     /// The selected one of ``apps``.
@@ -185,18 +218,19 @@ public struct Launcher: Sendable {
     ///   - apps: The apps to open an empty window of; without any, Left on the list does nothing.
     ///   - actions: The actions a project offers, asked each time it opens.
     ///   - selection: The action selected when a project opens.
-    ///   - devServerChoices: What the dev server action asks next, asked each time it runs.
+    ///   - devServerQuestion: What the dev server action asks, asked each time it runs.
     ///   - serverActions: What can be done with a running server, asked each time it opens.
     public init(
         items: [LauncherItem], apps: [AppWindow] = [], actions: @escaping Actions,
-        selection: @escaping Selection = { _, _ in nil }, devServerChoices: @escaping DevServerChoices = { _ in [] },
+        selection: @escaping Selection = { _, _ in nil },
+        devServerQuestion: @escaping DevServerQuestions = { _ in DevServerQuestion(hasPage: false) },
         serverActions: @escaping ServerActions = { _ in ServerAction.allCases }
     ) {
         self.items = items
         self.apps = apps
         actionsOf = actions
         selectionOf = selection
-        devServerChoicesOf = devServerChoices
+        devServerQuestionOf = devServerQuestion
         serverActionsOf = serverActions
         visible = Self.rank(items, query: query)
     }
@@ -258,8 +292,9 @@ public struct Launcher: Sendable {
         apps.indices.contains(appSelection) ? apps[appSelection] : nil
     }
 
-    public var selectedChoice: DevServerChoice? {
-        devServerChoices.indices.contains(choiceSelection) ? devServerChoices[choiceSelection] : nil
+    /// Where the selected answer puts the dev server's window.
+    public var selectedWindow: DevServerWindow {
+        DevServerWindow.allCases[windowSelection]
     }
 
     /// - Parameter isRepeat: Whether the key is held down and repeats, which does not leave the
@@ -312,16 +347,29 @@ public struct Launcher: Sendable {
                 return run(actions[row], on: project)
             }
         case (.devServer, .up):
-            choiceSelection = max(choiceSelection - 1, 0)
+            windowSelection = 0
         case (.devServer, .down):
-            choiceSelection = min(choiceSelection + 1, max(devServerChoices.count - 1, 0))
+            windowSelection = DevServerWindow.allCases.count - 1
         case (.devServer(let project), .enter), (.devServer(let project), .right):
-            if let selectedChoice { return Self.outcome(of: selectedChoice, on: project) }
+            return choose(selectedWindow, for: project)
         case (.devServer(let project), .left), (.devServer(let project), .escape):
             screen = .project(project)
         case (.devServer(let project), .character(let character)):
-            if let row = Self.row(for: character), devServerChoices.indices.contains(row) {
-                return Self.outcome(of: devServerChoices[row], on: project)
+            if let row = Self.row(for: character), DevServerWindow.allCases.indices.contains(row) {
+                windowSelection = row
+                return choose(selectedWindow, for: project)
+            }
+        case (.devServerPage, .up):
+            pageSelected = false
+        case (.devServerPage, .down):
+            pageSelected = true
+        case (.devServerPage(let project, let window), .enter), (.devServerPage(let project, let window), .right):
+            return .runDevServer(project, DevServerStart(window: window, opensPage: pageSelected))
+        case (.devServerPage(let project, _), .left), (.devServerPage(let project, _), .escape):
+            screen = .devServer(project)
+        case (.devServerPage(let project, let window), .character(let character)):
+            if let row = Self.row(for: character), row < 2 {
+                return .runDevServer(project, DevServerStart(window: window, opensPage: row == 1))
             }
         case (.apps, .up):
             appSelection = max(appSelection - 1, 0)
@@ -368,30 +416,31 @@ public struct Launcher: Sendable {
                 return .serverAction(serverActions[row], server)
             }
         case (.servers, .left), (.servers, .backspace), (.server, .backspace), (.project, .backspace),
-            (.devServer, .backspace), (.apps, .backspace):
+            (.devServer, .backspace), (.devServerPage, .backspace), (.apps, .backspace):
             break
         }
         return .stay
     }
 
-    /// Runs `action`, or asks first what the dev server should open.
+    /// Runs `action`, or asks first how to start the dev server.
     private mutating func run(_ action: ProjectAction, on project: Project) -> Outcome {
         guard action == .devServer else { return .run(action, project) }
-        let choices = devServerChoicesOf(project)
-        guard choices.count > 1 else { return .run(action, project) }
         // Back from the question, the dev server stays selected.
         actionSelection = actions.firstIndex(of: action) ?? actionSelection
-        devServerChoices = choices
-        choiceSelection = 0
+        devServerQuestion = devServerQuestionOf(project)
+        windowSelection = DevServerWindow.allCases.firstIndex(of: devServerQuestion.selected.window) ?? 0
+        pageSelected = devServerQuestion.selected.opensPage
         screen = .devServer(project)
         return .stay
     }
 
-    private static func outcome(of choice: DevServerChoice, on project: Project) -> Outcome {
-        switch choice {
-        case .server: .run(.devServer, project)
-        case .serverAndPage: .runDevServerWithPage(project)
+    /// Puts the dev server's window at `window`, then asks about its page, when it has one.
+    private mutating func choose(_ window: DevServerWindow, for project: Project) -> Outcome {
+        guard devServerQuestion.hasPage else {
+            return .runDevServer(project, DevServerStart(window: window, opensPage: false))
         }
+        screen = .devServerPage(project, window)
+        return .stay
     }
 
     private mutating func enter(_ project: Project) {

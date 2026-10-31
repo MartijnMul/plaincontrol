@@ -21,7 +21,8 @@ struct LauncherView: View {
                 switch controller.launcher.screen {
                 case .projects: projectList
                 case .project(let project): actionList(for: project)
-                case .devServer(let project): choiceList(for: project)
+                case .devServer(let project): devServerWindowList(for: project)
+                case .devServerPage(let project, let window): devServerPageList(for: project, window: window)
                 case .apps: appList
                 case .servers: serverList
                 case .server(let server): serverActionList(for: server)
@@ -252,16 +253,50 @@ struct LauncherView: View {
         }
     }
 
+    /// The heading of the dev server's questions: the project, and the command with `detail`.
+    private func devServerHeader(for project: Project, detail: String? = nil) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(project.name).font(.title3.weight(.semibold))
+            HStack(spacing: 6) {
+                Text("Dev server")
+                if let command = controller.command(of: .devServer, in: project) {
+                    Text(command).font(.body.monospaced())
+                }
+                if let detail { Text(detail) }
+            }
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+        }
+        .padding(.horizontal, 10)
+    }
+
     @ViewBuilder
-    private func choiceList(for project: Project) -> some View {
-        header(for: project)
+    private func devServerWindowList(for project: Project) -> some View {
+        devServerHeader(for: project)
         VStack(spacing: 2) {
-            ForEach(Array(controller.launcher.devServerChoices.enumerated()), id: \.element) { index, choice in
-                row(selected: choice == controller.launcher.selectedChoice) {
+            ForEach(Array(DevServerWindow.allCases.enumerated()), id: \.element) { index, window in
+                row(selected: window == controller.launcher.selectedWindow) {
                     DigitCap(row: index)
-                    Text(controller.title(of: choice)).font(.title3)
+                    Text(controller.title(of: window)).font(.title3)
                     Spacer()
-                    if let address = controller.address(of: choice, in: project) {
+                    if controller.launcher.devServerQuestion.hasPage {
+                        Image(systemName: "chevron.right").opacity(0.7)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func devServerPageList(for project: Project, window: DevServerWindow) -> some View {
+        devServerHeader(for: project, detail: window == .minimized ? "· minimised" : "· in a window")
+        VStack(spacing: 2) {
+            ForEach(Array([false, true].enumerated()), id: \.element) { index, opensPage in
+                row(selected: opensPage == controller.launcher.pageSelected) {
+                    DigitCap(row: index)
+                    Text(controller.title(ofPage: opensPage)).font(.title3)
+                    Spacer()
+                    if opensPage, let address = controller.pageAddress(in: project) {
                         Text(address).font(.body.monospaced()).opacity(0.7)
                     }
                 }
@@ -329,7 +364,11 @@ struct LauncherView: View {
                 hint("↑↓", "Select")
                 hint("↩ ←", "Open")
                 hint("→ esc", "Back")
-            case .project, .devServer, .server:
+            case .devServer:
+                hint("↑↓", "Select")
+                hint("↩ →", controller.launcher.devServerQuestion.hasPage ? "Next" : "Run")
+                hint("← esc", "Back")
+            case .project, .devServerPage, .server:
                 hint("↑↓", "Select")
                 hint("↩ →", "Run")
                 hint("← esc", "Back")

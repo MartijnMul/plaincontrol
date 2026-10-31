@@ -13,23 +13,28 @@ public struct ProjectUsage: Codable, Sendable, Equatable {
         public var date: Date
         /// The launcher action, or nil for another use, such as a session start.
         public var action: ProjectAction?
+        /// How the dev server action started the dev server.
+        public var devServer: DevServerStart?
 
         enum CodingKeys: String, CodingKey {
             case path, date, action
+            case devServer = "dev_server"
         }
 
-        init(path: String, date: Date, action: ProjectAction?) {
+        init(path: String, date: Date, action: ProjectAction?, devServer: DevServerStart? = nil) {
             self.path = path
             self.date = date
             self.action = action
+            self.devServer = devServer
         }
 
-        /// Reads a use, leaving out an action this version doesn't know.
+        /// Reads a use, leaving out an action or answer this version doesn't know.
         public init(from decoder: any Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             path = try container.decode(String.self, forKey: .path)
             date = try container.decode(Date.self, forKey: .date)
             action = (try? container.decodeIfPresent(ProjectAction.self, forKey: .action)) ?? nil
+            devServer = (try? container.decodeIfPresent(DevServerStart.self, forKey: .devServer)) ?? nil
         }
     }
 
@@ -42,9 +47,12 @@ public struct ProjectUsage: Codable, Sendable, Equatable {
 
     public init() {}
 
-    /// Notes a use of `path`, by `action` when it comes from the launcher.
-    public mutating func record(_ path: String, action: ProjectAction? = nil, at date: Date = .now) {
-        uses.append(Use(path: (path as NSString).standardizingPath, date: date, action: action))
+    /// Notes a use of `path`, by `action` when it comes from the launcher, and how it started
+    /// the dev server when it did.
+    public mutating func record(
+        _ path: String, action: ProjectAction? = nil, devServer: DevServerStart? = nil, at date: Date = .now
+    ) {
+        uses.append(Use(path: (path as NSString).standardizingPath, date: date, action: action, devServer: devServer))
         if uses.count > Self.limit { uses.removeFirst(uses.count - Self.limit) }
     }
 
@@ -94,6 +102,11 @@ public struct ProjectUsage: Codable, Sendable, Equatable {
 
     private func weight(of use: Use, at now: Date) -> Double {
         pow(0.5, max(now.timeIntervalSince(use.date), 0) / Self.halfLife)
+    }
+
+    /// How the dev server of `project` was started last, so the launcher can offer the same.
+    public func lastDevServerStart(in project: Project) -> DevServerStart? {
+        uses.last { $0.devServer != nil && project.contains($0.path) }?.devServer
     }
 
     /// The last use of `project`, if any.

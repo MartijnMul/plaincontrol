@@ -80,7 +80,7 @@ Hold the right Option key on its own, or choose Open Launcher in the menu. Type 
 So **4** then **5** starts Claude Code in the fourth project. Actions for apps you don't have are left out. **←** on the list of projects opens an empty window of your terminal, browser or Finder instead. When a server still runs in one of your projects, such as a forgotten dev server, the launcher says so above the list, and **↑** on the top row lists them, to open their page, go to their terminal tab or stop them.
 
 - **Projects** come from where you use Claude Code and the launcher, most used first, and from [zoxide](https://github.com/ajeetdsouza/zoxide) if you use it. Nothing to set up.
-- **The dev server** is `make dev`, the `dev` script in `package.json`, `make run` or `docker compose up`, whichever the project has first. Set your own per project in the settings. When the launcher knows the port, it asks whether to open the page in your browser too.
+- **The dev server** is `make dev`, the `dev` script in `package.json`, `make run` or `docker compose up`, whichever the project has first. Set your own per project in the settings. It asks whether its window goes in a column or straight to the Dock and, when the launcher knows the port, whether to open the page in your browser too; next time, your answers are selected.
 - **Apps**: the terminal and editor you use most, and your default browser, until you choose others in the settings.
 - **New windows** go in columns across your screens, like a window manager, starting with the screen under the pointer. The settings set the columns, or turn it off.
 

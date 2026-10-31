@@ -263,10 +263,26 @@ import Testing
         #expect(usage.uses.map(\.action) == [nil, nil, .finder])
     }
 
+    @Test func remembersHowTheDevServerStartedLastInEachProject() throws {
+        var usage = ProjectUsage()
+        let app = Project(path: "/work/app")
+        let minimized = DevServerStart(window: .minimized, opensPage: true)
+        #expect(usage.lastDevServerStart(in: app) == nil)
+        usage.record("/work/app", action: .devServer, devServer: minimized, at: now)
+        usage.record("/work/app", action: .editor, at: now)
+        usage.record("/work/site", action: .devServer, devServer: .standard, at: now)
+        #expect(usage.lastDevServerStart(in: app) == minimized)
+        let json = #"{"uses":[{"path":"/work/app","date":0,"action":"devServer","dev_server":{"window":"gone"}}]}"#
+        let unknown = try JSONDecoder().decode(ProjectUsage.self, from: Data(json.utf8))
+        #expect(unknown.uses.map(\.action) == [.devServer])
+        #expect(unknown.lastDevServerStart(in: app) == nil)
+    }
+
     @Test func survivesEncoding() throws {
         var usage = ProjectUsage()
         usage.record("/work/app", at: now)
         usage.record("/work/app", action: .editor, at: now)
+        usage.record("/work/app", action: .devServer, devServer: DevServerStart(window: .minimized, opensPage: true))
         let decoded = try JSONDecoder().decode(ProjectUsage.self, from: JSONEncoder().encode(usage))
         #expect(decoded == usage)
     }

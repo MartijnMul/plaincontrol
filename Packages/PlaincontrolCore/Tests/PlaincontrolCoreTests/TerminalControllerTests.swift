@@ -37,6 +37,7 @@ import Testing
         try controller.focus(iTerm("w0t1p0:\(paneID)"))
         #expect(scripts.count == 1)
         #expect(scripts[0].contains("unique id of aSession is \"\(paneID)\""))
+        #expect(scripts[0].contains("set miniaturized of aWindow to false"))
     }
 
     @Test func reportsWhatTheScriptFound() {
@@ -99,6 +100,20 @@ import Testing
         #expect(scripts[0].contains("set bounds of newWindow to {-230, -1400, 610, -10}"))
         try controller.openWindow(in: "/work/app")
         #expect(!scripts[1].contains("bounds"))
+    }
+
+    @Test func opensAWindowMinimisedInTheBackground() throws {
+        var scripts: [String] = []
+        let controller = ITerm2Controller { script in
+            scripts.append(script)
+            return ""
+        }
+        try controller.openWindow(in: "/work/app", running: "make dev", minimized: true)
+        #expect(scripts[0].contains("set miniaturized of newWindow to true"))
+        #expect(!scripts[0].contains("activate"))
+        try controller.openWindow(in: "/work/app")
+        #expect(!scripts[1].contains("miniaturized"))
+        #expect(scripts[1].contains("activate"))
     }
 
     @Test func runsNoScriptForAnotherTerminal() {
@@ -188,11 +203,25 @@ import Testing
         #expect(!scripts[0].contains("bounds"))
     }
 
+    @Test func opensAWindowMinimisedInTheBackground() throws {
+        var scripts: [String] = []
+        let controller = TerminalAppController { script in
+            scripts.append(script)
+            return ""
+        }
+        try controller.openWindow(in: "/work/app", running: "make dev", minimized: true)
+        #expect(scripts[0].contains("set miniaturized of window 1 to true"))
+        #expect(!scripts[0].contains("activate"))
+        try controller.openWindow(in: "/work/app")
+        #expect(!scripts[1].contains("miniaturized"))
+    }
+
     @Test func writesScriptsThatCompile() throws {
         let scripts = [
             TerminalAppController.focusScript(tty: "/dev/ttys003"),
             TerminalAppController.openWindowScript(directory: "/work/app", command: "claude"),
             TerminalAppController.openWindowScript(directory: nil, command: nil),
+            TerminalAppController.openWindowScript(directory: "/work/app", command: "make dev", minimized: true),
         ]
         for source in scripts {
             var error: NSDictionary?
@@ -211,7 +240,7 @@ import Testing
 
         func canFocus(_ location: TerminalLocation) -> Bool { location.program == program }
         func focus(_ location: TerminalLocation) throws(TerminalControlError) { focused() }
-        func openWindow(in directory: String?, running command: String?, frame: CGRect?) {}
+        func openWindow(in directory: String?, running command: String?, frame: CGRect?, minimized: Bool) {}
     }
 
     @Test func picksTheControllerForTheTerminal() throws {
