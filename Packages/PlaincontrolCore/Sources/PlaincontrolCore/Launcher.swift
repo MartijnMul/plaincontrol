@@ -90,6 +90,13 @@ public enum AppWindow: String, CaseIterable, Sendable {
     case finder
 }
 
+/// A row of the launcher's apps screen: an empty window of an app, or a command the user set
+/// without a project.
+public enum AppItem: Hashable, Sendable {
+    case window(AppWindow)
+    case command(ProjectCommand)
+}
+
 /// Where the dev server's terminal window goes, the first thing the dev server action asks.
 public enum DevServerWindow: String, CaseIterable, Codable, Sendable {
     /// In a free column, to watch it.
@@ -159,8 +166,9 @@ public enum ActionOrder: String, CaseIterable, Sendable {
 /// An open project lists its actions: Up and Down select one, Return or Right runs it, and a
 /// digit runs the action in that row. Left or Escape goes back to the list; Escape on the list
 /// without a search closes the launcher. Left on the list shows the apps it opens an empty
-/// window of: Up and Down select one, Return or Left runs it, a digit runs the one in that row,
-/// and Right or Escape goes back to the list. The dev server asks next, in the same way, where its
+/// window of, and the user's commands without a project after them: Up and Down select one,
+/// Return or Left runs it, a digit runs the one in that row, and Right or Escape goes back to
+/// the list. The dev server asks next, in the same way, where its
 /// terminal window goes, in a column or in the Dock, and then, when the launcher knows the port
 /// of its page, whether to open the page too; Left or Escape goes back a step.
 ///
@@ -190,7 +198,7 @@ public struct Launcher: Sendable {
         case devServer(Project)
         /// Whether the page of the project's dev server opens too, with its window going there.
         case devServerPage(Project, DevServerWindow)
-        /// The apps to open an empty window of.
+        /// The apps to open an empty window of, and the commands without a project.
         case apps
         /// The servers running in the projects.
         case servers
@@ -207,6 +215,8 @@ public struct Launcher: Sendable {
         case runDevServer(Project, DevServerStart)
         /// Open an empty window of the app.
         case openApp(AppWindow)
+        /// Run a command without a project.
+        case runCommand(ProjectCommand)
         /// Find a folder to add as a project.
         case findFolder
         /// Do something with a running server.
@@ -234,8 +244,9 @@ public struct Launcher: Sendable {
     public private(set) var windowSelection = 0
     /// Whether the page is selected, rather than only the server.
     public private(set) var pageSelected = false
-    /// The apps the launcher opens an empty window of, in the order shown.
-    public let apps: [AppWindow]
+    /// The apps the launcher opens an empty window of, and then the commands without a
+    /// project, in the order shown.
+    public let apps: [AppItem]
     /// The selected one of ``apps``.
     public private(set) var appSelection = 0
     /// The servers running in the projects, in the order shown.
@@ -262,19 +273,21 @@ public struct Launcher: Sendable {
     }
 
     /// - Parameters:
-    ///   - apps: The apps to open an empty window of; without any, Left on the list does nothing.
+    ///   - apps: The apps to open an empty window of.
+    ///   - commands: The commands without a project, after the apps; without any of either, Left
+    ///     on the list does nothing.
     ///   - actions: The actions a project offers, asked each time it opens.
     ///   - selection: The action selected when a project opens.
     ///   - devServerQuestion: What the dev server action asks, asked each time it runs.
     ///   - serverActions: What can be done with a running server, asked each time it opens.
     public init(
-        items: [LauncherItem], apps: [AppWindow] = [], actions: @escaping Actions,
+        items: [LauncherItem], apps: [AppWindow] = [], commands: [ProjectCommand] = [], actions: @escaping Actions,
         selection: @escaping Selection = { _, _ in nil },
         devServerQuestion: @escaping DevServerQuestions = { _ in DevServerQuestion(hasPage: false) },
         serverActions: @escaping ServerActions = { _ in ServerAction.allCases }
     ) {
         self.items = items
-        self.apps = apps
+        self.apps = apps.map(AppItem.window) + commands.map(AppItem.command)
         actionsOf = actions
         selectionOf = selection
         devServerQuestionOf = devServerQuestion
@@ -335,7 +348,7 @@ public struct Launcher: Sendable {
         actions.indices.contains(actionSelection) ? actions[actionSelection] : nil
     }
 
-    public var selectedApp: AppWindow? {
+    public var selectedApp: AppItem? {
         apps.indices.contains(appSelection) ? apps[appSelection] : nil
     }
 
@@ -423,11 +436,11 @@ public struct Launcher: Sendable {
         case (.apps, .down):
             appSelection = min(appSelection + 1, max(apps.count - 1, 0))
         case (.apps, .enter), (.apps, .left):
-            if let selectedApp { return .openApp(selectedApp) }
+            if let selectedApp { return Self.open(selectedApp) }
         case (.apps, .right), (.apps, .escape):
             screen = .projects
         case (.apps, .character(let character)):
-            if let row = Self.row(for: character), apps.indices.contains(row) { return .openApp(apps[row]) }
+            if let row = Self.row(for: character), apps.indices.contains(row) { return Self.open(apps[row]) }
         case (.servers, .up):
             serverSelection = max(serverSelection - 1, 0)
         case (.servers, .down):
@@ -467,6 +480,13 @@ public struct Launcher: Sendable {
             break
         }
         return .stay
+    }
+
+    private static func open(_ item: AppItem) -> Outcome {
+        switch item {
+        case .window(let app): .openApp(app)
+        case .command(let command): .runCommand(command)
+        }
     }
 
     /// Runs `action`, or asks first how to start the dev server.

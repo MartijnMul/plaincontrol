@@ -112,6 +112,28 @@ import Testing
         #expect(press(.character("2"), on: &launcher) == [.stay])
     }
 
+    @Test func runsACommandWithoutAProjectFromTheLeft() {
+        let wake = ProjectCommand(name: "Wake Up Desktop", run: "wakeonlan 00:11:22:33:44:55")
+        let backup = ProjectCommand(name: "Backup", run: "make backup")
+        var launcher = Launcher(
+            items: [LauncherItem(project: app)], apps: [.terminal, .finder], commands: [wake, backup]
+        ) { _ in [.claude] }
+        #expect(launcher.apps == [.window(.terminal), .window(.finder), .command(wake), .command(backup)])
+        _ = press(.left, on: &launcher)
+        #expect(press(.down, .down, .enter, on: &launcher) == [.stay, .stay, .runCommand(wake)])
+        #expect(press(.down, .left, on: &launcher) == [.stay, .runCommand(backup)])
+        #expect(press(.character("3"), on: &launcher) == [.runCommand(wake)])
+        #expect(press(.character("1"), on: &launcher) == [.openApp(.terminal)])
+    }
+
+    @Test func showsTheCommandsWithoutAProjectWithoutApps() {
+        let wake = ProjectCommand(name: "Wake Up Desktop", run: "wakeonlan 00:11:22:33:44:55")
+        var launcher = Launcher(items: [LauncherItem(project: app)], commands: [wake]) { _ in [.claude] }
+        _ = press(.left, on: &launcher)
+        #expect(launcher.screen == .apps)
+        #expect(press(.enter, on: &launcher) == [.runCommand(wake)])
+    }
+
     @Test func opensAnEmptyWindowOfAnAppFromTheLeft() {
         var launcher = Launcher(items: [LauncherItem(project: app)], apps: AppWindow.allCases) { _ in [.claude] }
         #expect(press(.left, on: &launcher) == [.stay])

@@ -160,6 +160,38 @@ import Testing
         }
     }
 
+    @Test func readsTheCommandsWithoutAProjectInTheirOrder() throws {
+        let config = try LauncherConfigFile.parse(
+            """
+            commands:
+              - name: " Wake Up Desktop "
+                run: wakeonlan 00:11:22:33:44:55
+              - name: Backup
+                run: make -C ~/backup run
+            projects:
+              - path: /work/api
+                commands:
+                  - name: Backup
+                    run: make backup
+            """)
+        #expect(
+            config.globalCommands == [
+                ProjectCommand(name: "Wake Up Desktop", run: "wakeonlan 00:11:22:33:44:55"),
+                ProjectCommand(name: "Backup", run: "make -C ~/backup run"),
+            ])
+        #expect(
+            config.commands(for: Project(path: "/work/api")) == [ProjectCommand(name: "Backup", run: "make backup")])
+        #expect(try LauncherConfigFile.parse("commands:\n").globalCommands.isEmpty)
+    }
+
+    @Test func refusesACommandWithoutAProjectWithoutANameOrRunOrWithTheNameOfAnother() {
+        for commands in [
+            "  - run: wakeonlan a", "  - name: Wake", "  - name: Wake\n    run: a\n  - name: Wake\n    run: b",
+        ] {
+            #expect(throws: LauncherConfigError.self) { try LauncherConfigFile.parse("commands:\n\(commands)\n") }
+        }
+    }
+
     @Test func readsTheWindowLayout() throws {
         #expect(try LauncherConfigFile.parse("zoxide: true\n").windows == WindowLayout())
         #expect(try LauncherConfigFile.parse("windows: true\n").windows == WindowLayout())

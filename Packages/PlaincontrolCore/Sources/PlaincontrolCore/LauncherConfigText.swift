@@ -106,7 +106,7 @@ extension LauncherConfigFile {
     /// A setting in the file, in the template's order.
     enum Setting: String, CaseIterable {
         case holdKey, terminal, editor, browser, claudeCommand, actionOrder, zoxide, roots, activeDays, projects,
-            windows
+            commands, windows
 
         var key: String { rawValue }
 
@@ -168,6 +168,12 @@ extension LauncherConfigFile {
                     "# make dev or the package.json dev script, else make run or Docker Compose. Each of a",
                     "# project's commands is one more of its actions, run in a new terminal window.",
                 ]
+            case .commands:
+                [
+                    "# Commands without a project, such as one that wakes up another computer. The launcher",
+                    "# lists them with the apps, Left on its list, and runs each in a new terminal window in",
+                    "# your home folder.",
+                ]
             case .windows:
                 [
                     "# Where the windows the launcher opens go: every screen is split into columns, as a",
@@ -219,6 +225,11 @@ extension LauncherConfigFile {
                         }
                         return entry.enumerated().map { $0.offset == 0 ? "  - \($0.element)" : "    \($0.element)" }
                     }
+            case .commands:
+                ["commands:"]
+                    + config.globalCommands.flatMap { command in
+                        ["  - name: \(Self.scalar(command.name))", "    run: \(Self.scalar(command.run))"]
+                    }
             case .windows: config.windows.map(Self.lines(for:)) ?? ["windows: false"]
             }
         }
@@ -232,6 +243,7 @@ extension LauncherConfigFile {
             case .browser: config.browser == nil
             case .roots: config.roots.isEmpty
             case .projects: config.projects.isEmpty
+            case .commands: config.globalCommands.isEmpty
             case .holdKey, .claudeCommand, .actionOrder, .zoxide, .activeDays, .windows: false
             }
         }
@@ -248,6 +260,7 @@ extension LauncherConfigFile {
                     "#  - name: My App", "#    path: ~/Developer/my-app", "#    devCommand: uv run fastapi dev",
                     "#    commands:", "#      - name: Deploy", "#        run: make deploy",
                 ]
+            case .commands: ["#  - name: Wake Up Desktop", "#    run: wakeonlan 00:11:22:33:44:55"]
             case .holdKey, .claudeCommand, .actionOrder, .zoxide, .activeDays, .windows: []
             }
         }
@@ -267,6 +280,7 @@ extension LauncherConfigFile {
             case .projects:
                 a.projects == b.projects && a.projects.map(a.devCommand(for:)) == b.projects.map(b.devCommand(for:))
                     && a.projects.map(a.commands(for:)) == b.projects.map(b.commands(for:))
+            case .commands: a.globalCommands == b.globalCommands
             case .windows: a.windows == b.windows
             }
         }

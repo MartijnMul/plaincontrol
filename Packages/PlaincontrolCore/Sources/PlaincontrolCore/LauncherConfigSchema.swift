@@ -97,6 +97,21 @@ extension LauncherConfigFile.Setting {
                         ],
                     ], required: ["path"]),
             ]
+        case .commands:
+            schema = [
+                "type": ["array", "null"],
+                "items": Self.object(
+                    [
+                        "name": [
+                            "type": "string", "pattern": "\\S",
+                            "description": "What the launcher calls it; each command its own.",
+                        ],
+                        "run": [
+                            "type": "string", "pattern": "\\S",
+                            "description": "The shell command to run, in the home folder.",
+                        ],
+                    ], required: ["name", "run"]),
+            ]
         case .windows:
             let columns = LauncherConfigFile.columnRange
             let count: (String) -> [String: Any] = { note in

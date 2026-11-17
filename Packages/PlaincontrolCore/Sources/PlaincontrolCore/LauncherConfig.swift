@@ -51,6 +51,9 @@ public enum HoldKey: String, CaseIterable, Sendable {
 ///     commands:           # each one more action of the project, in a new terminal window
 ///       - name: Deploy
 ///         run: make deploy
+/// commands:             # commands without a project, on the launcher's apps screen
+///   - name: Wake Up Desktop
+///     run: wakeonlan 00:11:22:33:44:55
 /// windows:              # new windows in free columns, nearest the user first; false: each app places them
 ///   builtIn: 2          # columns on the built-in screen
 ///   external: 3         # columns on every other screen
@@ -89,6 +92,9 @@ public struct LauncherConfig: Sendable, Equatable {
     /// The commands the user set for projects, by their resolved paths, each one more action
     /// of its project.
     public var commands: [String: [ProjectCommand]] = [:]
+    /// The commands the user set without a project, in the order of the file, which the
+    /// launcher lists after the apps it opens an empty window of and runs in the home folder.
+    public var globalCommands: [ProjectCommand] = []
     /// How to arrange the windows the launcher opens, or nil to leave it to each app. Without
     /// the setting, they go in columns of the default layout.
     public var windows: WindowLayout? = WindowLayout()
@@ -98,7 +104,7 @@ public struct LauncherConfig: Sendable, Equatable {
         claudeCommand: String = "claude", actionOrder: ActionOrder = .fixed, zoxide: Bool = true, roots: [String] = [],
         activeDays: Int = 90,
         projects: [Project] = [], devCommands: [String: String] = [:], commands: [String: [ProjectCommand]] = [:],
-        windows: WindowLayout? = WindowLayout()
+        globalCommands: [ProjectCommand] = [], windows: WindowLayout? = WindowLayout()
     ) {
         self.holdKey = holdKey
         self.terminal = terminal
@@ -112,6 +118,7 @@ public struct LauncherConfig: Sendable, Equatable {
         self.projects = projects
         self.devCommands = devCommands
         self.commands = commands
+        self.globalCommands = globalCommands
         self.windows = windows
     }
 
@@ -128,9 +135,10 @@ public struct LauncherConfig: Sendable, Equatable {
 
 /// A command the user set for a project, which the launcher offers as one of its actions and
 /// runs in a new terminal window in the project's folder, such as a script that only that
-/// project needs.
+/// project needs; or one set without a project, which the launcher lists with the apps and
+/// runs in the home folder.
 public struct ProjectCommand: Sendable, Equatable, Hashable, Identifiable {
-    /// What the launcher calls it, which tells it from the project's other commands.
+    /// What the launcher calls it, which tells it from the other commands in its list.
     public var name: String
     /// The shell command it runs.
     public var run: String
@@ -220,17 +228,7 @@ public enum LauncherConfigFile {
             if let command = entry.devCommand?.trimmingCharacters(in: .whitespaces), !command.isEmpty {
                 devCommands[project.resolvedPath] = command
             }
-            let own = try (entry.commands ?? []).map { command throws(LauncherConfigError) in
-                let name = command.name?.trimmingCharacters(in: .whitespaces) ?? ""
-                let run = command.run?.trimmingCharacters(in: .whitespaces) ?? ""
-                guard !name.isEmpty, !run.isEmpty else {
-                    throw LauncherConfigError(message: "projects: every command needs a name and what to run.")
-                }
-                return ProjectCommand(name: name, run: run)
-            }
-            if Set(own.map(\.name)).count < own.count {
-                throw LauncherConfigError(message: "projects: the commands of a project need names of their own.")
-            }
+            let own = try parseCommands(entry.commands, in: "projects", of: "the commands of a project")
             if !own.isEmpty { commands[project.resolvedPath] = own }
             if seen.insert(project.path).inserted { projects.append(project) }
         }
@@ -239,7 +237,27 @@ public enum LauncherConfigFile {
             editor: editor?.isEmpty == false ? editor : nil, browser: browser?.isEmpty == false ? browser : nil,
             claudeCommand: claudeCommand, actionOrder: actionOrder,
             zoxide: file.zoxide ?? true, roots: file.roots ?? [], activeDays: file.activeDays ?? 90,
-            projects: projects, devCommands: devCommands, commands: commands, windows: windows)
+            projects: projects, devCommands: devCommands, commands: commands,
+            globalCommands: try parseCommands(file.commands, in: "commands", of: "the commands"), windows: windows)
+    }
+
+    /// The commands of a list in the file, each with a name and what to run, the names all
+    /// different; `setting` and `list` say where they are in an error.
+    private static func parseCommands(
+        _ entries: [Command]?, in setting: String, of list: String
+    ) throws(LauncherConfigError) -> [ProjectCommand] {
+        let commands = try (entries ?? []).map { command throws(LauncherConfigError) in
+            let name = command.name?.trimmingCharacters(in: .whitespaces) ?? ""
+            let run = command.run?.trimmingCharacters(in: .whitespaces) ?? ""
+            guard !name.isEmpty, !run.isEmpty else {
+                throw LauncherConfigError(message: "\(setting): every command needs a name and what to run.")
+            }
+            return ProjectCommand(name: name, run: run)
+        }
+        if Set(commands.map(\.name)).count < commands.count {
+            throw LauncherConfigError(message: "\(setting): \(list) need names of their own.")
+        }
+        return commands
     }
 
     /// Reads the configuration at `path`, or the defaults when there is no file yet.
@@ -281,6 +299,7 @@ public enum LauncherConfigFile {
         var roots: [String]?
         var activeDays: Int?
         var projects: [Entry]?
+        var commands: [Command]?
         var windows: WindowsSetting?
     }
 

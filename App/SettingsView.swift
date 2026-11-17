@@ -12,7 +12,7 @@ struct SettingsView: View {
     var body: some View {
         TabView {
             Tab("General", systemImage: "gearshape") {
-                SettingsPage(model: model, height: updater.isAvailable ? 800 : 660, restore: GeneralSettings.restore) {
+                SettingsPage(model: model, height: updater.isAvailable ? 850 : 710, restore: GeneralSettings.restore) {
                     GeneralSettings(model: model, updater: updater)
                 }
             }
@@ -207,8 +207,10 @@ private struct GeneralSettings: View {
     let model: SettingsModel
     @Bindable var updater: Updater
     @State private var isTrusted = LauncherHotkey.isAllowed
+    @State private var isEditingCommands = false
 
     static let restore = Restore(
+        keeps: "Your commands without a project stay.",
         isDone: { config in
             let defaults = SettingsModel.defaults
             return config.holdKey == defaults.holdKey && config.terminal == defaults.terminal
@@ -255,6 +257,17 @@ private struct GeneralSettings: View {
                 .monospaced()
                 .multilineTextAlignment(.leading)
                 .frame(width: 200)
+            }
+            LabeledContent {
+                let names = model.config.globalCommands.map(\.name)
+                Button(names.isEmpty ? "Add…" : names.joined(separator: ", ")) { isEditingCommands = true }
+                    .buttonStyle(.link)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .help(names.isEmpty ? "Add commands to run from the launcher" : "Edit the commands")
+            } label: {
+                Text("Commands without a project")
+                Text("Listed with the apps, Left on the launcher's list.")
             }
             Section {
                 Picker("Order of a project's actions", selection: model.binding(\.actionOrder)) {
@@ -311,6 +324,9 @@ private struct GeneralSettings: View {
             }
         }
         .formStyle(.grouped)
+        .sheet(isPresented: $isEditingCommands) {
+            CommandsSheet(model: model, project: nil)
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             isTrusted = LauncherHotkey.isAllowed
         }
@@ -691,11 +707,12 @@ private struct AdvancedSettings: View {
 }
 
 /// The + and − buttons below a list.
-/// The commands of a project: a list to put in order, with a form to add a command or change
-/// one.
+/// The commands of a project, or those without a project: a list to put in order, with a form
+/// to add a command or change one.
 private struct CommandsSheet: View {
     let model: SettingsModel
-    let project: Project
+    /// The project, or nil for the commands without a project.
+    let project: Project?
     /// The command being added or changed, while the form shows.
     @State private var draft: CommandDraft?
     @Environment(\.dismiss) private var dismiss
@@ -704,7 +721,7 @@ private struct CommandsSheet: View {
         Group {
             if let draft {
                 CommandForm(
-                    original: draft.original, project: project,
+                    original: draft.original, folder: project?.path ?? NSHomeDirectory(), isProject: project != nil,
                     takenNames: commands.map(\.name).filter { $0 != draft.original?.name },
                     save: save, delete: draft.original.map { original in { remove(original) } },
                     cancel: { self.draft = nil })
@@ -716,14 +733,30 @@ private struct CommandsSheet: View {
         .frame(width: 540)
     }
 
-    private var commands: [ProjectCommand] { model.config.commands(for: project) }
+    private var commands: [ProjectCommand] { commands(in: model.config) }
+
+    private func commands(in config: LauncherConfig) -> [ProjectCommand] {
+        project.map(config.commands(for:)) ?? config.globalCommands
+    }
+
+    /// Sets the commands in `config`.
+    private func set(_ commands: [ProjectCommand], in config: inout LauncherConfig) {
+        if let project {
+            config.commands[project.resolvedPath] = commands.isEmpty ? nil : commands
+        } else {
+            config.globalCommands = commands
+        }
+    }
 
     private var list: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Commands of \(project.name)").font(.title3.weight(.semibold))
+                Text(project.map { "Commands of \($0.name)" } ?? "Commands Without a Project")
+                    .font(.title3.weight(.semibold))
                 Text(
-                    "Each command is an action of the project in the launcher, after its dev server. It runs in a new terminal window in the project's folder."
+                    project == nil
+                        ? "The launcher lists these after the apps, Left on its list. Each runs in a new terminal window in your home folder."
+                        : "Each command is an action of the project in the launcher, after its dev server. It runs in a new terminal window in the project's folder."
                 )
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -733,7 +766,9 @@ private struct CommandsSheet: View {
                     Label("No Commands", systemImage: "terminal")
                 } description: {
                     Text(
-                        "Add one for something only this project needs, such as a deploy, or a script that wakes up a server and connects to it."
+                        project == nil
+                            ? "Add one for something you run now and then and would rather not remember, such as one that wakes up another computer."
+                            : "Add one for something only this project needs, such as a deploy, or a script that wakes up a server and connects to it."
                     )
                 } actions: {
                     Button("Add Command…") { draft = CommandDraft() }
@@ -775,30 +810,29 @@ private struct CommandsSheet: View {
     private func save(_ command: ProjectCommand) {
         let original = draft?.original
         model.change { config in
-            var commands = config.commands(for: project)
+            var commands = commands(in: config)
             if let original, let index = commands.firstIndex(of: original) {
                 commands[index] = command
             } else {
                 commands.append(command)
             }
-            config.commands[project.resolvedPath] = commands
+            set(commands, in: &config)
         }
         draft = nil
     }
 
     private func remove(_ command: ProjectCommand) {
         model.change { config in
-            let kept = config.commands(for: project).filter { $0 != command }
-            config.commands[project.resolvedPath] = kept.isEmpty ? nil : kept
+            set(commands(in: config).filter { $0 != command }, in: &config)
         }
         draft = nil
     }
 
     private func move(from source: IndexSet, to destination: Int) {
         model.change { config in
-            var commands = config.commands(for: project)
+            var commands = commands(in: config)
             commands.move(fromOffsets: source, toOffset: destination)
-            config.commands[project.resolvedPath] = commands
+            set(commands, in: &config)
         }
     }
 }
@@ -849,8 +883,11 @@ private struct CommandDraft {
 private struct CommandForm: View {
     /// The command it changes, or nil to add one.
     let original: ProjectCommand?
-    let project: Project
-    /// The names of the project's other commands, which this one can't take.
+    /// The folder it runs in.
+    let folder: String
+    /// Whether it is a project's command.
+    let isProject: Bool
+    /// The names of the other commands in its list, which this one can't take.
     let takenNames: [String]
     let save: (ProjectCommand) -> Void
     let delete: (() -> Void)?
@@ -863,11 +900,12 @@ private struct CommandForm: View {
     private enum Field { case name, run }
 
     init(
-        original: ProjectCommand?, project: Project, takenNames: [String], save: @escaping (ProjectCommand) -> Void,
-        delete: (() -> Void)?, cancel: @escaping () -> Void
+        original: ProjectCommand?, folder: String, isProject: Bool, takenNames: [String],
+        save: @escaping (ProjectCommand) -> Void, delete: (() -> Void)?, cancel: @escaping () -> Void
     ) {
         self.original = original
-        self.project = project
+        self.folder = folder
+        self.isProject = isProject
         self.takenNames = takenNames
         self.save = save
         self.delete = delete
@@ -895,7 +933,7 @@ private struct CommandForm: View {
                     Label(problem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                 } else {
                     Text(
-                        "Runs in a new terminal window in \((project.path as NSString).abbreviatingWithTildeInPath), which stays open when it ends."
+                        "Runs in a new terminal window in \((folder as NSString).abbreviatingWithTildeInPath), which stays open when it ends."
                     )
                     .foregroundStyle(.secondary)
                 }
@@ -922,7 +960,9 @@ private struct CommandForm: View {
 
     /// Why the command can't be saved yet, where that needs saying.
     private var problem: String? {
-        takenNames.contains(name) ? "Another command of this project is called “\(name)”." : nil
+        guard takenNames.contains(name) else { return nil }
+        return isProject
+            ? "Another command of this project is called “\(name)”." : "Another command is called “\(name)”."
     }
 
     /// The command to save, once it has a name of its own and something to run.

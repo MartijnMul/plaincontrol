@@ -89,7 +89,9 @@ final class LauncherController {
         let config = config
         let usage = usage
         let terminals = terminals
-        launcher = Launcher(items: items(), apps: AppWindow.allCases.filter(canOpen)) { project in
+        launcher = Launcher(
+            items: items(), apps: AppWindow.allCases.filter(canOpen), commands: config.globalCommands
+        ) { project in
             config.actionOrder.order(
                 offered.filter { $0 != .devServer || Self.devCommand(for: project, config: config) != nil }
                     + config.commands(for: project).map { .command($0.name) },
@@ -429,6 +431,7 @@ final class LauncherController {
         case .run(let action, let project): run(action, on: project)
         case .runDevServer(let project, let start): run(.devServer, on: project, devServer: start)
         case .openApp(let app): open(app)
+        case .runCommand(let command): run(command)
         case .findFolder:
             pathFinder = PathFinder(
                 folder: NSHomeDirectory(), home: NSHomeDirectory(), list: ProjectFolders.subfolders(of:))
@@ -595,6 +598,24 @@ final class LauncherController {
             openFolderWindow(home, frame: placement?.frame)
         }
         log.info("Opened an empty \(app.rawValue, privacy: .public) window")
+        hide()
+    }
+
+    /// Runs a command without a project in a new terminal window in the home folder, in a free
+    /// column as a project's command.
+    private func run(_ command: ProjectCommand) {
+        guard let controller = openableTerminal() else { return }
+        let placement = newWindowPlacement(for: .command(command.name))
+        placement?.moves.forEach(WindowMover.move)
+        do {
+            try openTerminalWindow(
+                with: controller, in: NSHomeDirectory(), running: command.run, frame: placement?.frame)
+        } catch {
+            fail("Could not open \(controller.name): \(error.launcherMessage(for: controller.name))")
+            return
+        }
+        // A command's name is the user's own.
+        log.info("Ran a command without a project")
         hide()
     }
 

@@ -22,6 +22,10 @@ import Testing
                 ProjectCommand(name: "Deploy", run: "make deploy"),
             ]
         ],
+        globalCommands: [
+            ProjectCommand(name: "Wake Up Desktop", run: "wakeonlan 00:11:22:33:44:55"),
+            ProjectCommand(name: "Off", run: "ssh desktop 'sudo shutdown -h now'"),
+        ],
         windows: WindowLayout(
             builtInColumns: 1, externalColumns: 4, gap: 12.5, editorBuiltInColumns: 1, editorExternalColumns: 3))
 
@@ -57,6 +61,16 @@ import Testing
         #expect(text.contains("\n      - name: Deploy\n        run: make deploy\n"))
     }
 
+    @Test func writesTheCommandsWithoutAProjectAfterTheProjects() throws {
+        let text = LauncherConfigFile.render(Self.everything)
+        #expect(text.contains("\ncommands:\n  - name: Wake Up Desktop\n    run: \"wakeonlan 00:11:22:33:44:55\"\n"))
+        #expect(text.contains("\n  - name: \"Off\"\n"))
+        let template = LauncherConfigFile.template
+        let commands = try #require(template.range(of: "\ncommands:\n#  - name: Wake Up Desktop\n"))
+        #expect(try #require(template.range(of: "\nprojects:\n")).lowerBound < commands.lowerBound)
+        #expect(commands.upperBound < (try #require(template.range(of: "\nwindows:\n"))).lowerBound)
+    }
+
     @Test func quotesWhatYAMLWouldReadOtherwise() throws {
         for value in [
             "true", "No", "~", "42", "1.5", "a: b", "a # b", "- a", "[a]", "\"quoted\"", "back\\slash",
@@ -87,6 +101,7 @@ import Testing
             config.projects = source.projects
             config.devCommands = source.devCommands
             config.commands = source.commands
+        case .commands: config.globalCommands = source.globalCommands
         case .windows: config.windows = source.windows
         }
         return config
@@ -278,6 +293,7 @@ import Testing
         #expect(Set(Setting.allCases.map(\.key)) == Self.keys(of: LauncherConfigFile.File()))
         #expect(Set(try properties("projects").keys) == Self.keys(of: LauncherConfigFile.Entry(path: "")))
         #expect(Set(try properties("projects", "commands").keys) == Self.keys(of: LauncherConfigFile.Command()))
+        #expect(Set(try properties("commands").keys) == Self.keys(of: LauncherConfigFile.Command()))
         #expect(Set(try properties("windows").keys) == Self.keys(of: LauncherConfigFile.Windows()))
         #expect(Set(try properties("windows", "editor").keys) == Self.keys(of: LauncherConfigFile.Columns()))
         #expect(schema["additionalProperties"] as? Bool == false)

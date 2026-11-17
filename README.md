@@ -78,7 +78,7 @@ Hold the right Option key on its own, or choose Open Launcher in the menu. Type 
 | 6 | The dev server, when the project has one |
 | 7… | Your own commands for the project, from the settings |
 
-So **4** then **5** starts Claude Code in the fourth project. Actions for apps you don't have are left out. **←** on the list of projects opens an empty window of your terminal, browser or Finder instead. When a server still runs in one of your projects, such as a forgotten dev server, the launcher says so above the list, and **↑** on the top row lists them, to open their page, go to their terminal tab or stop them.
+So **4** then **5** starts Claude Code in the fourth project. Actions for apps you don't have are left out. **←** on the list of projects opens an empty window of your terminal, browser or Finder instead, or runs one of your commands without a project. When a server still runs in one of your projects, such as a forgotten dev server, the launcher says so above the list, and **↑** on the top row lists them, to open their page, go to their terminal tab or stop them.
 
 - **Projects** come from where you use Claude Code and the launcher, most used first, and from [zoxide](https://github.com/ajeetdsouza/zoxide) if you use it. Nothing to set up.
 - **The dev server** is `make dev`, the `dev` script in `package.json`, `make run` or `docker compose up`, whichever the project has first. Set your own per project in the settings. It asks whether its window goes in a column or straight to the Dock and, when the launcher knows the port, whether to open the page in your browser too; next time, your answers are selected.
@@ -90,6 +90,14 @@ So **4** then **5** starts Claude Code in the fourth project. Actions for apps y
       commands:
         - name: Deploy
           run: make deploy
+  ```
+
+  Commands without a project, such as one that wakes up another computer, go in Settings › General, or under `commands` at the top of `settings.yaml`. The launcher lists them after the apps, on **←**, and runs each in a new terminal window in your home folder.
+
+  ```yaml
+  commands:
+    - name: Wake Up Desktop
+      run: wakeonlan 00:11:22:33:44:55
   ```
 - **Apps**: the terminal and editor you use most, and your default browser, until you choose others in the settings.
 - **New windows** go in columns across your screens, like a window manager, starting with the screen under the pointer. The settings set the columns, or turn it off.

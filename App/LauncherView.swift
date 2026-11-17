@@ -239,17 +239,30 @@ struct LauncherView: View {
     private var appList: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("Apps").font(.title3.weight(.semibold))
-            Text("A new window, without a project").foregroundStyle(.secondary)
+            Text("Without a project").foregroundStyle(.secondary)
         }
         .padding(.horizontal, 10)
         VStack(spacing: 2) {
-            ForEach(Array(controller.launcher.apps.enumerated()), id: \.element) { index, app in
-                row(selected: app == controller.launcher.selectedApp) {
+            ForEach(Array(controller.launcher.apps.enumerated()), id: \.element) { index, item in
+                row(selected: item == controller.launcher.selectedApp) {
                     DigitCap(row: index)
-                    Text(controller.title(of: app)).font(.title3)
-                    Spacer()
+                    switch item {
+                    case .window(let app):
+                        Text(controller.title(of: app)).font(.title3)
+                        Spacer()
+                    case .command(let command):
+                        Text(command.name).font(.title3).layoutPriority(1)
+                        Spacer()
+                        Text(command.run).font(.body.monospaced()).opacity(0.7).lineLimit(1).truncationMode(.tail)
+                    }
                 }
             }
+        }
+        if let notice = controller.notice {
+            Text(notice)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 10)
         }
     }
 
