@@ -265,6 +265,18 @@ import Testing
         #expect(usage.lastUse(of: site) == nil)
     }
 
+    @Test func takesTheUsesOfEachFolderTogether() {
+        var usage = ProjectUsage()
+        usage.record("/work/app", at: now - 7 * day)
+        usage.record("/work/site", at: now - day)
+        usage.record("/work/app", at: now)
+        let folders = Dictionary(uniqueKeysWithValues: usage.folders(at: now).map { ($0.path, $0) })
+        #expect(folders.keys.sorted() == ["/work/app", "/work/site"])
+        #expect(folders["/work/app"]?.score == 1.5)
+        #expect(folders["/work/app"]?.lastUse == now)
+        #expect(folders["/work/site"]?.lastUse == now - day)
+    }
+
     @Test func listsEachFolderOnceMostRecentFirst() {
         var usage = ProjectUsage()
         usage.record("/work/app", at: now)

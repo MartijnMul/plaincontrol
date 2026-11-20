@@ -75,7 +75,12 @@ public enum ProjectCatalog {
             .filter { seen.insert($0.resolvedPath.lowercased()).inserted }
         let activeSince = now.addingTimeInterval(-Double(config.activeDays) * 24 * 3600)
         let running = sessions.filter { $0.status != .gone }
-        let uses = Dictionary(projects.map { ($0.path, usage.score(of: $0, at: now)) }, uniquingKeysWith: { a, _ in a })
+        // Each project looks at the folders used rather than at every use, which can be many.
+        let used = usage.folders(at: now)
+        let ownUse = Dictionary(
+            projects.map { project in (project.path, used.filter { project.contains($0.path) }) },
+            uniquingKeysWith: { a, _ in a })
+        let uses = ownUse.mapValues { $0.map(\.score).reduce(0, +) }
         let bestVisits = visits.values.max() ?? 0
         let bestUses = uses.values.max() ?? 0
 
@@ -83,7 +88,7 @@ public enum ProjectCatalog {
             let own = running.filter { $0.cwd.map(project.contains) ?? false }
             let state: LauncherItem.Sessions =
                 own.contains { $0.status.needsAttention } ? .waiting : own.isEmpty ? .none : .running
-            let lastActivity = [lastChanges[project.path] ?? nil, usage.lastUse(of: project)]
+            let lastActivity = [lastChanges[project.path] ?? nil, ownUse[project.path]?.map(\.lastUse).max()]
                 .compactMap(\.self)
                 .max()
             let visited = visits[project.resolvedPath]

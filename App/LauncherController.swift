@@ -29,6 +29,7 @@ final class LauncherController {
     @ObservationIgnored private var folders: [ProjectFolder] = []
     @ObservationIgnored private var lastScan: Date?
     @ObservationIgnored private var isScanning = false
+    @ObservationIgnored private var isRelistPending = false
     @ObservationIgnored private var zoxide: [Zoxide.Entry] = []
     @ObservationIgnored private var isAskingZoxide = false
     @ObservationIgnored private var usage: ProjectUsage
@@ -375,10 +376,22 @@ final class LauncherController {
         Task {
             for await folder in ProjectFolders.scan(paths) {
                 if let index = folders.firstIndex(where: { $0.path == folder.path }) { folders[index] = folder }
-                if isShown { launcher.update(items: items()) }
+                relistSoon()
             }
             lastScan = .now
             isScanning = false
+        }
+    }
+
+    /// Lists the projects again shortly, once for all the folder dates that come in until then:
+    /// they mostly come in together, and the keys wait while the list is made.
+    private func relistSoon() {
+        guard isShown, !isRelistPending else { return }
+        isRelistPending = true
+        Task {
+            try? await Task.sleep(for: .milliseconds(50))
+            isRelistPending = false
+            if isShown { launcher.update(items: items()) }
         }
     }
 

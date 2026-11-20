@@ -113,4 +113,25 @@ public struct ProjectUsage: Codable, Sendable, Equatable {
     public func lastUse(of project: Project) -> Date? {
         uses.last { project.contains($0.path) }?.date
     }
+
+    /// The uses of one folder taken together.
+    public struct FolderUse: Sendable, Equatable {
+        public var path: String
+        /// Its uses weighed as ``score(of:at:)`` weighs them, added up.
+        public var score: Double
+        public var lastUse: Date
+    }
+
+    /// Every folder used, with its uses taken together, for ranking many projects at once:
+    /// there are far fewer folders than uses.
+    public func folders(at now: Date = .now) -> [FolderUse] {
+        var folders: [String: FolderUse] = [:]
+        for use in uses {
+            var folder = folders[use.path] ?? FolderUse(path: use.path, score: 0, lastUse: use.date)
+            folder.score += weight(of: use, at: now)
+            folder.lastUse = max(folder.lastUse, use.date)
+            folders[use.path] = folder
+        }
+        return Array(folders.values)
+    }
 }

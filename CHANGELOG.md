@@ -2,6 +2,10 @@
 
 What changes in each release of Plaincontrol. Versions follow [Semantic Versioning](https://semver.org): most releases raise the last number; the middle one goes up for a bigger feature or a change to how Plaincontrol is installed or configured, which the release says.
 
+## Unreleased
+
+- The launcher no longer lags at the keys after it opens, which got worse as your history grew.
+
 ## 0.7.1 — 2026-11-17
 
 - Commands without a project, set in Settings › General, run from the launcher's apps on Left.
